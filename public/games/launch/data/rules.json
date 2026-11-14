@@ -6,6 +6,10 @@
     "normal":  { "greenPct": 15, "yellowPct": 5 },
     "dificil": { "greenPct": 20, "yellowPct": 8 }
   },
+  "reliability": {
+    "_about": "Por debajo de warnBelow la verificación muestra un aviso amarillo (no bloquea: aceptar riesgo es una decisión válida, por ejemplo para un CubeSat barato).",
+    "warnBelow": 0.9
+  },
   "physics": {
     "_about": "Constantes simplificadas. upperStageExhaustKmS ~ velocidad de escape de gases de una etapa superior típica (Isp ~340 s). leoOrbitalSpeedKmS: velocidad en órbita baja. gtoApogeeSpeedKmS y geoSpeedKmS: para calcular el empujón que necesita la nave para pasar de GTO a GEO.",
     "upperStageExhaustKmS": 3.33,

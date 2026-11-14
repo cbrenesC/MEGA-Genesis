@@ -1,7 +1,153 @@
-<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Space Mission · Lanzamiento</title><style>body{margin:0;background:#0a1524;color:#eaf4ff;font:16px system-ui}header,section{padding:14px;max-width:1000px;margin:auto}a{color:#9eeaff}main{max-width:1000px;margin:auto;display:grid;grid-template-columns:1fr 280px;gap:16px;padding:12px}canvas{width:100%;background:#081321;border:1px solid #4c7089;image-rendering:pixelated}aside{background:#14273b;padding:16px;border-radius:10px}label{display:block;margin:14px 0}input{width:100%}button{padding:12px;border:0;border-radius:6px;background:#73ddcf;color:#092029;font-weight:bold;cursor:pointer}button:disabled{opacity:.4}#log{min-height:90px;line-height:1.5}@media(max-width:700px){main{grid-template-columns:1fr}}</style><header><a href="/">← Volver al complejo</a><h1>01 · Lanzamiento espacial</h1><p>Configura combustible, empuje y ángulo. Supera el ascenso sin agotar el combustible ni exceder los límites de seguridad.</p></header><main><canvas id="view" width="640" height="560" aria-label="Simulación de lanzamiento"></canvas><aside><label>Combustible inicial <output id="fuelValue">85</output>%<input id="fuel" type="range" min="50" max="100" value="85"></label><label>Empuje <output id="thrustValue">85</output>%<input id="thrust" type="range" min="60" max="100" value="85"></label><label>Ángulo <output id="angleValue">0</output>°<input id="angle" type="range" min="-15" max="15" value="0"></label><button id="start">INICIAR LANZAMIENTO</button><p id="telemetry">ALT 0 km · VEL 0 m/s</p><p id="log" role="status">Objetivo: alcanzar 100 km de altitud.</p><button id="reset">REINICIAR</button></aside></main><script>
-const c=document.getElementById('view'),ctx=c.getContext('2d'),els=Object.fromEntries(['fuel','thrust','angle'].map(k=>[k,document.getElementById(k)]));let state='ready',alt=0,vel=0,fuel=85,x=320,clock=0,last=0,stars=Array.from({length:65},(_,i)=>({x:(i*97)%640,y:(i*179)%500}));for(const k of Object.keys(els))els[k].oninput=()=>document.getElementById(k+'Value').textContent=els[k].value;
-function message(s){document.getElementById('log').textContent=s}
-document.getElementById('start').onclick=()=>{state='flight';alt=0;vel=0;x=320;clock=0;fuel=+els.fuel.value;for(const e of Object.values(els))e.disabled=true;document.getElementById('start').disabled=true;message('Despegue autorizado. Monitoreando trayectoria...')};
-document.getElementById('reset').onclick=()=>{state='ready';alt=vel=clock=0;x=320;fuel=+els.fuel.value;for(const e of Object.values(els))e.disabled=false;document.getElementById('start').disabled=false;message('Sistema listo. Ajusta los parámetros.')};
-function frame(t){let dt=Math.min((t-last)/1000||0,.05);last=t;if(state==='flight'){clock+=dt;let power=+els.thrust.value/100,angle=+els.angle.value*Math.PI/180;fuel=Math.max(0,fuel-dt*(.65+power*.65));let accel=(power*24*(fuel>0?1:0)*Math.cos(angle)-9.81);vel=Math.max(-80,vel+accel*dt);alt=Math.max(0,alt+vel*dt*.12);x+=Math.sin(angle)*vel*dt*.08;if(Math.abs(x-320)>210){state='failed';message('Misión fallida: desviación excesiva de la trayectoria.')}else if(alt>=100){state='won';message('¡Misión completada! Alcanzaste la línea de Kármán (100 km).')}else if(alt===0&&clock>4&&vel<=0||fuel===0&&vel<=0){state='failed';message('Misión fallida: empuje o combustible insuficiente.')}}ctx.fillStyle=alt>45?'#06101e':'#153753';ctx.fillRect(0,0,640,560);ctx.fillStyle='#eaf7ff';for(const s of stars){ctx.fillRect(s.x,s.y,2,2)}let ground=Math.max(540,540+alt*4);ctx.fillStyle='#647681';ctx.fillRect(0,ground,640,30);let rocketY=Math.max(90,470-alt*3.4);ctx.save();ctx.translate(x,rocketY);ctx.rotate(+els.angle.value*Math.PI/180);ctx.fillStyle='#edf2f5';ctx.fillRect(-12,-46,24,76);ctx.fillStyle='#e66b4c';ctx.beginPath();ctx.moveTo(-12,-46);ctx.lineTo(0,-70);ctx.lineTo(12,-46);ctx.fill();ctx.fillRect(-25,12,13,22);ctx.fillRect(12,12,13,22);ctx.fillStyle='#62c7e6';ctx.fillRect(-7,-27,14,14);if(state==='flight'&&fuel>0){ctx.fillStyle='#ffc66b';ctx.fillRect(-8,30,16,20+Math.random()*24)}ctx.restore();ctx.fillStyle='#e8f6ff';ctx.font='17px monospace';ctx.fillText('SPACE MISSION // LAUNCH',18,30);ctx.fillText('ALT '+alt.toFixed(1)+' km',18,58);ctx.fillText('FUEL '+fuel.toFixed(1)+'%',18,83);document.getElementById('telemetry').textContent='ALT '+alt.toFixed(1)+' km · VEL '+vel.toFixed(1)+' m/s · FUEL '+fuel.toFixed(0)+'%';requestAnimationFrame(frame)}requestAnimationFrame(frame);
-</script></html>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07111d">
+  <title>Space Mission · Lanzamiento</title>
+  <script>
+    // Las rutas del módulo son relativas: si se abre /games/launch sin barra final, la agregamos.
+    if (!/\/$|\.html$/.test(location.pathname)) location.replace(location.pathname + '/' + location.search + location.hash);
+  </script>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="top">
+    <a class="back" href="/">← Volver al complejo</a>
+    <div class="title">
+      <span class="kicker">MÓDULO 01 · SEGMENTO DE LANZAMIENTO</span>
+      <h1>Lanzamiento espacial</h1>
+      <p>El cohete no es un trámite: decide cuánto puede pesar tu nave, adónde puede ir, cuánto cuesta la misión y qué tan arriesgada es.</p>
+    </div>
+    <div class="top-badges">
+      <span class="badge approx" title="Todas las cifras están redondeadas o simplificadas para el juego. Las fuentes están en data/launchers.json.">⚠ Cifras simplificadas y aproximadas</span>
+      <span class="badge role" id="role-badge">ROL: Lanzamiento / Planificación de misión</span>
+    </div>
+  </header>
+
+  <nav class="steps" aria-label="Pasos del módulo">
+    <button data-step="mission" class="is-active"><b>1</b> Misión</button>
+    <button data-step="catalog"><b>2</b> Lanzador</button>
+    <button data-step="check"><b>3</b> Compatibilidad</button>
+    <button data-step="launch"><b>4</b> Lanzamiento</button>
+    <button data-step="result"><b>5</b> Resultado</button>
+  </nav>
+
+  <div class="layout">
+    <main id="main">
+      <p class="loading" id="loading">Cargando datos de lanzadores…</p>
+
+      <!-- Paso 1: datos que llegan de otros módulos -->
+      <section id="step-mission" class="step" hidden>
+        <div class="grid-2">
+          <article class="card" id="mission-card"></article>
+          <article class="card">
+            <h2>Configuración</h2>
+            <label class="field" id="scenario-field">
+              <span>Escenario de práctica <small class="tag mock">MOCK</small></span>
+              <select id="scenario"></select>
+              <small>Se usa mientras los módulos de nave, órbita y presupuesto no publiquen sus datos.</small>
+            </label>
+            <fieldset class="field difficulty" id="difficulty"><legend>Dificultad</legend></fieldset>
+            <label class="check-row"><input type="checkbox" id="team-mode"> <span><b>Modo equipo</b> — antes de confirmar, los roles afectados deben dar su visto bueno.</span></label>
+          </article>
+        </div>
+        <article class="card explainer">
+          <h2>¿Qué hace este módulo?</h2>
+          <p>Según NASA, el <b>segmento de lanzamiento</b> es el vehículo y los servicios que ponen la misión en el espacio. Aquí vas a:</p>
+          <ol>
+            <li>Comparar lanzadores reales (con cifras simplificadas).</li>
+            <li>Comprobar que tu nave <b>quepa</b> en el cohete: masa, volumen, destino y presupuesto.</li>
+            <li>Simular el lanzamiento y entregar el resultado al siguiente módulo.</li>
+          </ol>
+          <button class="primary" data-go="catalog">Elegir lanzador →</button>
+        </article>
+      </section>
+
+      <!-- Paso 2: catálogo y estudio de compromisos -->
+      <section id="step-catalog" class="step" hidden>
+        <article class="card" id="destination-card"></article>
+        <div class="catalog-toolbar">
+          <h2>Catálogo de lanzadores <button class="term" data-term="carga-util" aria-label="¿Qué es la capacidad de carga?">?</button></h2>
+          <label class="check-row"><input type="checkbox" id="only-compatible"> Mostrar solo compatibles</label>
+        </div>
+        <div class="catalog" id="catalog"></div>
+        <article class="card">
+          <h2>Comparación de opciones compatibles <button class="term" data-term="trade" aria-label="¿Qué es un trade study?">?</button></h2>
+          <p class="muted">No hay una única respuesta correcta: cada opción gana en algo y pierde en otra cosa.</p>
+          <div class="table-wrap" id="trade-table"></div>
+        </article>
+      </section>
+
+      <!-- Paso 3: verificación de compatibilidad -->
+      <section id="step-check" class="step" hidden>
+        <article class="card" id="check-header"></article>
+        <div class="grid-2">
+          <article class="card" id="mass-card"></article>
+          <article class="card" id="fairing-card"></article>
+        </div>
+        <article class="card" id="checks-card"></article>
+        <article class="card" id="offload-card" hidden></article>
+        <article class="card suggestions" id="suggestions-card" hidden></article>
+        <article class="card team" id="team-card" hidden></article>
+        <div class="actions">
+          <button data-go="catalog">← Cambiar lanzador</button>
+          <button class="primary" id="confirm">Confirmar lanzador</button>
+          <span class="muted" id="confirm-why"></span>
+        </div>
+      </section>
+
+      <!-- Paso 4: secuencia simulada -->
+      <section id="step-launch" class="step" hidden>
+        <div class="launch-grid">
+          <div class="screen">
+            <canvas id="sequence" width="720" height="440" aria-label="Animación de la secuencia de lanzamiento"></canvas>
+            <div class="actions">
+              <button class="primary big" id="launch-btn">🚀 ¡LANZAR!</button>
+              <button id="skip-btn" disabled>Saltar animación</button>
+            </div>
+          </div>
+          <aside class="card">
+            <h2>Antes de lanzar</h2>
+            <div id="odds"></div>
+            <label class="check-row"><input type="checkbox" id="events-toggle"> <span><b>Eventos aleatorios</b> (clima, anomalías, fallas). Sin ellos, el lanzamiento sale como lo planeado.</span></label>
+            <label class="field inline"><span>Semilla</span><input id="seed" type="number" min="1" step="1"><button id="seed-new" title="Nueva semilla">🎲</button></label>
+            <small class="muted">La misma semilla repite exactamente el mismo lanzamiento: útil para revisarlo en equipo.</small>
+            <h3>Fases</h3>
+            <ol class="phases" id="phases"></ol>
+          </aside>
+        </div>
+        <article class="card">
+          <h2>Bitácora de vuelo</h2>
+          <ul class="log" id="flight-log" aria-live="polite"></ul>
+        </article>
+      </section>
+
+      <!-- Paso 5: resultado que pasa al siguiente módulo -->
+      <section id="step-result" class="step" hidden>
+        <article class="card result" id="result-card"></article>
+        <div class="grid-2">
+          <article class="card" id="result-events"></article>
+          <article class="card" id="reference-card"></article>
+        </div>
+        <article class="card" id="handoff-card"></article>
+      </section>
+    </main>
+
+    <aside class="resources" id="resources" aria-label="Recursos de la misión"></aside>
+  </div>
+
+  <div class="popover" id="popover" role="dialog" aria-modal="false" hidden>
+    <button class="popover-close" aria-label="Cerrar">×</button>
+    <strong id="popover-title"></strong>
+    <p id="popover-text"></p>
+  </div>
+
+  <footer class="foot">
+    <span>Datos: <code>data/*.json</code> (fuentes por cifra). Práctica libre de ascenso: <a href="./practica-ascenso.html">minijuego de empuje y ángulo</a>.</span>
+  </footer>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>

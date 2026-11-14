@@ -254,6 +254,15 @@ export function evaluateLauncher(launcher, data, inputs, options = {}) {
       : `La nave plegada (${sc.diameterM} m × ${sc.heightM} m) no cabe en la cofia (${launcher.fairing.diameterM} m × ${launcher.fairing.heightM} m).`,
     why: 'No basta con que el cohete pueda levantar el peso: la nave también tiene que entrar físicamente en la punta del cohete.', term: 'cofia' });
 
+  // 4b. Confiabilidad: no bloquea, pero avisa si el riesgo es alto.
+  const warnBelow = rules.reliability?.warnBelow ?? 0.9;
+  const failOdds = Math.round(1 / Math.max(1 - launcher.reliability, 0.001));
+  checks.push({ id: 'reliability', status: launcher.reliability < warnBelow ? 'warn' : 'ok', label: 'Confiabilidad',
+    detail: launcher.reliability < warnBelow
+      ? `${Math.round(launcher.reliability * 100)} % de éxito: aproximadamente 1 de cada ${failOdds} lanzamientos falla. Riesgo alto para una nave única.`
+      : `${Math.round(launcher.reliability * 100)} % de éxito (falla ~1 de cada ${failOdds}).`,
+    why: 'Un cohete barato pero poco probado puede salir caro si hay que construir y lanzar otra nave. Para un CubeSat barato puede valer la pena; para una misión grande, casi nunca.', term: 'confiabilidad' });
+
   // 5. Presupuesto.
   const budgetStatus = budgetAfter < 0 ? 'fail' : budgetAfter < inputs.budget.totalMUSD * 0.05 ? 'warn' : 'ok';
   checks.push({ id: 'budget', status: budgetStatus, label: 'Presupuesto',

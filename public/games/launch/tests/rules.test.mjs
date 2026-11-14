@@ -193,3 +193,11 @@ test('misión de referencia de NASA parecida', () => {
   const small = matchReferenceMission(data.missions, 'TLI', 25, 'electron');
   assert.equal(small.closest.id, 'capstone');
 });
+
+test('confiabilidad baja: avisa pero no bloquea', () => {
+  const alpha = evaluateLauncher(launcher('alpha'), data, inputsFor('smallsat'));
+  assert.equal(alpha.checks.find((c) => c.id === 'reliability').status, 'warn');
+  assert.equal(alpha.compatible, true);
+  const f9 = evaluateLauncher(launcher('falcon9'), data, inputsFor('oceans'));
+  assert.equal(f9.checks.find((c) => c.id === 'reliability').status, 'ok');
+});
