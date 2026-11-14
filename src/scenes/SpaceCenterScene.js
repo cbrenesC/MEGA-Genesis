@@ -15,7 +15,32 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.noticeTimer = null;
     this.mapManager = new MapManager(this);
     this.mapManager.build();
-    this.player = new Player(this, 640, 510);
+    // Two mission launch consoles and eight educational terminals.
+    const lessons = [
+      {title:'MISSION OBJECTIVES',text:'Begin with a scientific question. Define measurable goals, mission success criteria, and the data needed to answer that question.',source:'https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf'},
+      {title:'MISSION REQUIREMENTS',text:'Translate objectives into verifiable requirements for performance, safety, cost, schedule, and operations. Identify constraints and major risks.',source:'https://science.nasa.gov/earth-science/programs/flight-programs/mission-phase-definitions/'},
+      {title:'MISSION ARCHITECTURE',text:'Plan four connected segments: launch, space, ground, and users. Define how each segment supports mission objectives.',source:'https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf'},
+      {title:'PRELIMINARY DESIGN',text:'Compare feasible concepts, select instruments, estimate mass and power, design communications, and establish an initial mission plan.',source:'https://science.nasa.gov/learn/basics-of-space-flight/chapter7-1/'},
+      {title:'SYSTEMS ENGINEERING',text:'Integrate propulsion, power, guidance, software, thermal control, communications, and ground operations into one verified mission.',source:'https://science.nasa.gov/wp-content/uploads/2023/04/nasa_systems_engineering_handbook_0.pdf'},
+      {title:'TESTING AND READINESS',text:'Build and integrate subsystems, verify requirements, conduct environmental tests, and complete flight readiness reviews before launch.',source:'https://science.nasa.gov/learn/basics-of-space-flight/chapter7-2/'},
+      {title:'GROUND OPERATIONS',text:'Prepare mission control, communications, tracking, contingency procedures, launch criteria, and operational timelines.',source:'https://www.nasa.gov/reference/jsc-program-management-execution/'},
+      {title:'MISSION OPERATIONS',text:'Operate the spacecraft or rover, collect scientific data, monitor system health, evaluate results, and plan mission closeout.',source:'https://science.nasa.gov/earth-science/programs/flight-programs/mission-phase-definitions/'},
+    ];
+    const stations = [];
+    for (const y of [402,593]) for (const x of [330,494,658,822,986]) stations.push({x,y});
+    const missions = new Map([
+      ['494,402',{title:'ROCKET LAUNCH MISSION',text:'Prepare and execute a launch. Plan the launch window, vehicle readiness, ground systems, and flight safety.',mission:'launch'}],
+      ['822,402',{title:'LUNAR ROVER MISSION',text:'Plan a rover delivery to the Moon. Consider payload, communications, surface mobility, energy, and scientific objectives.',mission:'rover'}],
+    ]);
+    stations.forEach(({x,y},index) => {
+      const item = missions.get(x+','+y) || lessons.shift();
+      this.interactables.push({
+        x,y:y+69,radius:92,label:'[E] '+item.title,
+        interact:()=>this.openTerminal(item)
+      });
+    });
+
+    this.player = new Player(this, 640, 720);
     this.physics.add.collider(this.player, this.mapManager.collision.solids);
     this.physics.world.setBounds(0, 0, GAME.worldWidth, GAME.worldHeight);
 
@@ -36,6 +61,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.minimapContext = this.minimap?.getContext('2d');
     if (this.minimapContext) this.minimapContext.imageSmoothingEnabled = false;
 
+    this.createTerminalDialog();
     this.input.keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'E', 'ESC']);
     this.events.on('shutdown', () => {
       this.prompt?.classList.remove('visible');
@@ -46,6 +72,7 @@ export class SpaceCenterScene extends Phaser.Scene {
   }
 
   update(time, delta) {
+    if (this.terminalOpen) return;
     this.player.update(time, delta);
     if (Phaser.Input.Keyboard.JustDown(this.player.keys.E)) this.interact();
     if (Phaser.Input.Keyboard.JustDown(this.player.keys.ESC)) this.pauseExploration();
@@ -88,7 +115,7 @@ export class SpaceCenterScene extends Phaser.Scene {
   interact() {
     const target = this.currentTarget;
     if (!target) {
-      this.showNotice('EXPLORA EL COMPLEJO · BUSCA UN ACCESO O CONSOLA');
+      this.showNotice('APPROACH A CONSOLE AND PRESS E');
       return;
     }
     target.interact();
@@ -136,10 +163,10 @@ export class SpaceCenterScene extends Phaser.Scene {
     for (let x = 0; x < width; x += 16) { context.beginPath(); context.moveTo(x + .5, 0); context.lineTo(x + .5, height); context.stroke(); }
     for (let y = 0; y < height; y += 16) { context.beginPath(); context.moveTo(0, y + .5); context.lineTo(width, y + .5); context.stroke(); }
     context.fillStyle = '#314a54';
-    for (const corridor of [{ x: 1152, y: 352, width: 256, height: 192 }, { x: 512, y: 832, width: 256, height: 128 }, { x: 1152, y: 1120, width: 256, height: 224 }, { x: 1792, y: 832, width: 224, height: 64 }]) {
+    for (const corridor of []) {
       context.fillRect(corridor.x * scaleX, corridor.y * scaleY, corridor.width * scaleX, corridor.height * scaleY);
     }
-    const fills = { control: '#336f7a', engineering: '#705944', resources: '#416772', launchpad: '#6c7164' };
+    const fills = { control: '#336f7a' };
     for (const zone of ZONES) {
       const x = Math.round(zone.x * scaleX); const y = Math.round(zone.y * scaleY);
       const w = Math.max(2, Math.round(zone.width * scaleX)); const h = Math.max(2, Math.round(zone.height * scaleY));
@@ -156,4 +183,43 @@ export class SpaceCenterScene extends Phaser.Scene {
     context.fillStyle = '#65f4e7'; context.fillRect(playerX - 3, playerY - 3, 7, 7);
     context.fillStyle = '#fff8d5'; context.fillRect(playerX - 1, playerY - 1, 3, 3);
   }
+  createTerminalDialog() {
+    const dialog = document.createElement('section');
+    dialog.id = 'mission-terminal';
+    dialog.className = 'mission-terminal';
+    dialog.hidden = true;
+    dialog.innerHTML = `<div class="mission-terminal__panel" role="dialog" aria-modal="true" aria-label="Mission console">
+      <div class="mission-terminal__top"><span>◈ MISSION CONTROL // TERMINAL</span><button type="button" data-close aria-label="Close terminal">✕</button></div>
+      <h2 data-title></h2><p data-description></p>
+      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer">NASA SOURCE ↗</a><button type="button" data-launch hidden>START MISSION ▶</button><button type="button" data-close>CLOSE</button></div>
+    </div>`;
+    document.getElementById('app').append(dialog);
+    dialog.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>this.closeTerminal()));
+    dialog.querySelector('[data-launch]').addEventListener('click',()=> {
+      const mission=this.activeMission;
+      this.closeTerminal();
+      window.dispatchEvent(new CustomEvent('mega-mission-selected',{detail:{mission}}));
+      this.showNotice(mission === 'launch' ? 'ROCKET LAUNCH MISSION SELECTED' : 'LUNAR ROVER MISSION SELECTED');
+    });
+    this.terminalDialog=dialog;
+    this.input.keyboard.on('keydown-ESC',()=>{if(this.terminalOpen)this.closeTerminal();});
+  }
+  openTerminal(item) {
+    const dialog=this.terminalDialog;
+    this.terminalOpen=true;
+    this.activeMission=item.mission || null;
+    dialog.querySelector('[data-title]').textContent=item.title;
+    dialog.querySelector('[data-description]').textContent=item.text;
+    const link=dialog.querySelector('[data-source]');
+    link.hidden=!item.source;
+    if(item.source)link.href=item.source;
+    dialog.querySelector('[data-launch]').hidden=!item.mission;
+    dialog.hidden=false;
+  }
+  closeTerminal() {
+    this.terminalOpen=false;
+    this.terminalDialog.hidden=true;
+    this.player?.keys?.E?.reset?.();
+  }
+
 }
