@@ -149,3 +149,57 @@ kbd { min-width: 21px; height: 21px; display: grid; place-items: center; border:
   .map-vignette { inset: 58px 0 48px; }
   .interaction-prompt { bottom: 70px; }
 }
+
+
+/* Immersive, edge-to-edge gameplay: only compact essential controls overlay the map. */
+html, body, #app { width: 100%; height: 100%; height: 100dvh; }
+.game-frame { inset: 0; padding: 0; background: #07111d; }
+.game-stage { width: 100%; height: 100%; border: 0; box-shadow: none; }
+#game-container > canvas { display: block; width: 100%; height: 100%; }
+.hud-top {
+  z-index: 7; top: 12px; left: 12px; right: 12px; height: auto;
+  padding: 0; gap: 8px; background: none; border: 0;
+  pointer-events: none;
+}
+.hud-top .brand-lockup { min-width: 0; padding: 7px 10px; gap: 8px; background: rgba(5,15,25,.67); border-radius: 7px; }
+.hud-top .brand-mark { width: 27px; height: 27px; }
+.hud-top .brand-lockup strong { font-size: 10px; }
+.hud-top .brand-lockup small { display: none; }
+.hud-top .status-cluster { display: none; }
+.hud-top .icon-button { margin-left: auto; width: 37px; height: 37px; border-radius: 7px; background: rgba(5,15,25,.77); pointer-events: auto; }
+.interaction-prompt { bottom: 28px; border-radius: 6px; }
+.door-notice { top: 58px; max-width: min(90vw, 560px); text-align: center; }
+.mission-launcher {
+  position: absolute; z-index: 8; top: 59px; right: 12px;
+  width: auto; padding: 0; background: none; border: 0;
+  color: #e6f3f2; font: 11px 'IBM Plex Mono', monospace;
+}
+.mission-launcher summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  list-style: none; user-select: none; padding: 10px 12px;
+  border: 1px solid rgba(120,185,195,.35); border-radius: 7px;
+  background: rgba(5,15,25,.78);
+}
+.mission-launcher summary::-webkit-details-marker { display: none; }
+.mission-launcher nav {
+  display: flex; flex-direction: column; gap: 5px; width: 225px;
+  margin-top: 5px; padding: 7px; border-radius: 7px;
+  border: 1px solid rgba(120,185,195,.35); background: rgba(5,15,25,.94);
+}
+.mission-launcher nav a { color: #b3f2e8; text-decoration: none; padding: 9px 7px; border-radius: 4px; }
+.mission-launcher nav a:hover, .mission-launcher nav a:focus-visible { background: #244456; }
+.media-panel { right: 12px; top: 110px; }
+@media (max-width: 900px) {
+  .hud-top { top: 8px; left: 8px; right: 8px; }
+  .mission-launcher { top: 52px; right: 8px; }
+  .interaction-prompt { bottom: 24px; }
+  .mobile-controls { bottom: 22px; }
+}
+@media (max-width: 480px) {
+  .hud-top .brand-lockup { padding: 6px; }
+  .hud-top .brand-lockup strong { font-size: 9px; }
+  .mission-launcher summary span { display: none; }
+  .mission-launcher nav { width: min(220px, calc(100vw - 16px)); }
+  .mobile-controls { bottom: 12px; }
+  .interaction-prompt { bottom: 115px; }
+}
