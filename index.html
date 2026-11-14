@@ -31,22 +31,6 @@
           <button class="icon-button fullscreen-button" id="fullscreen-button" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
         </header>
 
-        <div class="hud-left">
-          <div class="section-tag"><span class="tag-line"></span> MODO DE EXPLORACIÓN</div>
-          <h1 id="room-title">Launch<br />Control Center</h1>
-          <p id="room-subtitle">Centro de operaciones de misión</p>
-          <div class="hud-rule"></div>
-          <div class="coordinate-readout"><span>SECTOR</span><strong id="sector-readout">LCC · 01</strong></div>
-          <div class="coordinate-readout"><span>COORDENADAS</span><strong id="coordinate-readout">— / —</strong></div>
-          <div class="signal-meter"><span></span><span></span><span></span><span></span><span></span><small>EXPLORACIÓN ACTIVA</small></div>
-        </div>
-
-        <aside class="map-panel" aria-label="Plano del complejo">
-          <div class="panel-heading"><span>PLANO DEL COMPLEJO</span><b>01 / 04</b></div>
-          <div class="map-wrap"><canvas id="minimap" width="176" height="116" aria-label="Plano de cuatro zonas"></canvas></div>
-          <div class="map-legend"><i class="legend-you"></i>TU POSICIÓN <span class="legend-door"></span> ACCESOS</div>
-        </aside>
-
         <div class="interaction-prompt" id="interaction-prompt" aria-live="polite"></div>
         <div class="door-notice" id="door-notice" aria-live="polite"></div>
 
@@ -62,19 +46,19 @@
           <div class="pause-card"><span class="section-tag">SISTEMA EN ESPERA</span><strong>Exploración en pausa</strong><p>El complejo permanece en línea. Tu recorrido se reanudará donde lo dejaste.</p><button id="resume-button">REANUDAR RECORRIDO <span>↗</span></button><small>ESC PARA VOLVER</small></div>
         </div>
 
-        <div class="hud-bottom">
-          <div class="controls-strip"><span class="section-tag">NAVEGACIÓN</span><div class="control-key"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVER</span></div><div class="control-key"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd><span>MOVER</span></div><div class="control-key"><kbd>E</kbd><span>INTERACTUAR</span></div><div class="control-key"><kbd>ESC</kbd><span>PAUSA</span></div></div>
-          <div class="bottom-right"><span class="pixel-flourish">✦</span><span>VISTA TOPOGRÁFICA<br /><b>ESTACIÓN DE EXPLORACIÓN</b></span></div>
-        </div>
-
         <div class="mobile-controls" id="mobile-controls" aria-label="Controles táctiles">
           <div class="dpad"><button data-move="up" aria-label="Arriba">↑</button><button data-move="left" aria-label="Izquierda">←</button><button data-move="down" aria-label="Abajo">↓</button><button data-move="right" aria-label="Derecha">→</button></div>
           <button class="mobile-action" id="mobile-interact">E<br /><small>USAR</small></button><button class="mobile-pause" id="mobile-pause" aria-label="Pausa">Ⅱ</button>
         </div>
 
-        <nav class="mission-launcher" aria-label="Juegos de misión"><strong>JUEGOS DE MISIÓN</strong><a href="/games/launch/">01 · LANZAMIENTO ESPACIAL ↗</a><a href="/games/rover/">02 · ROVER LUNAR ↗</a></nav>
-        <style>.mission-launcher{position:absolute;z-index:110;top:94px;right:18px;display:flex;flex-direction:column;gap:8px;padding:13px;background:rgba(9,24,39,.94);border:1px solid #648b9c;border-radius:9px;color:#f2f9ff;font:12px system-ui;max-width:230px}.mission-launcher a{color:#b3f2e8;text-decoration:none;border:1px solid #476779;border-radius:5px;padding:8px}.mission-launcher a:hover{background:#244456}@media(max-width:700px){.mission-launcher{top:78px;right:8px;padding:8px;max-width:170px;font-size:10px}.mission-launcher a{padding:6px}}</style>
-        <div class="map-vignette" aria-hidden="true"></div>
+        <details class="mission-launcher">
+          <summary aria-label="Abrir juegos de misión">☰ <span>JUEGOS</span></summary>
+          <nav aria-label="Juegos de misión">
+            <a href="/games/launch/">01 · Lanzamiento espacial</a>
+            <a href="/games/rover/">02 · Rover lunar</a>
+          </nav>
+        </details>
+
       </div>
     </main>
     <script type="module" src="/src/main.js"></script>
