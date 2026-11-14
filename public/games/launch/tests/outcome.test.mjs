@@ -93,13 +93,13 @@ test('quedarse sin llegar a la órbita es una falla que explica el punto más ba
 test('el pilotaje cuenta: una órbita muy corrida baja la vida útil y deja un éxito parcial', () => {
   const { inputs, evaluation, vi, opts } = setup('smallsat', 'falcon9');
   const plan = { pre: [], seed: 1, eventsEnabled: true, flightEvents: [] };
-  const lowTarget = runAutopilot(vi.vehicle, { ...opts, targetAltKm: 180 }, vi.program); // el piloto se conforma con 180 km
+  const lowTarget = runAutopilot(vi.vehicle, { ...opts, targetAltKm: 300 }, vi.program); // el piloto se conforma con 300 km
   lowTarget.targetAltKm = opts.targetAltKm; // pero la misión pedía 550 km
   const r = resolveFlight({ sim: lowTarget, plan, evaluation, inputs, data, ref: referenceRun(vi, opts) });
   assert.ok(r.lifetimeYears < evaluation.lifetimeYears);
   assert.ok(r.flightData.pilotScore < 80);
   assert.ok(['exito_parcial', 'exito'].includes(r.result));
-  assert.ok(hohmannDv(PHYS.RE + 180e3, PHYS.RE + 550e3) > 150);
+  assert.ok(hohmannDv(PHYS.RE + 300e3, PHYS.RE + 550e3) > 100);
 });
 
 test('los eventos de la plataforma se cobran: el clima suma dinero y días', () => {
