@@ -17,16 +17,6 @@
       "source": "NASA, datos de la Estación Espacial Internacional."
     },
     {
-      "id": "turn",
-      "text": "Un cohete no sube recto: se va acostando poco a poco. Para quedarte en órbita no necesitas solo altura, necesitas ir muy rápido de lado, a casi 8 km/s.",
-      "source": "Mecánica orbital: velocidad circular cerca de la Tierra ≈ 7,8 km/s."
-    },
-    {
-      "id": "kourou",
-      "text": "Europa lanza desde Kourou, en la Guayana Francesa, a solo 5° del ecuador: ahí el giro de la Tierra ayuda casi lo máximo y el cohete ahorra combustible.",
-      "source": "Latitud de Kourou ≈ 5,2° N."
-    },
-    {
       "id": "origami",
       "text": "Los telescopios y satélites grandes viajan doblados como un origami dentro de la punta del cohete (la cofia), y se despliegan ya en el espacio.",
       "source": "Por ejemplo, el telescopio James Webb se desplegó durante su viaje."

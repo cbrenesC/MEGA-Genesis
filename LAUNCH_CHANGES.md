@@ -1,5 +1,321 @@
 # LAUNCH_CHANGES — Módulo de Lanzamiento (Space Mission · NASA Space Apps)
 
+> Este archivo tiene dos partes: **Versión 2 — Phaser e interactivo** (esta sección) y, más abajo, el informe completo de la **Versión 1** sin cambios.
+
+# Versión 2 — Phaser e interactivo
+
+## V2.1 Resumen
+
+- El módulo LAUNCH ahora es un **juego de Phaser 3** con escenas separadas (arranque, misión, hangar, plataforma, vuelo, mapa y resultado). Las pantallas de decisión y los controles son HTML encima del canvas, para que los botones sean grandes en celular.
+- El lanzamiento dejó de ser una animación: es un **vuelo que pilotea el jugador**, en vista lateral 2D, con control de empuje, giro, separación de etapas y de cofia, telemetría clara, vista de mapa de la órbita y aceleración del tiempo (1×, 2×, 5× y «⏩ Saltar»).
+- La **física es propia y coherente** (gravedad que baja con la altura, empuje, masa que disminuye, aire con Max-Q, giro de la Tierra) y está **calibrada contra el catálogo**: con el 90 % de la capacidad de un cohete el piloto automático llega a la órbita y con el 115 % es imposible. El vuelo bien hecho dura entre 2,7 y 3,9 minutos de juego.
+- Los **imprevistos** (clima, falsa alarma, ráfaga de viento, motor que pierde fuerza, falla grave) siguen la confiabilidad del cohete, pero ahora pasan **durante el vuelo**, siempre con una explicación. El pilotaje cuenta: el resultado depende de la órbita lograda, el combustible, el Max-Q y las separaciones.
+- Hay **puntaje de pilotaje (0–100)** explicado en pantalla, **ayudas por dificultad** (piloto automático y mensajes en fácil, pistas visuales en normal, nada en difícil) y un **tutorial** de 4 pasos la primera vez.
+- Todos los textos se reescribieron para **estudiantes de secundaria** (frases cortas, comparaciones cotidianas, términos técnicos con nombre sencillo, «Ver más» con el dato y la fuente, 4 datos curiosos reales).
+- El contrato de salida sube a **`schemaVersion: 2`** y agrega el objeto `flight`; los campos de la versión 1 se mantienen.
+- **48 pruebas** pasan (18 de la versión 1 sin cambios + 30 nuevas). No se agregaron dependencias nuevas.
+
+## V2.2 Rama y estado respecto a `main`
+
+- Rama: **`feature/launch`** (la misma de la versión 1). No se hizo merge a `main` ni push.
+- `main` había avanzado (pantalla de bienvenida, fuentes, cargador). Se hizo **`git merge main`** en `feature/launch` (commit `5b70a39`), **sin conflictos** y sin tocar nada de `public/games/launch/`. Después del merge, `git diff --name-only main...HEAD` solo lista archivos de `public/games/launch/` y este informe.
+- Todo el trabajo nuevo está **solo dentro de `public/games/launch/`**; la única excepción es este archivo, en la raíz.
+
+## V2.3 Archivos
+
+Cambios respecto a la versión 1 (`744e2dc`). Todo está en `public/games/launch/`.
+
+| Archivo | Estado | Descripción |
+|---|---|---|
+| `vendor/phaser.min.js`, `vendor/PHASER-LICENSE.md`, `vendor/README.md` | Creados | Copia local de Phaser 3.90.0, su licencia MIT y una nota de cómo actualizarla. |
+| `index.html` | Modificado | Ahora es el marco del juego: canvas de Phaser, barra superior con pasos y recursos, panel de decisiones, HUD de vuelo, ventana del glosario. Carga Phaser con `<script>` clásico. |
+| `styles.css` | Modificado | Estilos del marco del juego, HUD, controles táctiles y adaptación a 390 px. Respeta `prefers-reduced-motion`. |
+| `js/main.js` | Modificado (reescrito) | Crea el `Phaser.Game` (Canvas), registra las escenas y maneja la navegación y la barra superior. |
+| `js/store.js` | Creado | Estado compartido del juego (lo que antes vivía dentro de `main.js`). |
+| `js/screens.js` | Creado | HTML de las pantallas de decisión (misión, catálogo, revisión, resultado) y del panel de recursos, con textos nuevos. |
+| `js/ui.js` | Creado | Glosario con «?» y «Ver más», datos curiosos rotativos y avisos. |
+| `js/hud.js` | Creado | Panel de vuelo: telemetría, empuje, giro, separar etapa, mapa, tiempo, teclado y táctil. |
+| `js/flight.js` | Creado | **Física del vuelo** (pura, sin Phaser): gravedad, empuje, aire, Max-Q, etapas, órbita, piloto automático, puntaje y calibración. |
+| `js/outcome.js` | Creado | Une el vuelo con las reglas: planifica los imprevistos y traduce el vuelo a resultado, órbita, vida útil y datos de vuelo. |
+| `js/flow.js` | Creado | Prepara el cohete y el piloto automático de referencia; cierra el vuelo y escribe la salida. |
+| `js/plain.js` | Creado | Comparaciones cotidianas (peso, velocidad, costo, probabilidades). |
+| `js/scenes/` (`BootScene`, `panels` con Briefing/Hangar/Result, `PadScene`, `FlightScene`, `MapScene`, `BackdropScene`, `rocketArt`, `gfx`) | Creados | Escenas de Phaser y arte vectorial original. |
+| `js/rules.js` | Modificado | **Solo textos** (detalles, «¿por qué?», sugerencias, pedidos, eventos) y formatos; las fórmulas y reglas no cambiaron. Se agregó el campo `more` («Ver más») a las verificaciones. |
+| `js/state.js` | Modificado | `SCHEMA_VERSION = 2`, carga de los datos nuevos y campo `flight` en la salida. |
+| `js/sequence.js` | **Eliminado** | La animación de la versión 1 la reemplaza el vuelo interactivo. |
+| `data/flight.json` | Creado | Diseños de cohete (etapas, Isp, estructura, TWR) y datos de calibración. |
+| `data/flight-calibration.json` | Creado (generado) | Tamaño calibrado de cada cohete para cada destino. Lo genera `tests/calibrate.mjs`. |
+| `data/facts.json` | Creado | 4 datos curiosos reales con su fuente. |
+| `data/glossary.json`, `data/orbits.json`, `data/launchers.json`, `data/rules.json` | Modificados | **Solo textos** reescritos para secundaria (más el campo `short` en las órbitas y `more` en el glosario). Las cifras no cambiaron. |
+| `tests/flight.test.mjs`, `tests/outcome.test.mjs`, `tests/calibrate.mjs` | Creados | 19 + 11 pruebas nuevas y el script de calibración. |
+| `README.md` | Modificado | Guía rápida actualizada. |
+| `practica-ascenso.html` | Sin cambios | El minijuego anterior se conserva. |
+| `data/mock-missions.json`, `data/reference-missions.json`, `data/sites.json`, `tests/rules.test.mjs` | Sin cambios | Las 18 pruebas de la versión 1 siguen pasando sin tocarlas. |
+
+## V2.4 Cómo se integró Phaser
+
+- **Versión: 3.90.0**, la misma que ya usa el repo (`package.json` → `"phaser": "3.90.0"`).
+- **Forma de carga:** copia local sin modificar de `node_modules/phaser/dist/phaser.min.js` en `public/games/launch/vendor/`, cargada con una etiqueta `<script src="./vendor/phaser.min.js">` (clásica, expone `window.Phaser`) antes de los módulos del juego.
+- **Licencia:** MIT (© Phaser Studio Inc.), copiada en `vendor/PHASER-LICENSE.md`. En `vendor/README.md` están la versión y cómo actualizarla.
+- **Por qué así:** `public/` no pasa por el bundler de Vite, así que no se puede hacer `import 'phaser'`. Una copia local funciona igual en `npm run dev`, en el build y en Netlify, **sin CDN ni terceros**, y no cambia `package.json`. Se verificó con un build en una copia limpia: `dist/games/launch/vendor/phaser.min.js` queda incluido (el módulo pesa 2,5 MB en total).
+- **Renderizador: Canvas (`Phaser.CANVAS`) a propósito.** El arte es vectorial simple y el modo Canvas funciona igual en cualquier celular o computadora. Con WebGL, el navegador integrado de la herramienta de pruebas fallaba (`Framebuffer status: Incomplete Attachment`). El Canvas de Phaser no admite degradados, así que los cielos se dibujan con franjas (`js/scenes/gfx.js`).
+- **Física: propia, sin Arcade ni Matter.** El vuelo necesita gravedad que cambia con la altura, órbitas keplerianas, aire exponencial y pasos de tiempo hasta 120× cuando se salta; con integración RK4 propia (y pura, para poder probarla con Node) es más preciso y más fácil de calibrar que los motores de física de Phaser, que están pensados para choques entre sprites.
+
+## V2.5 Escenas de Phaser
+
+| Escena | Qué hace |
+|---|---|
+| `BootScene` | Carga los datos (JSON) y muestra datos curiosos mientras tanto. |
+| `BriefingScene` | **Misión:** datos de la nave, destino, dinero y fecha; elegir misión de práctica, dificultad y modo equipo. |
+| `HangarScene` | **Hangar:** catálogo de cohetes con semáforo y tabla de comparación; y la **revisión** de compatibilidad (margen de peso, cofia, verificaciones con «¿por qué importa?», sugerencias, equipo). |
+| `PadScene` | **Plataforma:** dibuja el cohete a su proporción, muestra los imprevistos de la plataforma, la cuenta regresiva (con «cuenta en espera» si hay clima o falsa alarma) y datos curiosos. |
+| `FlightScene` | **Vuelo interactivo:** cielo que oscurece, Tierra que se curva, nubes, cohete con llama, etapas y cofia que se separan y caen, explosión, sacudidas (reducidas con `prefers-reduced-motion`), marcas de dirección y de ángulo sugerido, telemetría y HUD. |
+| `MapScene` | **Mapa:** vista desde arriba con la órbita proyectada, la órbita pedida, el punto más alto y el más bajo, el punto donde caerías y la ventana de transferencia; dice si la órbita «cierra». |
+| `ResultScene` | **Resultado:** qué pasó y por qué, órbita lograda, vida de la nave, puntaje de pilotaje con explicación, datos del vuelo, misiones reales parecidas y entrega al siguiente módulo. |
+
+El panel de recursos (dinero, peso, tiempo, vida y riesgo) está **siempre visible**: como columna en computadora (≥ 1180 px) y como barra de «pastillas» en la parte de arriba en todas las pantallas, incluido el vuelo.
+
+## V2.6 Controles
+
+| Acción | Teclado | Táctil |
+|---|---|---|
+| Empuje (0–100 %) | `Shift` / `Ctrl`, o `↑` / `↓`; `Z` = máximo, `X` = apagar | Deslizador vertical grande + botones MÁX y APAGAR |
+| Girar | `A` / `D` o `←` / `→` | Botones ◀ ▶ grandes (se mantienen pulsados) |
+| Separar etapa | `Espacio` | Botón «✂ Separar etapa» |
+| Soltar la cofia | `F` | Botón «📦 Soltar cofia» |
+| Mirar hacia adelante (para circularizar) | `R` | Botón «🧭 Mirar adelante» |
+| Mapa de la órbita | `M` | Botón «🌍 Mapa» |
+| Tiempo | `1` `2` `3` = 1×, 2×, 5×; `J` = saltar | Botones 1× 2× 5× y «⏩ Saltar» (hasta el punto más alto o hasta la ventana de transferencia) |
+| Piloto automático (fácil) | `P` | Botón «🤖 Piloto automático» |
+| Pausa | `Esc` | Botón ⏸ |
+
+Pasos del tutorial (4, solo la primera vez): empuje, inclinar de a poquito, separar etapas y cofia, mapa y tiempo.
+
+## V2.7 Física del vuelo
+
+**Escala y unidades.** Se simula **física real** (Tierra de 6.371 km, g = 9,81 m/s², μ = 3,986·10¹⁴ m³/s²), no una Tierra de juguete. Solo se **acelera el reloj 3,5×** (`PHYS.COMPRESSION`): un ascenso real de ~9 minutos dura unos 2,6 minutos de juego. Así las cifras que ve el jugador (7,8 km/s, 150 km, 400 km) son las reales. Las partes largas (la espera hasta el punto más alto) se acortan con la aceleración del tiempo.
+
+**Modelo (2D, plano de la órbita):**
+- Gravedad: `g = μ / r²` (baja con la altura).
+- Empuje: `F = ṁ · Isp(h) · g₀`, con `Isp(h) = Isp_vacío + (Isp_nivel_del_mar − Isp_vacío) · p/p₀`, y el empuje sale del acelerador (0–100 %). La masa baja al quemar y se resta la estructura de cada etapa soltada.
+- Aire: `ρ = 1,225 · e^(−h / 7.500 m)` hasta 100 km. Resistencia `½ρv²·Cd·A·(1 + 6 sen²α)`: crece si el cohete va «de costado» (α = ángulo de ataque). Presión dinámica `q = ½ρv²` (**Max-Q**): aviso amarillo a 30 kPa, castigo desde 40 kPa y el cohete se rompe a 64 kPa; también se rompe si `q · sen α > 24 kPa` (inclinar demasiado pronto).
+- Giro de la Tierra: velocidad inicial `465 · cos φ · sen A` (φ = latitud, A = acimut del lanzamiento).
+- Integración: Runge–Kutta de 4.º orden, pasos de 0,1 s en el aire y con motor, hasta 2 s en el vacío sin empuje.
+- Órbita: elementos keplerianos a partir de posición y velocidad (punto más alto, punto más bajo, periodo).
+- **Llegar a la órbita:** el punto más bajo queda **sobre 150 km**. Para GTO, la Luna y escape (Marte) el jugador llega a una **órbita de espera** y pulsa «Encender transferencia» dentro de una **ventana** que se ve en el mapa (franja naranja y cuenta atrás). Éxito si el apoapsis llega a ≥ 30.000 km (GTO), ≥ 370.000 km (Luna) o se escapa de la Tierra, y la ventana se respeta (error ≤ 70° en GTO y ≤ 35° en Luna y Marte).
+
+**Calibración contra el catálogo** (`tests/calibrate.mjs`, ver también `data/flight.json`):
+1. Cada cohete tiene un **diseño** inspirado en el real (número de etapas, Isp, fracción de estructura, empuje/peso al encender), pero **no** un tamaño: el tamaño sale de la calibración.
+2. Para cada par cohete–destino con capacidad en `data/launchers.json`, un **piloto automático** busca, por **bisección en escala logarítmica**, la masa de etapas más chica con la que llega a la órbita llevando exactamente la capacidad del catálogo (`capacityKg`). Empuje y cofia se escalan con ese tamaño. Cada destino se calibra con su geometría de referencia (por ejemplo, la órbita polar sale desde Vandenberg a 97,6°, casi sin ayuda del giro de la Tierra).
+3. El piloto automático prueba 10 programas de inclinación (altura a la que se «acuesta», qué tan pronto, cuánto subir) y se queda con el que funciona; ese programa queda guardado.
+4. **Resultado:** con 90 % de la capacidad se llega a la órbita y con 110–115 % **no** (tampoco con ninguno de los programas probados con 125 %); lo comprueban las pruebas en los **29 pares calibrados** (excepto el viaje compartido, que vuela en un Falcon 9). Las proporciones entre cohetes se mantienen: Electron ≈ 12 t de etapas, Alpha 50 t, Falcon 9 411 t, Ariane 6 441 t, Falcon Heavy 1.854 t, SLS 1.543 t. Los pesos al despegar quedan en el orden de los reales (Falcon 9: 424 t en el juego, ~550 t real; Electron: 12 t, igual que el real) porque el piloto automático no es perfecto.
+5. **Pares sin vuelo calibrado:** `PSLV-XL → GTO`. Ese cohete pequeño no llega por el diseño simplificado; para ese par el resultado se calcula con las reglas del catálogo (`resolveAutomatic`) y la pantalla lo avisa. Electron y PSLV usan una etapa extra de transferencia (`transferStages` en `data/flight.json`) en los destinos lejanos.
+6. **Cómo se sentirá un margen chico:** a capacidad exacta solo se logra que el punto más bajo pase los 150 km y casi no sobra combustible para redondear la órbita; con 10 % de margen sobra lo justo; con 30 % o más es cómodo. Eso hace coherente el semáforo del hangar con el vuelo.
+
+Cosas que se simplificaron a propósito: etapas en serie (los propulsores de Ariane 6, Falcon Heavy y SLS se tratan como una primera etapa), Pegasus sale de la plataforma (no del avión), vuelo en 2D, giro de la Tierra solo en el plano.
+
+## V2.8 Puntaje de pilotaje (0–100)
+
+Se calcula en `pilotScore()` (`js/flight.js`) y se explica en la pantalla de resultado:
+
+| Parte | Puntos | Cómo se calcula |
+|---|---|---|
+| Qué tan cerca quedó la órbita | 50 | `50 · (1 − error / 250 km)` (mínimo 20 %), con `error` = promedio de `|punto más bajo − altura pedida|` y `|punto más alto − altura pedida|`. En transferencias: 100 % si llegó y estuvo en la ventana, 55 % si llegó fuera de la ventana, hasta 45 % si solo llegó a la órbita de espera. 0 si no hay órbita. |
+| Combustible que sobró | 25 | `25 · min(1, sobrante / (0,5 · sobrante del piloto automático))`: con la mitad de lo que deja el piloto automático ya es el puntaje completo. |
+| Cuidar el Max-Q | 15 | 15 si `q_máx ≤ 40 kPa`; baja de forma gradual hasta 0 a 60 kPa. |
+| Separar bien | 10 | `10 · (1 − 6 · combustible tirado / combustible total − 0,4 si se soltó la cofia con aire denso − hasta 0,3 por pasar tiempo con mucho ángulo de ataque)`. |
+
+El resultado del juego también depende del vuelo: una órbita corrida cuesta combustible de la nave para corregirla (`hohmannDv`) y baja su vida útil; si la pérdida es ≥ 20 % es **éxito parcial**.
+
+## V2.9 Cambios en el motor de reglas, los datos y el contrato
+
+**Motor de reglas (`js/rules.js`):** no cambiaron las fórmulas, los umbrales ni las probabilidades; las 18 pruebas de la versión 1 pasan sin modificarlas. Cambiaron los **textos** (ver V2.10) y se agregó `more` a cada verificación. `simulateLaunch` se conserva y se usa solo para el par sin vuelo calibrado. `fmtKg`, `fmtMUSD` y `fmtPct` ahora viven en `js/plain.js` y se reexportan.
+
+**Datos:** las cifras no cambiaron. Se reescribieron textos de `glossary.json` (18 términos, ahora con `more` y a veces `formula`), `orbits.json`, `launchers.json` (resúmenes) y `rules.json` (eventos). Nuevos: `flight.json`, `flight-calibration.json` y `facts.json`.
+
+**Contrato de salida:** `schemaVersion` sube de 1 a **2**. Todo lo de la versión 1 se mantiene (un módulo que lea la versión 1 sigue funcionando). Cambios:
+- Campo nuevo **`flight`**: `{ maxAltitudeKm, apoapsisKm, periapsisKm, fuelLeftPct, stagingTimes[], maxQKPa, durationSeconds, pilotScore, pilotScoreParts[], autopilot }` (`null` hasta que se lanza, y `null` en el par sin vuelo calibrado). `stagingTimes[].tSeconds` está en segundos **de juego** (física ÷ 3,5).
+- `achievedOrbit` puede traer además `periapsisKm` y `apoapsisKm` (órbitas de LEO/SSO).
+- Nuevos `events[].id`: `structural` (Max-Q o ángulo de ataque), `crash`, `noOrbit`, `missedWindow`, `noTransfer`, `partialTransfer`. Los de la versión 1 (`weather`, `minorAnomaly`, `orbitOffset`, `partialFailure`, `failure`) siguen. Ahora `orbitOffset` es una ráfaga de viento durante el vuelo, y `partialFailure` es un motor que pierde fuerza.
+
+Ejemplo **real** generado por el módulo (Falcon 9, observatorio de océanos, dificultad normal, con un retraso por clima):
+
+```json
+{
+  "schemaVersion": 2,
+  "module": "launch",
+  "status": "lanzado",
+  "difficulty": "normal",
+  "launcher": {
+    "id": "falcon9",
+    "name": "Falcon 9",
+    "provider": "SpaceX (EE. UU.)",
+    "fictional": false,
+    "reliability": 0.99
+  },
+  "cost": {
+    "launchMUSD": 70,
+    "delayMUSD": 0,
+    "eventsMUSD": 0.3,
+    "totalMUSD": 70.3
+  },
+  "mass": {
+    "spacecraftKg": 2000,
+    "launchMassKg": 2000,
+    "propellantOffloadKg": 0,
+    "capacityKg": 12000,
+    "marginKg": 10000,
+    "marginPct": 83.3,
+    "marginStatus": "green"
+  },
+  "targetOrbit": {
+    "type": "SSO",
+    "altitudeKm": 680,
+    "inclinationDeg": 98
+  },
+  "achievedOrbit": {
+    "type": "SSO",
+    "altitudeKm": 680,
+    "periapsisKm": 678,
+    "apoapsisKm": 681,
+    "inclinationDeg": 98,
+    "note": "Llegaste a la órbita que querías: 678 × 681 km."
+  },
+  "result": "exito",
+  "lifetimeYears": {
+    "design": 5,
+    "beforeLaunch": 5,
+    "afterLaunch": 5
+  },
+  "events": [
+    {
+      "id": "weather",
+      "phase": "countdown",
+      "label": "Retraso por mal clima",
+      "consequence": "Hubo mal clima en Base Vandenberg: esperaron 2 días y costó 300 mil dólares más.",
+      "costMUSD": 0.3,
+      "delayDays": 2,
+      "severity": "minor"
+    }
+  ],
+  "flight": {
+    "maxAltitudeKm": 678,
+    "apoapsisKm": 681,
+    "periapsisKm": 678,
+    "fuelLeftPct": 2,
+    "stagingTimes": [
+      {
+        "stage": 1,
+        "tSeconds": 45,
+        "altitudeKm": 103,
+        "fuelLeftPct": 0
+      }
+    ],
+    "maxQKPa": 27.1,
+    "durationSeconds": 385,
+    "pilotScore": 100,
+    "pilotScoreParts": [
+      {
+        "id": "orbit",
+        "points": 50,
+        "max": 50
+      },
+      {
+        "id": "fuel",
+        "points": 25,
+        "max": 25
+      },
+      {
+        "id": "maxq",
+        "points": 15,
+        "max": 15
+      },
+      {
+        "id": "staging",
+        "points": 10,
+        "max": 10
+      }
+    ],
+    "autopilot": false
+  }
+}
+```
+
+## V2.10 Antes y después de los textos (lenguaje para secundaria)
+
+| # | Antes (versión 1) | Después (versión 2) |
+|---|---|---|
+| 1 | «Δv (energía)… Para llegar a órbita baja hacen falta unos 9,4 km/s» (glosario *Delta-v (Δv)*) | «**Presupuesto de velocidad (delta-v)**: es cuánto tiene que cambiar de velocidad tu nave para llegar a un lugar. Es como el dinero para un viaje: mientras más lejos vas, más velocidad necesitas…» (+ «Ver más» con la fórmula) |
+| 2 | «Tu nave (3500 kg) pesa 2000 kg más de lo que el cohete puede llevar a ese destino (1500 kg).» | «**Tu nave es demasiado pesada para este cohete**: pesa 2000 kg más de lo que puede subir. **Prueba un cohete más grande o pídele al equipo de la nave que le quite peso.**» |
+| 3 | «Tu nave (180 kg) usa el 29 % de la capacidad (630 kg). Sobran 450 kg (71.4 %).» | «**Tu nave pesa como unas 3 personas adultas (180 kg).** El cohete puede subir 630 kg, así que ocupa menos de la tercera parte y te sobran 450 kg (71.4 %).» |
+| 4 | «65 % de éxito: aproximadamente 1 de cada 3 lanzamientos falla. Riesgo alto para una nave única.» | «Con este cohete, **de cada 100 lanzamientos, 65 salen bien**. Falla 1 de cada 3. Es mucho riesgo para una nave que solo tienes una vez.» |
+| 5 | «Cuesta 70 MUSD. Disponible: 200 MUSD. Quedaría: 130 MUSD.» | «Este lanzamiento cuesta **70 millones de dólares (lo mismo que unas 300 casas)**. Tienes 200 millones de dólares, así que te quedarían 130 millones de dólares.» |
+| 6 | «La nave plegada (3.5 m × 5 m) cabe en la cofia (4.6 m × 11 m).» | «Tu nave doblada (3.5 m de ancho × 5 m de alto) cabe en la **punta que la protege (cofia)**: hay 4.6 m × 11 m.» |
+| 7 | «Inserción en una órbita un poco distinta» (evento) | «**Ráfaga de viento: el cohete se desvía.** El viento a gran altura empujó al cohete. Si el piloto no lo corrige, la órbita sale distinta…» |
+| 8 | «✖ Falla: misión perdida… la confiabilidad importa tanto…» | «**Misión perdida.** Esta vez no se pudo. Pasa en la vida real, incluso a los mejores equipos: de cada falla se aprende mucho.» |
+
+También: ningún texto principal muestra fórmulas (están en «Ver más» y «Para los curiosos»); cada explicación tiene como máximo 2 o 3 frases; los porcentajes de falla se dicen como frecuencias («1 de cada 13»); los datos inventados o simplificados se marcan como «dato aproximado para el juego» y «dato de práctica»; hay 4 datos curiosos reales con su fuente (por qué se despega hacia el este, cuánto de un cohete es combustible, la velocidad de la Estación Espacial y las naves dobladas como origami). Los estados no dependen solo del color: llevan ícono y texto (✔ ⚠ ▲ ✖).
+
+## V2.11 Cómo probarlo
+
+```bash
+npm install          # si hace falta
+npm run dev          # http://localhost:3000/games/launch/index.html
+node --test public/games/launch/tests/   # 48 pruebas
+node public/games/launch/tests/calibrate.mjs   # solo si cambias la física o los diseños
+```
+
+- En `npm run dev`, abre **`/games/launch/index.html`** (la ruta de carpeta cae al mapa; es lo mismo que ya pasaba en la versión 1, ver V1 §11). En el build y en Netlify funciona `/games/launch/`.
+- Parámetros útiles: `?scenario=cubesat|smallsat|equatorial|oceans|geo|moon|mars&difficulty=facil|normal|dificil`.
+- **Escenarios sugeridos:**
+  1. **CubeSat (fácil):** `?scenario=cubesat&difficulty=facil` → «Viaje compartido»; activa el piloto automático o sigue las pistas amarillas.
+  2. **Satélite de órbita polar (normal):** `?scenario=smallsat&difficulty=normal` → Alpha o Electron; hay retrasos por clima y puede fallar (Alpha falla 1 de cada 3).
+  3. **Marte (difícil):** `?scenario=mars&difficulty=dificil` → solo Ariane 6 sirve; sin ayudas; llega a la órbita de espera y enciende dentro de la franja naranja del mapa.
+- **Verificación hecha** (navegador integrado de Claude, escritorio 1400 px y celular 390 px emulado; **no** en un celular real): recorrido completo hasta el resultado con CubeSat (fácil: con piloto automático y con un piloto de prueba que sigue las pistas), satélite polar (normal: vuelo manual hasta quedarse sin combustible → resultado «Misión perdida») y Marte (llega a la órbita de espera y al mapa con la ventana; en difícil se comprobó que no hay piloto automático, pistas ni ángulo sugerido). **No se pilotó a mano un vuelo completo de dificultad difícil hasta el final**, ni se vio en el navegador el encendido de transferencia terminar: ese tramo se comprobó con el piloto automático en las pruebas de Node (Ariane 6 a escape con 5° de error de ventana, Falcon 9 a la Luna y a GTO).
+
+## V2.12 Pruebas
+
+**48 en total**: las **18** de la versión 1 (`tests/rules.test.mjs`) sin cambios + **30 nuevas**.
+- `tests/flight.test.mjs` (**19**): gravedad y aire; órbita circular (la EEI da una vuelta en ~92 min); órbita sin empuje con energía conservada; empuje, masa y combustible; Max-Q; ruptura por inclinar muy pronto; giro de la Tierra y peso del sitio; separar etapas y cofia; **calibración (90 % llega, 115 % y 125 % no, en 29 pares)**; viaje compartido; cobertura de la calibración; duración 2–4,6 min; proporciones entre cohetes; Δv de transferencias; transferencia con ventana; órbita redonda del piloto automático; puntaje; pistas de dificultad fácil; combustible de referencia.
+- `tests/outcome.test.mjs` (**11**): imprevistos reproducibles por semilla y su frecuencia según la confiabilidad; vuelo perfecto; falla grave programada; no llegar a la órbita; el pilotaje cambia el resultado; costos de la plataforma; par sin vuelo; **contrato v2** (campos de la v1 + `flight`); comparaciones cotidianas; **reglas de lenguaje** (sin fórmulas en el texto principal, explicaciones cortas, glosario con «Ver más», 3 a 6 datos curiosos; hay 4).
+
+## V2.13 Cambios sugeridos para otros equipos (no implementados)
+
+1. **Quien lea `launch` del estado compartido:** leer `schemaVersion` y, si es 2, usar `flight` (puntaje, combustible que sobró) y `achievedOrbit.periapsisKm/apoapsisKm`. Los campos de la versión 1 no cambiaron.
+2. **Equipo del mapa (`index.html` raíz / `vite.config.js`):** igual que en la versión 1, en `npm run dev` la ruta `/games/launch/` muestra el mapa; enlazar a `/games/launch/index.html` o agregar un middleware en `vite.config.js`.
+3. **Netlify / build:** `public/games/launch/tests/` (incluida `calibrate.mjs`) se copia al `dist/`. Pesa poco, pero se puede excluir. Sin otros cambios: `netlify.toml` sigue igual.
+4. **Módulo de nave:** publicar `reservedPropellantKg` y `ispS` si quiere que el vuelo calcule bien cuánto combustible gasta la nave en corregir su órbita (hoy lo toma de los mocks).
+5. **Sonido:** no hay audio en este módulo; si el juego tiene un sistema de sonido común, se pueden agregar efectos de motor, cuenta regresiva y separación.
+
+## V2.14 Pendientes, limitaciones e ideas
+
+- **No se probó en un celular físico**, solo con emulación de 390 px en el navegador integrado y con toques simulados por eventos. El deslizador y los botones usan eventos de puntero y `touch-action: none`.
+- **El piloto automático no circulariza perfecto en todos los casos**, sobre todo en destinos de transferencia con poca carga (la órbita de espera queda alargada, por ejemplo 244 × 13.000 km); las pruebas verifican que llega a la órbita y que cumple la transferencia, no que sea redonda. El puntaje de referencia usa lo que logra.
+- `PSLV-XL → GTO` no tiene vuelo interactivo (ver V2.7 §5).
+- Los motores no tienen límite de reencendidos ni de empuje mínimo; los propulsores laterales se tratan como una etapa; el vuelo es 2D.
+- Cuando el panel del navegador está oculto, Phaser pausa el juego (comportamiento normal de `requestAnimationFrame`).
+- El `prefers-reduced-motion` quita sacudidas, parpadeo de estrellas y animaciones; no se probó con un lector de pantalla.
+- **Ideas:** modo cooperativo (uno gira y otro maneja el empuje); recuperación de la primera etapa; viento por sitio; más tutoriales por destino; guardar el mejor puntaje por misión; sonido.
+
+## V2.15 Commits (rama `feature/launch`, desde `744e2dc`)
+
+| Commit | Mensaje |
+|---|---|
+| `5b70a39` | Merge main into feature/launch (sin cambios en public/games/launch) |
+| `137891b` | Add local Phaser 3.90.0 build under launch/vendor (MIT) |
+| `dbee417` | Add flight physics module, launcher designs and calibration against the catalog |
+| `86075c6` | Add outcome module, plain-language helpers, rewritten texts and schema v2 |
+| `ba392f6` | Fix fatal-event test to fly vertically |
+| `55a37a6` | Add Phaser scenes, HUD, screens and styles for the interactive launch (v2 UI) |
+| `68b6db7` | Adjust pilot-accuracy test to the new geometry |
+| `5526689` | Recalibrate vehicles with per-destination geometry; upper-stage TWR tweaks; pad scale fix |
+| `2f93ee1` | Autopilot waits for the transfer window; mobile HUD layout; suggested throttle marker; plain-text fixes |
+| (siguientes) | Friendlier destination names in checks · Update launch module README and V2 report |
+
+---
+
+# Versión 1 (informe original, sin cambios)
+
 ## 1. Resumen
 
 - Se construyó el módulo **LAUNCH** (segmento de lanzamiento) como una página de 5 pasos: **Misión → Lanzador → Compatibilidad → Lanzamiento → Resultado**.
