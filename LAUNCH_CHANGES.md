@@ -17,6 +17,7 @@
 - Rama de trabajo: **`feature/launch`**. Sigue la convención del repo (`feature/two-space-minigames`).
 - Rama de origen: **`main`** (commit `d61dfc5`).
 - No se hizo merge ni push.
+- Durante el trabajo, `main` local avanzó 6 commits (loader, title screen y otros cambios del hub, que no tocan `public/games/launch/`). La rama sigue basada en `d61dfc5`. Se comprobó con `git merge-tree` que se integra **sin conflictos**, y el nuevo `main` sigue enlazando a `/games/launch/`.
 
 ### Nota sobre la carpeta `launch/`
 
