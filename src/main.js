@@ -37,7 +37,13 @@ commanderOverlay.setAttribute('role', 'dialog');
 commanderOverlay.setAttribute('aria-modal', 'true');
 commanderOverlay.setAttribute('aria-label', 'Introducción del comandante');
 commanderOverlay.innerHTML = `
+  <div class="commander-intro__panel">
+    <div class="commander-intro__top"><span>◈ MISSION CONTROL // COMMANDER BRIEFING</span><span>● LIVE</span></div>
+    <div class="commander-intro__screen">
   <video id="commander-intro-video" src="/intro_comander.mp4" autoplay playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" aria-label="Mensaje del comandante"></video>
+    <button type="button" id="commander-skip" aria-label="Saltar introducción">SALTAR ▶▶</button>
+    </div>
+  </div>
   <div class="commander-intro__fallback" hidden>
     <p>COMMANDER TRANSMISSION READY</p>
     <button type="button" id="commander-retry">▶ INICIAR TRANSMISIÓN</button>
@@ -47,13 +53,13 @@ const commanderVideo = document.getElementById('commander-intro-video');
 let commanderStarted = false;
 function enterMissionMap() {
   commanderVideo.pause();
-  if (document.fullscreenElement === commanderOverlay) void document.exitFullscreen().catch(() => {});
   commanderOverlay.hidden = true;
   document.getElementById('settings-toggle')?.setAttribute('hidden', '');
   document.getElementById('boot')?.classList.add('hidden');
   const scene = game.scene.getScene('SpaceCenterScene');
   scene?.input?.keyboard?.resetKeys?.();
 }
+document.getElementById('commander-skip').addEventListener('click', enterMissionMap);
 document.getElementById('commander-retry').addEventListener('click', () => { commanderVideo.muted = false; void commanderVideo.play(); });
 commanderVideo.addEventListener('ended', enterMissionMap);
 commanderVideo.addEventListener('error', () => {
@@ -73,7 +79,6 @@ window.__MEGA_ENTER_MAP__ = () => {
   }
   document.getElementById('boot')?.classList.add('hidden');
   commanderOverlay.hidden = false;
-  if (commanderOverlay.requestFullscreen) void commanderOverlay.requestFullscreen().catch(() => {});
   const prefs = window.__SMS_GET_PREFERENCES__?.();
   commanderVideo.muted = prefs?.audio === false;
   commanderVideo.volume = Math.min(1, Math.max(0, prefs?.musicVolume ?? 0.8));
