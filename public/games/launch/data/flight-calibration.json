@@ -132,7 +132,7 @@
   },
   "pslv": {
    "LEO": {
-    "stackKg": 381445,
+    "stackKg": 244651,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -142,7 +142,7 @@
     "capacityKg": 3800
    },
    "SSO": {
-    "stackKg": 617397,
+    "stackKg": 211837,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -154,17 +154,17 @@
   },
   "vegac": {
    "LEO": {
-    "stackKg": 484521,
+    "stackKg": 180846,
     "program": {
      "h1": 150000,
-     "p": 0.5,
-     "decel": 1,
-     "slope": 0.25
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
     },
     "capacityKg": 3300
    },
    "SSO": {
-    "stackKg": 377079,
+    "stackKg": 209177,
     "program": {
      "h1": 100000,
      "p": 0.5,

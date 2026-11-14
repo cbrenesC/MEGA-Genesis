@@ -750,7 +750,9 @@ export function simOptionsForCalibration(destId, payloadKg, flightData, targetAl
 export function reachedCalibrationGoal(sim) {
   const el = sim.elements;
   if (DEST[sim.destId].kind === 'transfer') return transferReached(sim.destId, el);
-  // Misma regla que en el juego: la órbita cuenta cuando el punto más bajo queda sobre la atmósfera.
+  // Misma regla que en el juego: la órbita cuenta cuando el punto más bajo queda sobre la atmósfera (150 km).
+  // La capacidad del catálogo es el peso máximo con el que se logra eso; mientras más cerca de ese límite,
+  // menos combustible sobra para redondear la órbita a la altura pedida.
   return el.periAlt >= PHYS.PERI_OK;
 }
 

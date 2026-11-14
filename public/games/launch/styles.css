@@ -213,7 +213,8 @@ pre.json { max-height: 320px; overflow: auto; background: #061020; border: 1px s
 .overlay { position: absolute; z-index: 30; top: var(--top); left: 0; right: 0; bottom: 0; display: grid; place-items: center; padding: 14px; overflow-y: auto; pointer-events: none; }
 .overlay > * { pointer-events: auto; }
 .pad-card, .tutorial { width: min(560px, 100%); padding: 18px 20px; border-radius: 14px; background: rgba(8, 20, 33, .9); border: 1px solid #3d6a86; box-shadow: 0 16px 50px rgba(0,0,0,.5); }
-.pad-card { align-self: end; margin-bottom: 8px; }
+.pad-card { align-self: end; justify-self: center; margin-bottom: 8px; }
+@media (min-width: 1000px) { .pad-card { justify-self: start; margin-left: 16px; } }
 .countdown { min-height: 60px; font: 800 2.6rem ui-monospace, monospace; text-align: center; color: var(--orange); }
 .countdown .hold { font-size: 1.4rem; color: var(--yellow); display: block; }
 .countdown small { display: block; font: 400 .9rem system-ui; color: var(--muted); }

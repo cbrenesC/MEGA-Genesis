@@ -368,7 +368,7 @@ export class FlightScene extends Phaser.Scene {
     const sim = this.sim;
     const { width: W, height: H } = this.scale;
     const alt = Math.max(0, sim.altitude);
-    const mpp = 0.6 + alt * 0.012;
+    const mpp = 0.45 + alt * 0.012;
     const { cx, cy } = this.anchor();
     const R = PHYS.RE;
     const theta = sim.angle;
@@ -439,15 +439,16 @@ export class FlightScene extends Phaser.Scene {
         g.fillEllipse(x + w * 0.3, y - w * 0.08, w * 0.7, w * 0.3);
       }
     }
-    // plataforma y torre
-    if (alt < 20000) {
+    // plataforma y torre (a escala: solo se ven cerca del suelo)
+    if (alt < 4000) {
       const px = cx + (0 - sRocket) / mpp;
-      if (px > -150 && px < W + 150) {
+      const sc = 1 / mpp;
+      if (px > -400 && px < W + 400 && sc > 0.05) {
         const ground = cy + alt / mpp;
-        g.fillStyle(0x4a5a6c, 1); g.fillRect(px - 40, ground - 4, 80, 8);
-        g.fillStyle(0x38485a, 1); g.fillRect(px - 62, ground - 150, 10, 150);
-        g.lineStyle(2, 0x38485a, 1);
-        for (let yy = 0; yy < 150; yy += 25) { g.beginPath(); g.moveTo(px - 62, ground - yy); g.lineTo(px - 52, ground - yy - 25); g.strokePath(); }
+        g.fillStyle(0x4a5a6c, 1); g.fillRect(px - 30 * sc, ground - 3 * sc, 60 * sc, 4 * sc);
+        g.fillStyle(0x38485a, 1); g.fillRect(px - 46 * sc, ground - 95 * sc, 7 * sc, 95 * sc);
+        g.lineStyle(Math.max(1, 1.2 * sc), 0x38485a, 1);
+        for (let yy = 0; yy < 95; yy += 14) { g.beginPath(); g.moveTo(px - 46 * sc, ground - yy * sc); g.lineTo(px - 39 * sc, ground - (yy + 14) * sc); g.strokePath(); }
       }
     }
 
