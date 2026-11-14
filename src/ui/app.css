@@ -1,3 +1,5 @@
+@import '@fontsource/press-start-2p/400.css';
+@import '@fontsource/vt323/400.css';
 :root {
   color-scheme: dark;
   font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
@@ -149,3 +151,791 @@ kbd { min-width: 21px; height: 21px; display: grid; place-items: center; border:
   .map-vignette { inset: 58px 0 48px; }
   .interaction-prompt { bottom: 70px; }
 }
+
+
+/* Immersive, edge-to-edge gameplay: only compact essential controls overlay the map. */
+html, body, #app { width: 100%; height: 100%; height: 100dvh; }
+.game-frame { inset: 0; padding: 0; background: #07111d; }
+.game-stage { width: 100%; height: 100%; border: 0; box-shadow: none; }
+#game-container > canvas { display: block; width: 100%; height: 100%; }
+.hud-top {
+  z-index: 7; top: 12px; left: 12px; right: 12px; height: auto;
+  padding: 0; gap: 8px; background: none; border: 0;
+  pointer-events: none;
+}
+.hud-top .brand-lockup { min-width: 0; padding: 7px 10px; gap: 8px; background: rgba(5,15,25,.67); border-radius: 7px; }
+.hud-top .brand-mark { width: 27px; height: 27px; }
+.hud-top .brand-lockup strong { font-size: 10px; }
+.hud-top .brand-lockup small { display: none; }
+.hud-top .status-cluster { display: none; }
+.hud-top .icon-button { margin-left: auto; width: 37px; height: 37px; border-radius: 7px; background: rgba(5,15,25,.77); pointer-events: auto; }
+.interaction-prompt { bottom: 28px; border-radius: 6px; }
+.door-notice { top: 58px; max-width: min(90vw, 560px); text-align: center; }
+.mission-launcher {
+  position: absolute; z-index: 8; top: 59px; right: 12px;
+  width: auto; padding: 0; background: none; border: 0;
+  color: #e6f3f2; font: 11px 'IBM Plex Mono', monospace;
+}
+.mission-launcher summary {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  list-style: none; user-select: none; padding: 10px 12px;
+  border: 1px solid rgba(120,185,195,.35); border-radius: 7px;
+  background: rgba(5,15,25,.78);
+}
+.mission-launcher summary::-webkit-details-marker { display: none; }
+.mission-launcher nav {
+  display: flex; flex-direction: column; gap: 5px; width: 225px;
+  margin-top: 5px; padding: 7px; border-radius: 7px;
+  border: 1px solid rgba(120,185,195,.35); background: rgba(5,15,25,.94);
+}
+.mission-launcher nav a { color: #b3f2e8; text-decoration: none; padding: 9px 7px; border-radius: 4px; }
+.mission-launcher nav a:hover, .mission-launcher nav a:focus-visible { background: #244456; }
+.media-panel { right: 12px; top: 110px; }
+@media (max-width: 900px) {
+  .hud-top { top: 8px; left: 8px; right: 8px; }
+  .mission-launcher { top: 52px; right: 8px; }
+  .interaction-prompt { bottom: 24px; }
+  .mobile-controls { bottom: 22px; }
+}
+@media (max-width: 480px) {
+  .hud-top .brand-lockup { padding: 6px; }
+  .hud-top .brand-lockup strong { font-size: 9px; }
+  .mission-launcher summary span { display: none; }
+  .mission-launcher nav { width: min(220px, calc(100vw - 16px)); }
+  .mobile-controls { bottom: 12px; }
+  .interaction-prompt { bottom: 115px; }
+}
+
+/* Demogame-style fullscreen welcome, kept separate from the map HUD. */
+.welcome-overlay{position:fixed;inset:0;z-index:500;background:#050a13;color:#dfe8f8;transition:opacity .4s ease;overflow:hidden;font-family:monospace}
+.welcome-overlay[hidden],.welcome-overlay [hidden]{display:none!important}
+.welcome-overlay.welcome-exit{opacity:0;pointer-events:none}
+.welcome-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:22px;background:#fff;color:#14233b;text-align:center}
+.welcome-loader h1{font-size:clamp(20px,4vw,40px);letter-spacing:.16em;margin:0}
+.welcome-loader object{width:min(44vw,240px);height:min(44vw,240px)}
+.welcome-loader-fallback{font-size:80px;color:#356d8e}
+.welcome-progress{width:min(320px,70vw);height:7px;background:#d6e2ea;border-radius:10px;overflow:hidden}
+.welcome-progress span{display:block;width:0;height:100%;background:#24a6c8;transition:width .35s}
+.welcome-loader p{font-size:12px;letter-spacing:.12em}
+.welcome-dialog{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(480px,calc(100vw - 32px));max-height:90dvh;overflow:auto;background:#0c1a2d;border:1px solid #395b75;padding:clamp(18px,4vw,32px);box-shadow:0 18px 80px #000a}
+.welcome-dialog small,.welcome-kicker{color:#ffb84d;letter-spacing:.1em}
+.welcome-dialog h2{font-size:clamp(18px,3vw,25px);line-height:1.3}
+.welcome-dialog label{display:block;margin:16px 0;font-size:13px;line-height:1.6}
+.welcome-dialog label select,.welcome-dialog label input[type=range]{display:block;width:100%;margin-top:8px}
+.welcome-dialog select{background:#112941;color:#e8f8ff;padding:10px;border:1px solid #3a6178}
+.welcome-dialog .welcome-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.welcome-dialog .welcome-toggle input{accent-color:#35e0d0;width:19px;height:19px;flex-shrink:0}
+.welcome-dialog output{float:right}
+.welcome-dialog button,.welcome-actions button{padding:13px 16px;cursor:pointer;border:1px solid #4fd8ff;background:#0a3748;color:#a4f1ff;font:inherit}
+.welcome-dialog button{width:100%;margin-top:9px}
+.welcome-dialog button:disabled{opacity:.4;cursor:not-allowed}
+.welcome-title{position:absolute;inset:0;overflow:auto}
+.welcome-title-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 85% 50%,#22526b 0%,#0d2645 35%,#040a18 80%);pointer-events:none}
+.welcome-title-bg:after{content:'✦';position:absolute;right:13%;top:20%;font-size:clamp(150px,35vw,480px);color:#7dd5e7;opacity:.22;text-shadow:0 0 80px #5fd4f8}
+.welcome-title-gradient{position:absolute;inset:0;background:linear-gradient(90deg,rgba(3,9,23,.96),rgba(4,12,29,.87) 44%,transparent)}
+.welcome-title-content{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-height:100%;width:min(760px,90vw);padding:clamp(22px,5vw,70px)}
+.welcome-title h1{display:flex;flex-direction:column;font-family:monospace;font-weight:900;line-height:1.06;font-size:clamp(42px,7vw,94px);letter-spacing:-.04em;margin:20px 0}
+.welcome-title h1 span:first-child{color:#f2f6ff;text-shadow:4px 5px #5a3347}
+.welcome-title h1 span:last-child{color:#4fd8ff;text-shadow:4px 5px #135174}
+.welcome-subtitle{font-size:clamp(11px,1.5vw,17px);letter-spacing:.06em;line-height:1.6}
+.welcome-rule{width:min(520px,100%);height:2px;background:linear-gradient(90deg,#4fd8ff,transparent);margin:16px 0}
+.welcome-description{font-size:clamp(16px,2vw,24px);line-height:1.5}
+.welcome-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.welcome-actions button{min-width:170px;font-size:17px}
+.welcome-actions button:hover{background:#15536a}
+.welcome-meta{color:#9aabc8;font-size:12px;margin-top:18px}
+@media(max-width:600px){.welcome-title-content{padding:25px}.welcome-actions{width:100%}.welcome-actions button{width:100%}}
+
+/* Original demogame onboarding and title styles */
+
+
+:root { color-scheme: dark; --void: #070d1a; --cyan: #35e0d0; --text: #cfe3f5; }
+* { box-sizing: border-box; }
+html, body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--void); color:var(--text); font-family:'VT323',monospace; }
+#app, #frame, #game { position:fixed; inset:0; width:100%; height:100%; }
+#frame { border:0; box-shadow:none; background:#050a13; }
+#game { overflow:hidden; }
+#game canvas { display:block; image-rendering:auto; max-width:none; max-height:none; }
+#hint { display:none; }
+#fullscreen-toggle { position:fixed; top:max(10px,env(safe-area-inset-top)); right:max(10px,env(safe-area-inset-right)); z-index:20; width:40px; height:36px; border:1px solid #35e0d0aa; border-radius:5px; color:var(--cyan); background:#070d1ac9; cursor:pointer; font-size:25px; }
+#touch-controls { display:none; }
+#portrait-message { display:none; }
+#boot {position:fixed; inset:0; z-index:30; display:grid; place-items:center; background:#050a13; transition:opacity .6s ease,visibility .6s ease;}
+#boot.hidden {opacity:0; visibility:hidden; pointer-events:none;}
+.boot-inner{text-align:center;}
+.boot-logo{font-family:'Press Start 2P',monospace;font-size:clamp(18px,4vw,34px);letter-spacing:.14em;color:var(--cyan);}
+.boot-sub{margin-top:10px;font-family:'Press Start 2P',monospace;font-size:14px;letter-spacing:.04em;color:#7d93ad;}
+.boot-bar{width:220px;height:3px;margin:22px auto 0;background:#35e0d022;overflow:hidden;}
+.boot-bar span{display:block;height:100%;width:40%;background:#ff8a2a;animation:boot-slide 1.1s ease-in-out infinite;}
+@keyframes boot-slide{from{transform:translateX(-110%)}to{transform:translateX(270%)}}
+noscript{position:fixed;inset:0;display:grid;place-items:center;background:var(--void);font-size:22px;z-index:40;}
+@media (hover:none) and (pointer:coarse) {
+  #touch-controls { display:flex; position:fixed; z-index:15; bottom:max(8px,env(safe-area-inset-bottom)); left:max(10px,env(safe-area-inset-left)); right:max(10px,env(safe-area-inset-right)); justify-content:space-between; align-items:flex-end; pointer-events:none; }
+  #touch-controls button {pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;border:1px solid #35e0d09a;background:#070d1abf;color:#e9f8ff;border-radius:7px;min-width:46px;min-height:42px;font:16px 'Press Start 2P',monospace;}
+  .touch-pad {display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .touch-pad>div {display:flex;gap:3px;}
+  .touch-actions {display:flex;gap:5px;align-items:flex-end;}
+  .touch-actions button {font-size:10px!important;padding:0 9px;}
+  #fullscreen-toggle {width:36px;height:34px;}
+}
+@media (hover:none) and (pointer:coarse) and (orientation:portrait) and (max-width:650px) {
+  #portrait-message {display:grid;place-items:center;position:fixed;inset:0;z-index:25;background:#070d1a;color:#35e0d0;text-align:center;padding:24px;font:14px 'Press Start 2P',monospace;line-height:1.8;}
+}
+
+/* Canvas de alta resolución controlado por Phaser; UI en CSS a resolución nativa. */
+#game { display:flex; align-items:center; justify-content:center; background:#050a13; }
+#game canvas { flex:none; }
+
+
+/* ====================================================================
+   Pantalla de inicio: UI nativa a resolución real, igual que spacemiss.
+   El mundo sigue en Phaser, los textos NO se pixelan al hacer zoom.
+   ==================================================================== */
+.space-title {
+  position:fixed; inset:0; z-index:8; overflow:hidden;
+  color:#dfe8f8; pointer-events:none;
+  font-family:'VT323',monospace;
+  -webkit-font-smoothing:none; text-rendering:optimizeLegibility;
+}
+.space-title[hidden] { display:none !important; }
+.space-title__gradient {
+  position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(90deg,
+    rgba(3,9,23,.96) 0%,rgba(4,12,29,.91) 26%,
+    rgba(4,12,29,.68) 48%,rgba(3,9,23,0) 78%);
+}
+.space-title__layout {
+  position:relative; width:100%; height:100%;
+  display:flex; align-items:center; padding:clamp(16px,3vw,54px);
+}
+.space-title__content {
+  position:relative; width:min(57vw,850px);
+  max-height:calc(100vh - 30px); overflow-y:auto;
+  pointer-events:auto; scrollbar-width:thin;
+}
+.space-title__kicker {
+  margin:0 0 clamp(12px,2.2vh,24px);
+  font-family:'Press Start 2P',monospace;
+  color:#ffb84d; font-size:clamp(8px,1vw,13px);
+  line-height:1.7; letter-spacing:.08em;
+}
+.space-title__name {
+  margin:0; display:flex; flex-direction:column;
+  font-family:'Press Start 2P',monospace; line-height:1.15;
+  font-weight:400; font-size:clamp(32px,5.2vw,91px);
+  letter-spacing:-.035em;
+}
+.space-title__name span:first-child {
+  color:#f2f6ff; text-shadow:4px 5px 0 #5a3347,8px 8px 0 #101a30;
+}
+.space-title__name span:last-child {
+  color:#4fd8ff; text-shadow:4px 5px 0 #135174,8px 8px 0 #091e35;
+}
+.space-title__subtitle {
+  margin:clamp(14px,2vh,28px) 0 0;
+  font-family:'Press Start 2P',monospace;
+  font-size:clamp(9px,1.22vw,17px); line-height:1.7;
+  letter-spacing:.025em; color:#bdceee;
+}
+.space-title__rule {
+  height:2px; width:min(100%,560px); margin:clamp(8px,1.5vh,18px) 0;
+  background:linear-gradient(90deg,#4fd8ff,rgba(79,216,255,.16),transparent);
+}
+.space-title__description {
+  width:min(100%,720px); margin:0;
+  font-size:clamp(17px,1.8vw,28px); line-height:1.24;
+  color:#dbe6f8; text-shadow:1px 2px 0 #050b19;
+}
+.space-title__actions {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px; margin-top:clamp(16px,2.5vh,30px);
+  max-width:660px;
+}
+.space-title__button {
+  cursor:pointer; pointer-events:auto; min-height:43px;
+  color:#dfe8f8; border:1px solid #365277;
+  background:rgba(8,20,40,.92);
+  font-family:'VT323',monospace; font-size:clamp(18px,1.6vw,25px);
+  letter-spacing:.03em; transition:background .15s,border-color .15s,transform .12s;
+}
+.space-title__button:hover:not(:disabled) {
+  background:#14324c; border-color:#4fd8ff; transform:translateY(-1px);
+}
+.space-title__button--primary {
+  border-color:#4fd8ff; background:#0a3748; color:#9ff4ff;
+}
+.space-title__button--subtle { color:#aec0db; }
+.space-title__button:disabled {opacity:.45;cursor:not-allowed;}
+.space-title__best,.space-title__meta {
+  color:#8fa3c7; font-size:clamp(13px,1.2vw,18px);
+  margin:12px 0 0; line-height:1.3;
+}
+.space-title__sound {
+  position:fixed; top:60px; right:12px; z-index:9;
+  pointer-events:auto; border:1px solid #35516d;
+  color:#9ac6e0; background:rgba(6,13,27,.88);
+  font:18px 'VT323',monospace; padding:5px 10px; cursor:pointer;
+}
+.space-title--leaving {opacity:0;transition:opacity .35s ease;}
+@media(max-width:800px) {
+  .space-title__gradient {background:linear-gradient(90deg,rgba(3,9,23,.96),rgba(3,9,23,.78) 65%,rgba(3,9,23,.3));}
+  .space-title__layout {padding:20px;}
+  .space-title__content {width:min(73vw,600px);}
+  .space-title__name {font-size:clamp(25px,5.3vw,52px);}
+  .space-title__description {font-size:clamp(16px,2vw,21px);}
+  .space-title__button {min-height:36px;font-size:18px;}
+}
+@media(max-height:530px) {
+  .space-title__layout {align-items:flex-start;padding:13px 22px;}
+  .space-title__kicker {margin-bottom:7px;font-size:8px;}
+  .space-title__name {font-size:clamp(24px,5vh,48px);}
+  .space-title__subtitle {margin-top:6px;font-size:9px;}
+  .space-title__rule {margin:6px 0;}
+  .space-title__description {font-size:16px;line-height:1.14;}
+  .space-title__actions {margin-top:8px;gap:5px;}
+  .space-title__button {min-height:31px;font-size:16px;}
+  .space-title__meta {display:none;}
+  .space-title__sound {top:42px;}
+}
+
+/* Texto de TODO el juego a resolución nativa, independientemente del canvas. */
+#native-game-text {
+  position:fixed; inset:0; z-index:7; overflow:hidden;
+  pointer-events:none; isolation:isolate;
+}
+.native-phaser-text {
+  position:absolute; display:block; pointer-events:none;
+  margin:0; padding:0; border:0; box-sizing:content-box;
+  font-kerning:none; font-variant-ligatures:none; font-weight:400;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:geometricPrecision;
+  white-space:pre; overflow:visible;
+}
+
+/* Video real de la pantalla de título (imagen + pista de audio original). */
+.space-title__video {
+  position:absolute; inset:0; width:100%; height:100%;
+  display:block; object-fit:cover; object-position:center center;
+  pointer-events:none; z-index:0;
+}
+.space-title__gradient { z-index:1; }
+.space-title__layout { z-index:2; }
+.space-title__sound { z-index:3; }
+
+/* Preloader SVG animado suministrado por el usuario. */
+#boot { background:#050a13; }
+.boot-inner {
+  width:min(94vw,520px); display:flex;
+  flex-direction:column; align-items:center; justify-content:center;
+  gap:12px;
+}
+.boot-animation {
+  display:block; width:min(85vw,430px); height:auto;
+  aspect-ratio:7/4; border:0; background:transparent;
+  pointer-events:none;
+}
+.boot-animation img { width:100%; height:100%; object-fit:contain; }
+.boot-sub {
+  font-family:'VT323',monospace; font-size:clamp(18px,2vw,25px);
+  letter-spacing:.09em; color:#a6def2; margin:0;
+}
+.boot-bar { margin:8px auto 0; }
+
+/* Solo el SVG: sin barra ni textos de carga anteriores. */
+#boot .boot-bar,#boot .boot-sub,#boot .boot-logo { display:none !important; }
+#boot .boot-inner { background:transparent; }
+#boot .boot-animation { background:transparent; max-width:100%; }
+.space-title__video-error {
+  position:absolute; right:1rem; bottom:1rem; z-index:5;
+  max-width:min(55vw,360px); border:1px solid #ffb84d;
+  background:rgba(5,12,25,.92); color:#ffdca2;
+  padding:8px 12px; font:18px 'VT323',monospace;
+  pointer-events:none;
+}
+.space-title__video-error[hidden] { display:none; }
+
+/* Preloader único: Space Mission + SVG transparente + progreso.
+   La barra avanza durante 3 s y se completa cuando Phaser está listo. */
+#boot { z-index:30; background:#050a13; }
+#boot .boot-inner { gap:clamp(10px,2vh,22px); }
+#boot .boot-game-title {
+  margin:0; color:#eaf7ff; text-align:center;
+  font:400 clamp(16px,3.4vw,34px)/1.6 'Press Start 2P',monospace;
+  text-shadow:3px 4px 0 #18425d;
+}
+#boot .boot-animation {
+  width:min(76vw,410px); height:auto; aspect-ratio:7/4;
+  background:transparent; flex-shrink:1;
+}
+#boot .boot-progress {
+  display:block; width:min(66vw,320px); height:9px;
+  border:1px solid #32617d; background:#071525;
+  overflow:hidden; box-shadow:0 0 10px rgba(79,216,255,.12);
+}
+#boot .boot-progress__fill {
+  display:block; width:0%; height:100%; background:#4fd8ff;
+  box-shadow:0 0 12px rgba(79,216,255,.8);
+  animation:space-boot-progress 3s ease-out both;
+  transition:width .24s ease-out;
+}
+#boot.ready .boot-progress__fill { width:100%; animation:none; }
+#boot .boot-status {
+  display:block; margin:0; color:#91adc7;
+  font:400 clamp(17px,2.2vw,24px)/1.2 'VT323',monospace;
+  letter-spacing:.08em;
+}
+@keyframes space-boot-progress {
+  0% { width:0%; }
+  50% { width:62%; }
+  100% { width:92%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #boot .boot-progress__fill { animation:none; width:92%; }
+}
+
+/* Preloader: fondo blanco y animación SVG de mayor tamaño. */
+#boot {
+  background:#ffffff;
+}
+#boot .boot-inner {
+  width:min(96vw,900px);
+  max-width:none;
+}
+#boot .boot-animation {
+  width:min(90vw,760px);
+  max-width:none;
+  height:auto;
+  aspect-ratio:7/4;
+}
+#boot .boot-game-title {
+  color:#152c43;
+  text-shadow:3px 3px 0 #cbdde5;
+}
+#boot .boot-status {
+  color:#38526a;
+}
+#boot .boot-progress {
+  width:min(75vw,480px);
+  border-color:#acc2d0;
+  background:#e6eef3;
+}
+#boot .boot-progress__fill {
+  background:#238db3;
+  box-shadow:none;
+}
+@media (max-height:580px) {
+  #boot .boot-inner { gap:6px; }
+  #boot .boot-animation {
+    width:min(70vw,560px,65vh * 1.75);
+  }
+}
+
+/* Preferencias globales y consentimiento de almacenamiento. */
+#fullscreen-toggle {
+  top:max(10px,env(safe-area-inset-top)); left:max(10px,env(safe-area-inset-left));
+  right:auto; z-index:22; width:40px; height:38px;
+}
+#settings-toggle {
+  position:fixed; top:max(10px,env(safe-area-inset-top));
+  left:calc(max(10px,env(safe-area-inset-left)) + 48px);
+  z-index:22; width:40px; height:38px;
+  border:1px solid #35e0d0aa; border-radius:5px;
+  color:#35e0d0; background:#070d1add; cursor:pointer;
+  font:26px/1 'VT323',monospace;
+}
+#settings-toggle:hover,#fullscreen-toggle:hover { background:#16314d; }
+.settings-dialog {
+  position:fixed; z-index:24;
+  left:max(10px,env(safe-area-inset-left));
+  top:calc(max(10px,env(safe-area-inset-top)) + 48px);
+  width:min(350px,calc(100vw - 20px));
+  padding:18px; border:1px solid #487c9a; border-radius:7px;
+  color:#eaf6ff; background:rgba(7,16,31,.97);
+  box-shadow:0 12px 40px #0008;
+  font-family:'VT323',monospace;
+}
+.settings-dialog[hidden] { display:none!important; }
+.settings-dialog__heading {
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid #26465c; margin-bottom:12px; padding-bottom:8px;
+}
+.settings-dialog__heading h2 {
+  margin:0; color:#4fd8ff; font:400 12px/1.5 'Press Start 2P',monospace;
+}
+.settings-dialog__heading button {
+  border:0; color:#dfe8f8; background:transparent;
+  cursor:pointer; font-size:19px;
+}
+.settings-dialog__option {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:10px 0; cursor:pointer;
+  font-size:24px; border-bottom:1px solid #21344c;
+}
+.settings-dialog__option span { display:flex; flex-direction:column; }
+.settings-dialog__option small { font-size:16px; color:#8fa3c7; }
+.settings-dialog__option input {
+  accent-color:#4fd8ff; width:20px; height:20px; cursor:pointer;
+}
+.settings-storage-status {
+  color:#a8b9d0; font-size:17px; line-height:1.3; margin:14px 0;
+}
+.settings-allow {
+  width:100%; border:1px solid #4fd8ff; background:#12384d;
+  color:#dffbff; padding:9px; cursor:pointer;
+  font:20px 'VT323',monospace;
+}
+.settings-allow[hidden] {display:none!important;}
+
+/* Fondo del título más visible, con degradado limitado al área de lectura. */
+.space-title__gradient {
+  background:linear-gradient(90deg,
+    rgba(3,9,23,.67) 0%,rgba(4,12,29,.43) 29%,
+    rgba(4,12,29,.19) 49%,transparent 72%);
+}
+@media(max-width:800px) {
+  .space-title__gradient {
+    background:linear-gradient(90deg,rgba(3,9,23,.70),rgba(3,9,23,.25) 70%,transparent);
+  }
+}
+
+/* Diálogo integrado en el loader; aparece solo después del tiempo mínimo. */
+#boot.awaiting-consent { overflow-y:auto; }
+#boot.awaiting-consent .boot-inner { padding:18px 14px; }
+#boot.awaiting-consent .boot-animation {
+  width:min(68vw,420px);
+  max-height:32vh;
+  object-fit:contain;
+}
+#boot.awaiting-consent .boot-game-title {font-size:clamp(14px,2.4vw,25px);}
+#boot.awaiting-consent .boot-status {display:none;}
+.boot-consent {
+  width:min(640px,100%); padding:14px 22px;
+  color:#24374c; border:1px solid #d1dfe9; border-radius:8px;
+  background:#f6fafddd; box-shadow:0 6px 22px #244a6416;
+  text-align:left;
+}
+.boot-consent[hidden] {display:none!important;}
+.boot-consent h2 {
+  margin:0 0 10px; font:400 clamp(13px,2vw,17px)/1.6 'Press Start 2P',monospace;
+  color:#163a55;
+}
+.boot-consent p {
+  margin:8px 0; font:clamp(18px,2vw,22px)/1.18 'VT323',monospace;
+}
+.boot-consent__actions {
+  display:flex; flex-wrap:wrap; gap:10px; margin-top:14px;
+}
+.boot-consent__actions button {
+  flex:1; min-width:190px; min-height:43px;
+  border:1px solid #267ca7; background:#11618a;
+  color:#fff; cursor:pointer; padding:9px 12px;
+  font:20px 'VT323',monospace;
+}
+.boot-consent__actions button:last-child {
+  background:#fff; color:#25425b; border-color:#bccbd6;
+}
+.boot-consent__actions button:hover {filter:brightness(.94);}
+@media(max-height:760px) {
+  #boot.awaiting-consent {place-items:start center;}
+  #boot.awaiting-consent .boot-animation {max-height:23vh;}
+  #boot.awaiting-consent .boot-inner {gap:8px; margin:auto;}
+  .boot-consent {padding:10px 14px;}
+  .boot-consent p {font-size:18px;}
+}
+
+/* Bienvenida cinematográfica: cada fase conserva el fondo blanco,
+   y entra/sale con un fade independiente sin duplicar loaders. */
+#boot { background:#fff; }
+#boot .boot-inner, #boot .boot-stage, #boot .boot-consent {
+  transition:opacity .45s ease, transform .45s ease;
+}
+#boot .boot-inner { opacity:1; transform:none; }
+#boot .boot-inner:not(.is-visible):not([hidden]) { opacity:1; }
+#boot .boot-inner[hidden] { display:none!important; }
+#boot .boot-stage[hidden],#boot .boot-consent[hidden] { display:none!important; }
+#boot .boot-stage {
+  position:absolute; inset:0; z-index:2;
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:22px; padding:clamp(18px,5vw,48px);
+  background:#fff; color:#20384d; text-align:center;
+  opacity:0; transform:translateY(10px);
+}
+#boot .boot-stage.is-visible {
+  opacity:1; transform:translateY(0);
+}
+#boot .boot-consent {
+  opacity:0; transform:translateY(10px);
+}
+#boot .boot-consent.is-visible {
+  opacity:1; transform:translateY(0);
+}
+#boot .boot-terms { max-width:none; }
+#boot .boot-terms h2 {
+  font:400 clamp(16px,2.4vw,28px)/1.7 'Press Start 2P',monospace;
+  margin:0; color:#173951;
+}
+#boot .boot-terms p {
+  width:min(780px,100%); margin:0;
+  font:clamp(20px,2.3vw,27px)/1.2 'VT323',monospace;
+}
+#boot .boot-terms button {
+  font:21px 'VT323',monospace; border:1px solid #236c8b;
+  background:#1b789c; color:white; padding:12px 30px;
+  cursor:pointer;
+}
+#boot .boot-brands .boot-brand-logos {
+  display:flex; align-items:center; justify-content:center; gap:clamp(26px,5vw,80px);
+}
+#boot .boot-brands img {
+  display:block; width:clamp(85px,16vw,185px); height:clamp(85px,16vw,185px);
+  object-fit:contain; image-rendering:pixelated;
+}
+#boot .boot-brands p {
+  color:#254965; font:400 clamp(11px,1.5vw,16px)/1.7 'Press Start 2P',monospace;
+}
+#boot .boot-intro { gap:16px; }
+#boot .boot-intro video {
+  display:block; width:min(96vw,1450px); max-height:78vh;
+  object-fit:contain; background:#fff;
+}
+.settings-dialog__volume {
+  display:flex; flex-direction:column; gap:6px;
+  padding:10px 0; border-bottom:1px solid #21344c;
+  font:21px 'VT323',monospace;
+}
+.settings-dialog__volume span {
+  display:flex; align-items:center; justify-content:space-between;
+}
+.settings-dialog__volume output { color:#79d7ff; font-variant-numeric:tabular-nums; }
+.settings-dialog__volume input {
+  width:100%; accent-color:#4fd8ff; cursor:pointer;
+}
+.settings-clear {
+  width:100%; margin-top:9px; padding:9px;
+  border:1px solid #9b5463; background:transparent;
+  color:#ffc5cb; cursor:pointer;
+  font:20px 'VT323',monospace;
+}
+#boot #boot-consent {
+  position:relative; z-index:5;
+}
+@media(max-height:650px) {
+  #boot .boot-stage { gap:10px; padding:12px; overflow-y:auto; }
+  #boot .boot-terms p { font-size:18px; }
+  #boot .boot-brands img { width:100px; height:100px; }
+}
+
+/* Fade-out real del loader inicial antes del bloque de logos. */
+#boot .boot-inner.is-fading {
+  opacity:0!important;
+  transform:translateY(-8px);
+}
+html.sms-reduced-animations .space-title__button,
+html.sms-reduced-animations #boot .boot-stage,
+html.sms-reduced-animations #boot .boot-consent {
+  transition:none!important;
+}
+
+.boot-consent__options {
+  display:flex; flex-wrap:wrap; gap:8px 18px; padding:8px 0;
+}
+.boot-consent__options label {
+  display:inline-flex; align-items:center; gap:7px;
+  color:#25475e; cursor:pointer;
+  font:20px 'VT323',monospace;
+}
+.boot-consent__options input {width:18px;height:18px;accent-color:#147da5;}
+
+/* Progress now reflects real downloaded bytes, not a three-second CSS animation. */
+#boot .boot-progress__fill {
+  animation:none!important;
+  width:0%;
+  transition:width .25s ease;
+}
+#boot.ready .boot-progress__fill {width:100%!important;}
+
+/* Two focused onboarding dialogs. */
+#boot .boot-dialog-stage {z-index:6;}
+#boot .boot-dialog {
+  width:min(650px,94vw);
+  max-height:min(90vh,800px); overflow:auto;
+  border:1px solid #d6e3ec; border-radius:12px;
+  box-shadow:0 18px 55px #1b38551c;
+  padding:clamp(18px,3vw,38px);
+  background:#fff; color:#1f394b; text-align:left;
+}
+.boot-dialog h2 {
+  color:#193c55;
+  font:400 clamp(12px,2vw,20px)/1.7 'Press Start 2P',monospace;
+  margin:0 0 16px;
+}
+.boot-dialog p {
+  font:clamp(17px,1.8vw,23px)/1.24 'VT323',monospace;
+  margin:10px 0;
+}
+.boot-dialog .boot-step {
+  color:#6b879e; font:15px 'VT323',monospace;
+  margin:0 0 12px;
+}
+.boot-form-field {
+  display:flex; flex-direction:column; gap:8px;
+  font:clamp(20px,2vw,24px) 'VT323',monospace;
+  margin:14px 0; color:#1d4055;
+}
+.boot-form-field select, .settings-dialog__option select {
+  border:1px solid #abc9da; border-radius:5px;
+  background:#f8fcff; color:#15374c;
+  padding:11px 10px;
+  font:clamp(18px,2vw,23px) 'VT323',monospace;
+}
+.boot-range-field>span {
+  display:flex; justify-content:space-between; align-items:center;
+}
+.boot-range-field output {font-variant-numeric:tabular-nums;color:#126c96;}
+.boot-range-field input {width:100%; accent-color:#147ca5; cursor:pointer;}
+#boot .boot-primary {
+  border:1px solid #147b9d; border-radius:5px; min-height:44px;
+  padding:10px 20px; background:#147b9d; color:white;
+  font:21px 'VT323',monospace; cursor:pointer;
+}
+#boot .boot-primary:disabled, #boot .boot-consent__actions button:disabled {
+  opacity:.45; cursor:not-allowed; filter:grayscale(1);
+}
+#boot .boot-dialog .boot-consent__options {
+  display:flex; flex-direction:column; align-items:flex-start;
+  margin:14px 0; text-align:left; gap:12px;
+}
+#boot .boot-dialog .boot-consent__options label {
+  display:flex; align-items:flex-start; gap:10px;
+  font:clamp(17px,1.7vw,21px)/1.25 'VT323',monospace;
+}
+#boot .boot-dialog .boot-consent__actions {
+  display:flex; justify-content:stretch;
+}
+#boot .boot-dialog .boot-consent__actions button {
+  flex:1; min-width:170px;
+}
+#boot .boot-brand-logos {gap:clamp(22px,5vw,65px);}
+#boot .boot-recommendations {
+  display:flex; gap:clamp(10px,3vw,44px); flex-wrap:wrap;
+  justify-content:center; align-items:center; max-width:780px;
+}
+#boot .boot-recommendation {
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  font:400 clamp(10px,1.4vw,14px)/1.5 'Press Start 2P',monospace;
+  color:#254663; max-width:300px;
+}
+#boot .boot-recommendation__icon {
+  display:grid; place-items:center; width:72px; height:72px;
+  border:2px solid #37718d; border-radius:12px;
+  background:#f6fbff; color:#1b648a; font:48px/1 'VT323',monospace;
+}
+#boot #boot-rotate-hint {
+  color:#a04732; font:400 clamp(9px,1.4vw,13px)/1.6 'Press Start 2P',monospace;
+}
+#boot #boot-rotate-hint[hidden] {display:none!important;}
+#boot .boot-tagline {font-size:clamp(12px,1.6vw,17px);}
+.settings-dialog__option select {width:150px;max-width:48%;}
+@media(max-width:650px) {
+  #boot .boot-stage {justify-content:flex-start;padding:15px;}
+  #boot .boot-dialog {margin:auto;max-height:calc(100dvh - 30px);padding:17px;}
+  #boot .boot-brand-logos img {width:86px;height:86px;}
+  #boot .boot-recommendation__icon {width:52px;height:52px;font-size:36px;}
+}
+
+/* The author display:block style must never override the hidden media state. */
+.space-title__video[hidden] {display:none!important;}
+#boot .boot-status {max-width:min(90vw,720px);min-height:1.3em;}
+@media(prefers-reduced-motion:reduce) {
+  #boot .boot-progress__fill {transition:none!important;}
+}
+
+/* First step: accessible, large ON/OFF switches. */
+#boot .boot-setup-toggles {
+  display:grid; gap:11px; margin:12px 0 18px;
+}
+#boot .boot-toggle-row {
+  display:flex; justify-content:space-between; align-items:center;
+  gap:12px; min-height:44px; cursor:pointer;
+  font:clamp(19px,2vw,24px)/1.2 'VT323',monospace;
+  color:#1f4055;
+}
+#boot .boot-toggle-row>span:first-child {flex:1;}
+#boot .boot-toggle-row input {
+  position:absolute; opacity:0; width:1px; height:1px;
+}
+#boot .boot-switch {
+  position:relative; flex-shrink:0;
+  display:flex; justify-content:space-between; align-items:center;
+  width:98px; height:39px; padding:0 12px;
+  border-radius:22px; background:#183e58; color:#bfdef0;
+  font:20px 'VT323',monospace;
+  transition:background .2s ease;
+}
+#boot .boot-switch::before {
+  content:''; display:block; position:absolute; left:4px; top:4px;
+  width:43px; height:31px; border-radius:18px; background:#fff;
+  box-shadow:0 1px 4px #0019;
+  transform:translateX(47px); transition:transform .2s ease;
+}
+#boot .boot-toggle-row input:not(:checked)+.boot-switch {
+  background:#738594; color:#fff;
+}
+#boot .boot-toggle-row input:not(:checked)+.boot-switch::before {
+  transform:translateX(0);
+}
+#boot .boot-switch-on,#boot .boot-switch-off {position:relative;z-index:1;}
+#boot .boot-switch-on {color:#f6feff;}
+#boot .boot-toggle-row input:checked+.boot-switch .boot-switch-off {
+  color:#30526b;
+}
+#boot .boot-toggle-row input:not(:checked)+.boot-switch .boot-switch-on {
+  color:#546a7c;
+}
+#boot .boot-toggle-row input:focus-visible+.boot-switch {
+  outline:3px solid #5cc3ec; outline-offset:3px;
+}
+#boot .boot-localizing-dialog {text-align:center; width:min(600px,92vw);}
+#boot .boot-localizing-dialog h2 {font-size:clamp(13px,2vw,19px);}
+#boot .boot-localizing-progress {
+  margin:22px auto 10px; width:100%; height:12px;
+  border:1px solid #bad2e0; background:#eaf4f8;
+  border-radius:8px; overflow:hidden;
+}
+#boot #boot-localizing-fill {
+  display:block; width:0%; height:100%;
+  background:#208eb3; transition:width .2s ease;
+}
+#boot #boot-localizing-label {color:#50718a;min-height:1.2em;}
+
+/* Reuse the original animated preloader during language preparation. */
+#boot .boot-localizing-dialog {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:clamp(8px,1.5vh,18px); width:min(760px,94vw);
+  padding:clamp(15px,2.5vw,32px);
+}
+#boot .boot-localizing-svg {
+  display:block;
+  width:min(72vw,500px);
+  height:min(35vh,265px);
+  max-width:100%;
+  background:transparent;
+  border:0;
+  flex:0 1 auto;
+  pointer-events:none;
+}
+#boot .boot-localizing-svg img {
+  display:block; width:100%; height:100%; object-fit:contain;
+}
+#boot .boot-localizing-dialog h2 {margin:0;}
+#boot .boot-localizing-progress {margin:4px auto 4px;}
+@media (max-height:500px) {
+  #boot .boot-localizing-svg {height:22vh;width:min(62vw,420px);}
+}
+
+/* Preserve the MEGA Genesis map layout behind original onboarding */
+#app.game-frame{position:fixed;inset:0;padding:0}
+#game-container.game-stage{position:relative;width:100%;height:100%;border:0;box-shadow:none}
+#boot[hidden],#boot [hidden],#settings-dialog[hidden],.space-title[hidden]{display:none!important}
+#settings-toggle{position:fixed;right:12px;top:55px;z-index:21}
+#settings-dialog{z-index:50}
