@@ -1,0 +1,393 @@
+{
+  "_about": "Diseños de cohete para el vuelo interactivo (versión 2). Son modelos SIMPLIFICADOS e inspirados en cohetes reales: número de etapas, impulso específico (Isp), qué parte de cada etapa es estructura (eps) y cómo se reparte la masa (share). NO son datos de ingeniería reales. El tamaño total de cada cohete (masa de las etapas) NO está aquí: se calibra para que el piloto automático ponga en órbita justo la capacidad del catálogo (ver data/flight-calibration.json y tests/calibrate.mjs). twr = empuje / peso al encender la etapa. ispSl = Isp a nivel del mar, ispVac = Isp en el vacío. transferStages = versión con una etapa extra de transferencia, que se usa solo para destinos lejanos (GTO, Luna, escape) en cohetes pequeños.",
+  "calibration": {
+    "_about": "programCandidates = programas de inclinación que prueba el piloto automático. Las capacidades del catálogo se calibran lanzando desde un sitio de referencia (28,5° de latitud, hacia el este) con el piloto automático. 'parkingAltKm' es la altura de la órbita circular que debe alcanzar para dar por buena la capacidad. En GTO, TLI y escape, después de la órbita de espera hace falta además la quemada de transferencia.",
+    "latDeg": 28.5,
+    "incDeg": 28.5,
+    "programCandidates": [
+      {
+        "h1": 100000,
+        "p": 0.5,
+        "decel": 2,
+        "slope": 0.4
+      },
+      {
+        "h1": 100000,
+        "p": 0.35,
+        "decel": 2,
+        "slope": 0.4
+      },
+      {
+        "h1": 150000,
+        "p": 0.35,
+        "decel": 2,
+        "slope": 0.4
+      },
+      {
+        "h1": 150000,
+        "p": 0.5,
+        "decel": 1,
+        "slope": 0.25
+      },
+      {
+        "h1": 70000,
+        "p": 0.7,
+        "decel": 2,
+        "slope": 0.25
+      },
+      {
+        "h1": 100000,
+        "p": 0.7,
+        "decel": 4,
+        "slope": 0.4
+      },
+      {
+        "h1": 70000,
+        "p": 0.5,
+        "decel": 1,
+        "slope": 0.12
+      },
+      {
+        "h1": 100000,
+        "p": 1.0,
+        "decel": 2,
+        "slope": 0.25
+      }
+    ],
+    "LEO": {
+      "parkingAltKm": 250
+    },
+    "SSO": {
+      "parkingAltKm": 500
+    },
+    "GTO": {
+      "parkingAltKm": 250
+    },
+    "TLI": {
+      "parkingAltKm": 250
+    },
+    "ESCAPE": {
+      "parkingAltKm": 250
+    }
+  },
+  "vehicles": {
+    "electron": {
+      "name": "Electron",
+      "diameterM": 1.2,
+      "fairingPct": 0.08,
+      "stages": [
+        {
+          "name": "Primera etapa",
+          "share": 0.82,
+          "eps": 0.095,
+          "ispSl": 290,
+          "ispVac": 311,
+          "twr": 1.35
+        },
+        {
+          "name": "Etapa superior",
+          "share": 0.18,
+          "eps": 0.1,
+          "ispSl": 343,
+          "ispVac": 343,
+          "twr": 0.85
+        }
+      ],
+      "transferStages": [
+        {
+          "name": "Primera etapa",
+          "share": 0.76,
+          "eps": 0.095,
+          "ispSl": 290,
+          "ispVac": 311,
+          "twr": 1.35
+        },
+        {
+          "name": "Etapa superior",
+          "share": 0.17,
+          "eps": 0.1,
+          "ispSl": 343,
+          "ispVac": 343,
+          "twr": 0.85
+        },
+        {
+          "name": "Etapa de transferencia (tipo Photon)",
+          "share": 0.07,
+          "eps": 0.12,
+          "ispSl": 320,
+          "ispVac": 320,
+          "twr": 0.5
+        }
+      ]
+    },
+    "rideshare": {
+      "vehicleOf": "falcon9"
+    },
+    "pegasus": {
+      "name": "Pegasus XL",
+      "diameterM": 1.3,
+      "fairingPct": 0.06,
+      "stages": [
+        {
+          "name": "Primera etapa (sólida)",
+          "share": 0.7,
+          "eps": 0.09,
+          "ispSl": 262,
+          "ispVac": 285,
+          "twr": 1.4
+        },
+        {
+          "name": "Segunda etapa (sólida)",
+          "share": 0.22,
+          "eps": 0.09,
+          "ispSl": 285,
+          "ispVac": 289,
+          "twr": 1.1
+        },
+        {
+          "name": "Tercera etapa (sólida)",
+          "share": 0.08,
+          "eps": 0.14,
+          "ispSl": 289,
+          "ispVac": 289,
+          "twr": 0.8
+        }
+      ]
+    },
+    "alpha": {
+      "name": "Alpha",
+      "diameterM": 1.8,
+      "fairingPct": 0.06,
+      "stages": [
+        {
+          "name": "Primera etapa",
+          "share": 0.78,
+          "eps": 0.075,
+          "ispSl": 270,
+          "ispVac": 297,
+          "twr": 1.35
+        },
+        {
+          "name": "Etapa superior",
+          "share": 0.22,
+          "eps": 0.085,
+          "ispSl": 320,
+          "ispVac": 320,
+          "twr": 0.8
+        }
+      ]
+    },
+    "pslv": {
+      "name": "PSLV-XL",
+      "diameterM": 2.8,
+      "fairingPct": 0.045,
+      "stages": [
+        {
+          "name": "Primera etapa (sólida)",
+          "share": 0.62,
+          "eps": 0.1,
+          "ispSl": 238,
+          "ispVac": 269,
+          "twr": 1.4
+        },
+        {
+          "name": "Segunda etapa (líquida)",
+          "share": 0.28,
+          "eps": 0.09,
+          "ispSl": 262,
+          "ispVac": 295,
+          "twr": 1.0
+        },
+        {
+          "name": "Tercera etapa (superior)",
+          "share": 0.1,
+          "eps": 0.12,
+          "ispSl": 295,
+          "ispVac": 295,
+          "twr": 0.8
+        }
+      ],
+      "transferStages": [
+        {
+          "name": "Primera etapa (sólida)",
+          "share": 0.48,
+          "eps": 0.1,
+          "ispSl": 238,
+          "ispVac": 269,
+          "twr": 1.4
+        },
+        {
+          "name": "Segunda etapa (líquida)",
+          "share": 0.27,
+          "eps": 0.09,
+          "ispSl": 262,
+          "ispVac": 295,
+          "twr": 1.0
+        },
+        {
+          "name": "Tercera etapa (superior)",
+          "share": 0.13,
+          "eps": 0.12,
+          "ispSl": 295,
+          "ispVac": 295,
+          "twr": 0.8
+        },
+        {
+          "name": "Etapa de transferencia",
+          "share": 0.12,
+          "eps": 0.1,
+          "ispSl": 318,
+          "ispVac": 318,
+          "twr": 0.5
+        }
+      ]
+    },
+    "vegac": {
+      "name": "Vega C",
+      "diameterM": 3.0,
+      "fairingPct": 0.05,
+      "stages": [
+        {
+          "name": "Primera etapa (sólida)",
+          "share": 0.66,
+          "eps": 0.09,
+          "ispSl": 255,
+          "ispVac": 280,
+          "twr": 1.45
+        },
+        {
+          "name": "Segunda etapa (sólida)",
+          "share": 0.25,
+          "eps": 0.1,
+          "ispSl": 288,
+          "ispVac": 291,
+          "twr": 1.1
+        },
+        {
+          "name": "Etapa superior (AVUM)",
+          "share": 0.09,
+          "eps": 0.14,
+          "ispSl": 315,
+          "ispVac": 315,
+          "twr": 0.6
+        }
+      ]
+    },
+    "falcon9": {
+      "name": "Falcon 9",
+      "diameterM": 3.7,
+      "fairingPct": 0.06,
+      "stages": [
+        {
+          "name": "Primera etapa",
+          "share": 0.8,
+          "eps": 0.06,
+          "ispSl": 282,
+          "ispVac": 311,
+          "twr": 1.4
+        },
+        {
+          "name": "Etapa superior",
+          "share": 0.2,
+          "eps": 0.045,
+          "ispSl": 348,
+          "ispVac": 348,
+          "twr": 0.8
+        }
+      ]
+    },
+    "ariane64": {
+      "name": "Ariane 6 (A64)",
+      "diameterM": 5.4,
+      "fairingPct": 0.05,
+      "stages": [
+        {
+          "name": "Propulsores laterales",
+          "share": 0.5,
+          "eps": 0.09,
+          "ispSl": 252,
+          "ispVac": 280,
+          "twr": 1.35
+        },
+        {
+          "name": "Etapa central",
+          "share": 0.4,
+          "eps": 0.1,
+          "ispSl": 330,
+          "ispVac": 432,
+          "twr": 1.2
+        },
+        {
+          "name": "Etapa superior",
+          "share": 0.1,
+          "eps": 0.11,
+          "ispSl": 457,
+          "ispVac": 457,
+          "twr": 0.55
+        }
+      ]
+    },
+    "falconheavy": {
+      "name": "Falcon Heavy",
+      "diameterM": 3.7,
+      "fairingPct": 0.04,
+      "stages": [
+        {
+          "name": "Propulsores laterales",
+          "share": 0.52,
+          "eps": 0.06,
+          "ispSl": 282,
+          "ispVac": 311,
+          "twr": 1.4
+        },
+        {
+          "name": "Etapa central",
+          "share": 0.34,
+          "eps": 0.06,
+          "ispSl": 282,
+          "ispVac": 311,
+          "twr": 1.1
+        },
+        {
+          "name": "Etapa superior",
+          "share": 0.14,
+          "eps": 0.05,
+          "ispSl": 348,
+          "ispVac": 348,
+          "twr": 0.75
+        }
+      ]
+    },
+    "sls": {
+      "name": "SLS",
+      "diameterM": 8.4,
+      "fairingPct": 0.03,
+      "stages": [
+        {
+          "name": "Propulsores laterales (sólidos)",
+          "share": 0.43,
+          "eps": 0.14,
+          "ispSl": 242,
+          "ispVac": 269,
+          "twr": 1.35
+        },
+        {
+          "name": "Etapa central",
+          "share": 0.5,
+          "eps": 0.07,
+          "ispSl": 366,
+          "ispVac": 452,
+          "twr": 1.1
+        },
+        {
+          "name": "Etapa superior",
+          "share": 0.07,
+          "eps": 0.18,
+          "ispSl": 462,
+          "ispVac": 462,
+          "twr": 0.5
+        }
+      ]
+    }
+  }
+}
