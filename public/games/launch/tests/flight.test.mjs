@@ -7,16 +7,13 @@ import { fileURLToPath } from 'node:url';
 import {
   PHYS, DEG, FlightSim, orbitElements, circularSpeed, transferDeltaV, earthRotationBonus, airDensity,
   vehicleFor, runAutopilot, bestProgram, programGrid, reachedCalibrationGoal, referenceRun, pilotScore, pilotHint, newAutopilot,
-  simOptionsForCalibration, timeToApoapsis, destDeltaV, buildVehicle, transferReached, DEST,
+  simOptionsForCalibration, timeToApoapsis, missionRotationBonus, destDeltaV, buildVehicle, transferReached, DEST,
 } from '../js/flight.js';
 
 const load = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../data/${name}.json`, import.meta.url)), 'utf8'));
 const data = { launchers: load('launchers').launchers, flight: load('flight'), calibration: load('flight-calibration') };
 const launcher = (id) => data.launchers.find((l) => l.id === id);
-const missionOpts = (dest, payloadKg, targetAltKm) => ({
-  payloadKg, destId: dest, targetAltKm: targetAltKm ?? data.flight.calibration[dest].parkingAltKm,
-  latDeg: data.flight.calibration.latDeg, incDeg: data.flight.calibration.incDeg, events: [],
-});
+const missionOpts = (dest, payloadKg, targetAltKm) => simOptionsForCalibration(dest, payloadKg, data.flight, targetAltKm);
 
 test('física: la gravedad baja con la altura y la densidad del aire también', () => {
   const g = (h) => PHYS.MU / (PHYS.RE + h) ** 2;
@@ -86,6 +83,10 @@ test('inclinar demasiado pronto con aire denso rompe el cohete (y el mensaje lo 
 });
 
 test('el giro de la Tierra ayuda más al lanzar hacia el este cerca del ecuador', () => {
+  // en las misiones, el sitio real solo cambia una parte pequeña (SITE_WEIGHT) de la ayuda de referencia
+  const kourou = missionRotationBonus('LEO', 5.2, 28.5, data.flight);
+  const vandenberg = missionRotationBonus('LEO', 34.7, 28.5, data.flight);
+  assert.ok(kourou > vandenberg && kourou - vandenberg < 150);
   assert.ok(Math.abs(earthRotationBonus(0, 0) - 465) < 2);
   assert.ok(earthRotationBonus(5.2, 5.2) > earthRotationBonus(34.7, 34.7));
   assert.ok(earthRotationBonus(34.7, 97.6) < earthRotationBonus(34.7, 34.7)); // órbita polar casi no se beneficia

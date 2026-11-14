@@ -58,7 +58,9 @@
       "parkingAltKm": 250
     },
     "SSO": {
-      "parkingAltKm": 500
+      "parkingAltKm": 500,
+      "latDeg": 34.7,
+      "incDeg": 97.6
     },
     "GTO": {
       "parkingAltKm": 250
@@ -92,7 +94,8 @@
         0.25,
         0.4
       ]
-    }
+    },
+    "_geometry": "latDeg e incDeg (opcionales por destino) = sitio y órbita de referencia con los que se calibra. Las órbitas polares (SSO) se calibran saliendo desde Vandenberg (34,7°) hacia 97,6°, es decir, casi sin ayuda del giro de la Tierra."
   },
   "vehicles": {
     "electron": {

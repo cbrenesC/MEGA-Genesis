@@ -163,7 +163,8 @@ export class FlightSim {
     this.events = (opts.events ?? []).map((e) => ({ ...e, done: false }));
     this.latDeg = opts.latDeg ?? 28.5;
     this.incDeg = opts.incDeg ?? 28.5;
-    this.v0 = earthRotationBonus(this.latDeg, this.incDeg);
+    // Velocidad que regala el giro de la Tierra. `opts.v0` permite fijarla (ver flow.js).
+    this.v0 = opts.v0 ?? earthRotationBonus(this.latDeg, this.incDeg);
     this.atmRate = this.v0 / PHYS.RE; // rad/s con la que gira el aire
     this.t = 0;
     this.x = 0; this.y = PHYS.RE; this.vx = this.v0; this.vy = 0;
@@ -740,9 +741,9 @@ export function pilotScore(sim, ref = { fuelLeftPct: 10 }) {
 // ---------------------------------------------------------------------------
 
 /** Opciones de simulación para el vuelo de calibración de un destino. */
-export function simOptionsForCalibration(destId, payloadKg, flightData) {
+export function simOptionsForCalibration(destId, payloadKg, flightData, targetAltKm = null) {
   const c = flightData.calibration[destId];
-  return { payloadKg, destId, targetAltKm: c.parkingAltKm, latDeg: flightData.calibration.latDeg, incDeg: flightData.calibration.incDeg, events: [] };
+  return { payloadKg, destId, targetAltKm: targetAltKm ?? c.parkingAltKm, latDeg: c.latDeg ?? flightData.calibration.latDeg, incDeg: c.incDeg ?? flightData.calibration.incDeg, events: [] };
 }
 
 /** ¿Se logró el destino de calibración? (órbita circular a la altura pedida, o transferencia) */
@@ -820,6 +821,20 @@ export function simOptionsForMission({ payloadKg, destId, targetAltKm, latDeg, i
   return { payloadKg, destId, targetAltKm, latDeg, incDeg: incDeg ?? latDeg, events: events ?? [] };
 }
 
+/**
+ * Velocidad inicial por el giro de la Tierra para una misión. La capacidad del catálogo ya incluye la
+ * geometría típica de cada destino (por ejemplo, las órbitas polares salen "contra" el giro), así que
+ * se parte de la geometría de referencia de la calibración y solo se deja pasar una parte pequeña
+ * de la diferencia con el sitio real (SITE_WEIGHT): Kourou ayuda un poco más que Vandenberg, sin romper el catálogo.
+ */
+export const SITE_WEIGHT = 0.25;
+export function missionRotationBonus(destId, latDeg, incDeg, flightData) {
+  const c = flightData.calibration[destId] ?? {};
+  const ref = earthRotationBonus(c.latDeg ?? flightData.calibration.latDeg, c.incDeg ?? flightData.calibration.incDeg);
+  const actual = earthRotationBonus(latDeg, incDeg);
+  return ref + SITE_WEIGHT * (actual - ref);
+}
+
 /** Vuelo de referencia del piloto automático con la carga real (para puntuar y para las pistas). */
 export function referenceRun(vehicleInfo, missionOpts, candidates = null) {
   const best = candidates ? bestProgram(vehicleInfo, missionOpts, candidates) : null;
@@ -860,21 +875,23 @@ export function programGrid(spec) {
   return out;
 }
 
+/** Qué tan buena fue una corrida del piloto automático para esta misión (más alto = mejor). */
+export function programScore(sim, missionOpts) {
+  const el = sim.elements;
+  const tAlt = missionOpts.targetAltKm * 1000;
+  if (DEST[missionOpts.destId].kind === 'transfer') {
+    return transferReached(missionOpts.destId, el) ? 1 : el.periAlt >= PHYS.PERI_OK ? 0.4 : 0;
+  }
+  if (el.periAlt < PHYS.PERI_OK) return -1e9;
+  return -(Math.abs(el.periAlt - tAlt) + Math.abs(Math.min(el.hyper ? 1e8 : el.apoAlt, 1e8) - tAlt)) / 2;
+}
+
 export function bestProgram(vehicleInfo, missionOpts, candidates) {
   let best = null;
-  const tAlt = missionOpts.targetAltKm * 1000;
   const list = [vehicleInfo.program, ...candidates.filter((c) => c !== vehicleInfo.program)];
   for (const program of list) {
     const sim = runAutopilot(vehicleInfo.vehicle, { ...missionOpts, events: [] }, program);
-    const el = sim.elements;
-    if (DEST[missionOpts.destId].kind === 'transfer') {
-      const ok = transferReached(missionOpts.destId, el);
-      const score = ok ? 1 : el.periAlt >= PHYS.PERI_OK ? 0.4 : 0;
-      if (!best || score > best.score) best = { program, score, sim };
-      continue;
-    }
-    const err = el.periAlt >= PHYS.PERI_OK ? (Math.abs(el.periAlt - tAlt) + Math.abs(Math.min(el.hyper ? 1e8 : el.apoAlt, 1e8) - tAlt)) / 2 : 1e9;
-    const score = -err;
+    const score = programScore(sim, missionOpts);
     if (!best || score > best.score) best = { program, score, sim };
   }
   return best;

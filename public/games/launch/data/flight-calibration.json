@@ -14,7 +14,7 @@
     "capacityKg": 300
    },
    "SSO": {
-    "stackKg": 10693,
+    "stackKg": 15415,
     "program": {
      "h1": 70000,
      "p": 0.5,
@@ -46,12 +46,12 @@
     "capacityKg": 17500
    },
    "SSO": {
-    "stackKg": 350273,
+    "stackKg": 444410,
     "program": {
-     "h1": 70000,
-     "p": 0.5,
-     "decel": 1,
-     "slope": 0.12
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
     },
     "capacityKg": 12000
    },
@@ -98,10 +98,10 @@
     "capacityKg": 450
    },
    "SSO": {
-    "stackKg": 29940,
+    "stackKg": 41024,
     "program": {
-     "h1": 100000,
-     "p": 0.5,
+     "h1": 150000,
+     "p": 0.35,
      "decel": 2,
      "slope": 0.4
     },
@@ -120,7 +120,7 @@
     "capacityKg": 1030
    },
    "SSO": {
-    "stackKg": 43804,
+    "stackKg": 75381,
     "program": {
      "h1": 70000,
      "p": 0.5,
@@ -142,7 +142,7 @@
     "capacityKg": 3800
    },
    "SSO": {
-    "stackKg": 213689,
+    "stackKg": 617397,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -164,7 +164,7 @@
     "capacityKg": 3300
    },
    "SSO": {
-    "stackKg": 257426,
+    "stackKg": 377079,
     "program": {
      "h1": 100000,
      "p": 0.5,
@@ -186,12 +186,12 @@
     "capacityKg": 17500
    },
    "SSO": {
-    "stackKg": 350273,
+    "stackKg": 444410,
     "program": {
-     "h1": 70000,
-     "p": 0.5,
-     "decel": 1,
-     "slope": 0.12
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
     },
     "capacityKg": 12000
    },
@@ -238,7 +238,7 @@
     "capacityKg": 21600
    },
    "SSO": {
-    "stackKg": 312664,
+    "stackKg": 403077,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -290,7 +290,7 @@
     "capacityKg": 63800
    },
    "SSO": {
-    "stackKg": 1292439,
+    "stackKg": 1946108,
     "program": {
      "h1": 150000,
      "p": 0.5,

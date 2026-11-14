@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { evaluateLauncher } from '../js/rules.js';
-import { FlightSim, vehicleFor, runAutopilot, referenceRun, bestProgram, programGrid, PHYS } from '../js/flight.js';
+import { FlightSim, vehicleFor, runAutopilot, referenceRun, bestProgram, programGrid, missionRotationBonus, PHYS } from '../js/flight.js';
 import { planFlightEvents, resolveFlight, resolveAutomatic, hohmannDv } from '../js/outcome.js';
 import { buildLaunchOutput, SCHEMA_VERSION } from '../js/state.js';
 import { massLike, speedLike, costLike, oneInN, fmtMUSD, fmtKg } from '../js/plain.js';
@@ -23,7 +23,9 @@ const setup = (scenario, launcherId, difficulty = 'normal') => {
   const inputs = inputsFor(scenario, difficulty);
   const evaluation = evaluateLauncher(data.launchers.find((l) => l.id === launcherId), data, inputs);
   const vi = vehicleFor(launcherId, inputs.orbit.type, data);
-  const opts = { payloadKg: evaluation.launchMassKg, destId: inputs.orbit.type, targetAltKm: inputs.orbit.altitudeKm ?? 400, latDeg: evaluation.site.latitudeDeg, incDeg: inputs.orbit.inclinationDeg ?? evaluation.site.latitudeDeg, events: [] };
+  const lat = Math.abs(evaluation.site.latitudeDeg);
+  const incDeg = inputs.orbit.inclinationDeg ?? lat;
+  const opts = { payloadKg: evaluation.launchMassKg, destId: inputs.orbit.type, targetAltKm: inputs.orbit.altitudeKm ?? 400, latDeg: lat, incDeg, v0: missionRotationBonus(inputs.orbit.type, lat, incDeg, data.flight), events: [] };
   return { inputs, evaluation, vi, opts };
 };
 
@@ -91,7 +93,8 @@ test('quedarse sin llegar a la órbita es una falla que explica el punto más ba
 test('el pilotaje cuenta: una órbita muy corrida baja la vida útil y deja un éxito parcial', () => {
   const { inputs, evaluation, vi, opts } = setup('smallsat', 'falcon9');
   const plan = { pre: [], seed: 1, eventsEnabled: true, flightEvents: [] };
-  const lowTarget = runAutopilot(vi.vehicle, { ...opts, targetAltKm: 180 }, vi.program); // órbita de 180 km en vez de 550
+  const lowTarget = runAutopilot(vi.vehicle, { ...opts, targetAltKm: 180 }, vi.program); // el piloto se conforma con 180 km
+  lowTarget.targetAltKm = opts.targetAltKm; // pero la misión pedía 550 km
   const r = resolveFlight({ sim: lowTarget, plan, evaluation, inputs, data, ref: referenceRun(vi, opts) });
   assert.ok(r.lifetimeYears < evaluation.lifetimeYears);
   assert.ok(r.flightData.pilotScore < 80);
