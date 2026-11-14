@@ -69,7 +69,7 @@ test('una falla grave programada destruye el cohete con una explicación', () =>
   const plan = { pre: [], seed: 3, eventsEnabled: true, flightEvents: [{ kind: 'fatal', stage: 0, frac: 0.3, text: 'Falla', meta: { id: 'failure', phase: 'maxq', label: 'Falla del cohete', severity: 'fatal', explain: 'x', where: 'en Max-Q' } }] };
   const sim = new FlightSim(vi.vehicle, { ...opts, events: plan.flightEvents });
   sim.ignite();
-  for (let i = 0; i < 2000 && sim.status === 'flying'; i++) sim.advance(0.25, { throttle: 1, betaTarget: Math.min(60, i / 2) * Math.PI / 180 });
+  for (let i = 0; i < 2000 && sim.status === 'flying'; i++) sim.advance(0.25, { throttle: 1, betaTarget: 0 });
   const r = resolveFlight({ sim, plan, evaluation, inputs, data });
   assert.equal(r.result, 'falla');
   assert.equal(r.lifetimeYears, 0);
