@@ -4,8 +4,13 @@ import { esc } from '../screens.js';
 import { prepareLaunch } from '../flow.js';
 import { rotateFacts } from '../ui.js';
 import { fmtKg, fmtMUSD, massLike } from '../plain.js';
-import { drawRocket, rocketDims } from './rocketArt.js';
-import { gradientRect } from './gfx.js';
+import { PixelView, FlightRenderer } from './render.js';
+import { ParticleSystem } from '../particles.js';
+import { CAMERA } from '../world.js';
+import { PHYS } from '../flight.js';
+
+// Cohete genérico para dibujar la plataforma cuando el par cohete/destino no tiene simulador.
+const GENERIC = { id: 'generic', diameterM: 3, stackKg: 60000, fairingKg: 400, stages: [{ dryKg: 3500, propKg: 38000 }, { dryKg: 700, propKg: 9000 }] };
 
 const Phaser = window.Phaser;
 
@@ -13,11 +18,17 @@ export class PadScene extends Phaser.Scene {
   constructor() { super('PadScene'); }
 
   create() {
-    this.g = this.add.graphics();
     this.t = 0;
     this.state = 'prep'; // prep → ready → counting → hold → go
-    this.scale.on('resize', () => this.draw());
-    this.events.once('shutdown', () => { this.scale.off('resize'); this.stopFacts?.(); clearInterval(this.timer); });
+    this.go = 0;
+    this.vehicle = app.vehicleInfo?.vehicle ?? GENERIC;
+    this.view = new PixelView(this, 'padView');
+    this.view.fit(this.scale.width, this.scale.height);
+    this.renderer = new FlightRenderer(this.vehicle);
+    this.particles = new ParticleSystem();
+    this.onResize = () => this.view.fit(this.scale.width, this.scale.height);
+    this.scale.on('resize', this.onResize);
+    this.events.once('shutdown', () => { this.scale.off('resize', this.onResize); this.view.destroy(); this.stopFacts?.(); clearInterval(this.timer); });
     document.getElementById('ui').hidden = true;
     document.getElementById('hud').hidden = true;
     this.overlay = document.getElementById('overlay');
@@ -28,57 +39,33 @@ export class PadScene extends Phaser.Scene {
     this.draw();
   }
 
-  update(time, delta) { this.t += delta / 1000; this.draw(); }
-
-  draw() {
-    const { width: W, height: H } = this.scale;
-    const g = this.g;
-    g.clear();
-    // cielo del amanecer
-    gradientRect(g, 0, 0, W, H * 0.8, 0x1a2a52, 0xffc08a, 36);
-    for (let i = 0; i < 60; i++) {
-      const a = 0.25 + 0.25 * Math.sin(this.t * 1.2 + i);
-      g.fillStyle(0xffffff, Math.max(0, a * (1 - ((i * 37) % 100) / 140)));
-      g.fillCircle(((i * 97) % 100) / 100 * W, ((i * 53) % 100) / 100 * H * 0.45, 1.2);
-    }
-    const groundY = H * 0.8;
-    g.fillStyle(0x23383a, 1); g.fillRect(0, groundY, W, H - groundY);
-    g.fillStyle(0x1a2b2d, 1); g.fillRect(0, groundY + 14, W, H - groundY);
-    // torre de servicio
-    const cx = W * 0.5;
-    g.fillStyle(0x38485a, 1);
-    g.fillRect(cx - 78, groundY - 190, 12, 190);
-    g.fillRect(cx - 78, groundY - 190, 40, 8);
-    g.lineStyle(2, 0x38485a, 1);
-    for (let y = 0; y < 190; y += 24) { g.beginPath(); g.moveTo(cx - 78, groundY - y); g.lineTo(cx - 40, groundY - y - 24); g.strokePath(); }
-    g.fillStyle(0x4a5a6c, 1); g.fillRect(cx - 40, groundY - 6, 80, 8);
-    // cohete
-    if (app.vehicleInfo) {
-      const scale = Math.min(2.2, (H * 0.55) / rocketDims(app.vehicleInfo.vehicle).total);
-      this.drawScaledRocket(g, cx, groundY - 6, scale);
-    } else {
-      g.fillStyle(0x6c7a8a, 0.4); g.fillRect(cx - 12, groundY - 110, 24, 104);
-    }
-    // vapor de la plataforma
-    if (!reducedMotion()) {
-      for (let i = 0; i < 6; i++) {
-        const k = (this.t * 0.4 + i / 6) % 1;
-        g.fillStyle(0xffffff, 0.12 * (1 - k));
-        g.fillCircle(cx + 30 + k * 60 + i * 5, groundY - 20 - k * 40, 6 + k * 14);
-      }
-    }
-    // cuenta regresiva en el cielo
-    if (this.state === 'counting' && !reducedMotion() && this.shake) this.cameras.main.shake(100, 0.002);
+  update(time, delta) {
+    const dt = Math.min(delta, 100) / 1000;
+    this.t += dt;
+    this.draw(dt);
   }
 
-  drawScaledRocket(g, x, y, s) {
-    // Phaser Graphics no escala sin contenedor: se usa una transformación de la propia gráfica.
-    if (!this.rg) this.rg = this.add.graphics();
-    const rg = this.rg;
-    rg.clear();
-    rg.setPosition(x, y);
-    rg.setScale(s);
-    drawRocket(rg, app.vehicleInfo.vehicle, { stage: 0, fairing: true, throttle: this.state === 'go' ? 1 : 0, flicker: Math.random() });
+  /** Plataforma en pixel art: la misma imagen del despegue, con vapor mientras se prepara y llamas al encender. */
+  draw(dt = 0) {
+    if (!this.view?.ctx) return;
+    const view = this.view;
+    const reduced = reducedMotion();
+    const ignite = this.state === 'go';
+    this.go = ignite ? Math.min(1, this.go + dt / 1.4) : 0;
+    const spool = 0.75 * this.go * this.go * (3 - 2 * this.go);
+    if (!reduced && dt > 0) {
+      if (this.state === 'counting' || this.state === 'hold') { if (Math.random() < 0.25) this.particles.add('gas', -34 + Math.random() * 14, 2 + Math.random() * 4, 4 + Math.random() * 6, 8 + Math.random() * 6, { size: 3, life: 4 }); }
+      if (ignite) this.particles.padBillow({ x: 0, throttle: spool, strength: 0.6 });
+      this.particles.step(dt * 3);
+    }
+    const S = {
+      time: this.t, reduced, alt: 0, mpp: CAMERA.mpp0, baseY: view.viewH * 0.8 + view.margin, groundS: 0, starShift: 0,
+      stage: 0, fairing: true, throttle: spool, engineOn: ignite, betaShown: 0, flicker: Math.random(), airFade: 1, hideRocket: false,
+      debris: [], particles: this.particles, rx: 0, ry: PHYS.RE, flowX: 0, flowY: 0, flowPhaseX: 0, flowPhaseY: 0, streakAlpha: 0, prograde: null, recommend: null,
+    };
+    this.renderer.draw(view.ctx, view.W, view.H, S);
+    const a = ignite && !reduced ? Math.round(this.go * 1.5) : 0;
+    view.present(a ? Math.round((Math.random() * 2 - 1) * a) : 0, a ? Math.round((Math.random() * 2 - 1) * a) : 0);
   }
 
   renderOverlay() {
@@ -130,7 +117,6 @@ export class PadScene extends Phaser.Scene {
       clearInterval(this.timer);
       el().textContent = '¡DESPEGUE!';
       this.state = 'go';
-      this.shake = true;
       setTimeout(() => app.nav.go('flight'), 700);
     };
     this.timer = setInterval(tick, 900);

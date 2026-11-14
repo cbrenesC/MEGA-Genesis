@@ -1,32 +1,53 @@
-// Vuelo interactivo: vista lateral 2D del cohete, controles táctiles y de teclado, telemetría y pistas.
+// Vuelo interactivo: vista lateral 2D en pixel art, controles táctiles y de teclado, telemetría y pistas.
 //
-// El mundo se dibuja desde el cohete: "arriba" es siempre la vertical del lugar donde está. El cielo
-// pasa de azul a negro con la altura y, desde unos 50 km, se ve cómo se curva la Tierra.
-// La física está en flight.js (pura); aquí solo se dibuja y se leen los controles.
+// Capas (cada una separada de las demás):
+//   · SIMULACIÓN  → flight.js (pura, tiempo fijo): física del cohete.  world.js / particles.js: piezas sueltas, cámara y humo.
+//   · PRESENTACIÓN → render.js (dibuja el mundo en un lienzo pequeño) y esta escena (arma el "estado de dibujo").
+//   · INTERFAZ    → hud.js (HTML encima del canvas).
+//
+// El mundo vive en coordenadas de MUNDO (centro de la Tierra en el origen). La cámara se coloca sobre el cohete y
+// la escala (metros por píxel) depende de la ALTURA real simulada: el suelo se aleja, el cielo cambia, la Tierra
+// se curva y se hace chica. Nada depende de temporizadores ni hay saltos de posición.
 
 import {
-  PHYS, DEG, DEST, applyAutopilot, autopilotStep, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis,
+  PHYS, DEG, DEST, applyAutopilot, autopilotStep, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
 } from '../flight.js';
-import { app, inputs, current, reducedMotion, remember } from '../store.js';
+import { app, inputs, reducedMotion, remember } from '../store.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
-import { drawRocket, drawPiece, rocketDims } from './rocketArt.js';
 import { toast } from '../ui.js';
-import { gradientRect, lerpColor } from './gfx.js';
+import {
+  phaseOf, PHASE_LABEL, FlightCamera, anchorFraction, CAMERA, makeDebris, stepDebris, cullReason, groundDistance, thrustAccelG,
+} from '../world.js';
+import { ParticleSystem } from '../particles.js';
+import { PixelView, FlightRenderer } from './render.js';
+import { stageSprite, fairingSprite, rocketDims } from './rocketArt.js';
 
 const Phaser = window.Phaser;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-const lerp = (a, b, t) => a + (b - a) * t;
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
+const FIXED_DT = 1 / 60; // paso fijo de la simulación (s reales)
+const MAX_STEPS = 4; // máximo de pasos por cuadro para no "espiralizar" si el equipo va lento
+const IGNITION_S = 2.6; // s reales de encendido en la plataforma antes de soltar los anclajes
+const SPOOL_END = 0.7; // acelerador con el que termina el encendido (la física decide cuándo despega)
+const MAX_DEBRIS = 10;
+
 const TUTORIAL = [
-  { title: '1 · Empuje', text: 'La barra de la izquierda (o las teclas Shift y Ctrl, o ↑ y ↓) controla qué tan fuerte empujan los motores. Empieza al 100 %: ¡despegas!' },
+  { title: '1 · Empuje', text: 'La barra de la izquierda (o las teclas Shift y Ctrl, o ↑ y ↓) controla qué tan fuerte empujan los motores. Empieza al 100 %. El cohete despega cuando el empuje supera su peso.' },
   { title: '2 · Inclina de a poquito', text: 'Con ◀ ▶ (o A y D) giras el cohete. Primero sube derecho; después inclínalo hacia la derecha poco a poco. Para quedarte en órbita necesitas ir muy rápido de lado, no solo subir.' },
   { title: '3 · Separa las etapas', text: 'Cuando una etapa se queda sin combustible, pulsa «Separar etapa» (barra espaciadora). Cuando ya casi no haya aire, suelta la cofia con el botón 📦.' },
   { title: '4 · Mira tu órbita', text: 'El botón 🌍 Mapa te muestra tu órbita desde arriba y te dice si «cierra» o si vas a caer. Con ⏩ puedes acelerar el tiempo en las partes largas.' },
 ];
+
+const EVENT_TEXT = {
+  liftoff: ['¡DESPEGUE!', 'ok'],
+  atmosphere: ['TORRE LIBRE · VUELO ATMOSFÉRICO', 'info'],
+  upper: ['ATMÓSFERA SUPERIOR', 'info'],
+  space: ['ESPACIO · SIN AIRE', 'ok'],
+};
 
 export class FlightScene extends Phaser.Scene {
   constructor() { super('FlightScene'); }
@@ -56,19 +77,32 @@ export class FlightScene extends Phaser.Scene {
     this.paused = true;
     this.ended = false;
     this.endTimer = 0;
-    this.pieces = [];
+    this.leaving = false;
+    this.exploded = false;
     this.hintState = {};
+    this.acc = 0;
+    this.lastNoticeT = undefined;
+    this.noticeUntil = 0;
+    this.ignition = null; // { t } mientras los motores se encienden en la plataforma
+    this.spool = 0;
+    this.phase = 'pad';
+    this.seenSep = null;
+    this.maxQAnnounced = false;
+    this.orbitAnnounced = false;
+    this.accelSmooth = 0;
+    this.flow = { px: 0, py: 0 };
+    this.prevNozzle = null;
+    this.debris = [];
+    this.particles = new ParticleSystem();
     app.autopilotUsed = false;
 
-    // capas de dibujo
-    this.bg = this.add.graphics();
-    this.world = this.add.graphics();
-    this.ghost = this.add.graphics();
-    this.rocketG = this.add.graphics();
-    this.rocketCenter = this.dims.total / 2;
-    this.stars = Array.from({ length: 150 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.3 + 0.3, p: Math.random() * 6 }));
-    this.clouds = Array.from({ length: 46 }, () => ({ s: (Math.random() - 0.35) * 70000, h: 1200 + Math.random() * 9000, w: 400 + Math.random() * 1600 }));
-    this.makeTextures();
+    // lienzo pixel art + dibujo + cámara
+    this.view = new PixelView(this, 'flightView');
+    this.view.fit(this.scale.width, this.scale.height);
+    this.renderer = new FlightRenderer(this.vehicle);
+    this.cam = new FlightCamera(this.dMax());
+    this.onResize = () => { this.view.fit(this.scale.width, this.scale.height); this.cam.dMax = this.dMax(); this.cam.reset(Math.max(0, this.sim.altitude)); };
+    this.scale.on('resize', this.onResize);
 
     // HUD
     const hudEl = document.getElementById('hud');
@@ -90,6 +124,7 @@ export class FlightScene extends Phaser.Scene {
       transfer: this.destKind === 'transfer',
     });
     this.hud.setThrottle(1);
+    this.hud.setPhase('pad');
     this.onEsc = (ev) => { if (ev.key === 'Escape') this.togglePause(); };
     window.addEventListener('keydown', this.onEsc);
     this.events.once('shutdown', () => this.cleanup());
@@ -98,31 +133,30 @@ export class FlightScene extends Phaser.Scene {
     else this.begin();
   }
 
+  dMax() { return CAMERA.dMaxFrac * this.view.viewH; }
+
   cleanup() {
     window.removeEventListener('keydown', this.onEsc);
+    this.scale.off('resize', this.onResize);
     this.hud?.destroy();
+    this.view?.destroy();
+    this.particles?.clear();
+    this.debris = [];
     document.getElementById('hud').hidden = true;
     document.getElementById('overlay').hidden = true;
     this.mapOpen = false;
     if (this.scene.isActive('MapScene')) this.scene.stop('MapScene');
   }
 
-  makeTextures() {
-    if (this.textures.exists('spark')) return;
-    const g = this.make.graphics({ x: 0, y: 0, add: false });
-    g.fillStyle(0xffffff, 1); g.fillCircle(6, 6, 6);
-    g.generateTexture('spark', 12, 12);
-    g.destroy();
-  }
-
   // ------------------------------------------------------------------ flujo
 
+  /** Estado 1: encendido en la plataforma. El cohete sigue apoyado; luego la física decide cuándo despega. */
   begin() {
     this.paused = false;
-    this.sim.ignite();
-    this.hud.setThrottle(1);
-    if (!this.reduced) this.cameras.main.shake(700, 0.003);
-    this.hud.message('¡Despegue! Sube derecho y empieza a inclinar de a poquito.', 'ok');
+    this.ignition = { t: 0 };
+    this.spool = 0;
+    this.hud.message('Encendido de motores… el cohete sigue sujeto a la plataforma.', 'info');
+    this.hud.event('ENCENDIDO', 'info');
   }
 
   showTutorial(i) {
@@ -137,7 +171,7 @@ export class FlightScene extends Phaser.Scene {
   }
 
   togglePause() {
-    if (this.ended || this.sim.status === 'pad') return;
+    if (this.ended || (this.sim.status === 'pad' && !this.ignition)) return;
     this.paused = !this.paused;
     const ov = document.getElementById('overlay');
     if (this.paused) {
@@ -152,34 +186,51 @@ export class FlightScene extends Phaser.Scene {
   toggleMap() {
     this.mapOpen = !this.mapOpen;
     if (this.mapOpen) { this.scene.launch('MapScene'); this.scene.bringToTop('MapScene'); } else this.scene.stop('MapScene');
-    this.world.setVisible(!this.mapOpen); this.bg.setVisible(!this.mapOpen); this.rocketG.setVisible(!this.mapOpen); this.ghost.setVisible(!this.mapOpen);
+    this.view.setVisible(!this.mapOpen);
     document.getElementById('b-map').classList.toggle('is-on', this.mapOpen);
   }
 
   doSeparate() {
-    if (this.paused || this.sim.status !== 'flying') return;
-    const i = this.sim.stage;
-    if (i >= this.sim.stageCount) return;
-    const before = { x: this.sim.x, y: this.sim.y, vx: this.sim.vx, vy: this.sim.vy };
-    if (this.sim.separateStage()) {
-      this.spawnPiece({ ...before, kind: 'stage', w: this.dims.w / 2, h: this.dims.stageH[i], color: [0xe9eef5, 0xc9d3df, 0xaebccb, 0x93a6ba][i % 4], dv: -4 });
-      if (!this.reduced) this.cameras.main.shake(250, 0.003);
-    }
+    if (this.paused || this.ignition || this.sim.status !== 'flying') return;
+    if (this.sim.stage >= this.sim.stageCount) return;
+    this.sim.separateStage(); // las piezas se crean en collectSeparation() a partir de los datos físicos de la simulación
+    this.collectSeparation();
   }
 
   doFairing() {
-    if (this.paused || this.sim.status !== 'flying') return;
-    const before = { x: this.sim.x, y: this.sim.y, vx: this.sim.vx, vy: this.sim.vy };
-    if (this.sim.dropFairing()) {
-      for (const dir of [-1, 1]) this.spawnPiece({ ...before, kind: 'fairing', dir, w: this.dims.w / 2, h: this.dims.fairingH, color: 0xfff3e0, dv: 2.5, side: dir });
-    }
+    if (this.paused || this.ignition || this.sim.status !== 'flying') return;
+    this.sim.dropFairing();
+    this.collectSeparation();
   }
 
-  spawnPiece({ x, y, vx, vy, kind, w, h, color, dir = 1, dv = 0, side = 0 }) {
-    const r = Math.hypot(x, y);
-    const ux = x / r; const uy = y / r; const ex = uy; const ey = -ux;
-    const g = this.add.graphics();
-    this.pieces.push({ g, x, y, vx: vx + dv * ux + side * 2.5 * ex, vy: vy + dv * uy + side * 2.5 * ey, rot: kind === 'fairing' ? 0 : 0, spin: (kind === 'fairing' ? side : 0.4) * (0.4 + Math.random()), kind, w, h, color, dir, life: 0, beta: this.sim.beta });
+  /** Convierte lo que soltó la simulación (etapa o cofia) en cuerpos físicos independientes, con humo y destello. */
+  collectSeparation() {
+    const sep = this.sim.lastSeparation;
+    if (!sep || sep === this.seenSep) return;
+    this.seenSep = sep;
+    const mpp = this.cam.mpp;
+    const [ax, ay] = sep.axis;
+    const make = (spr, extra) => {
+      // la pieza sale desde su lugar en el cohete: centro a `centerFromBase` píxeles de la tobera, a lo largo del eje
+      const along = spr.centerFromBase * mpp;
+      return makeDebris({ ...sep, x: sep.x + ax * along - ay * (extra.lateral ?? 0) * mpp, y: sep.y + ay * along + ax * (extra.lateral ?? 0) * mpp }, { side: extra.side ?? 0, index: sep.index });
+    };
+    if (sep.kind === 'stage') {
+      this.debris.push(make(stageSprite(this.vehicle, sep.index), {}));
+      this.cam.kick(0.5);
+      if (this.sim.altitude > 1500) this.cam.kickFocus(6);
+      this.hud.event(`ETAPA ${sep.index + 1} SEPARADA`, 'ok');
+    } else {
+      for (const side of [-1, 1]) this.debris.push(make(fairingSprite(this.vehicle, side), { side, lateral: side * (this.dims.hw / 2 + 0.5) }));
+      this.cam.kick(0.25);
+      if (this.sim.altitude > 1500) this.cam.kickFocus(4);
+      this.hud.event('COFIA SOLTADA', 'ok');
+    }
+    while (this.debris.length > MAX_DEBRIS) this.debris.shift();
+    // destello y gases en el punto de separación
+    const g = this.groundFrame();
+    const aE = ax * this.uy() - ay * this.ux(); const aU = ax * this.ux() + ay * this.uy();
+    this.particles.separation({ x: g.E, y: g.U, vx: g.vE, vy: g.vU, axis: { x: aE, y: aU }, strength: sep.kind === 'stage' ? 1 : 0.6 });
   }
 
   doJump() {
@@ -201,21 +252,67 @@ export class FlightScene extends Phaser.Scene {
     this.sim.finish('finished');
   }
 
+  // ------------------------------------------------------------------ geometría del mundo
+
+  ux() { return this.sim.x / this.sim.r; }
+  uy() { return this.sim.y / this.sim.r; }
+
+  /** Posición y velocidad del cohete en el marco del suelo (este, altura): ahí viven el humo y la plataforma. */
+  groundFrame() {
+    const s = this.sim;
+    return {
+      E: groundDistance(s.angle, s.t, s.atmRate),
+      U: Math.max(0, s.altitude),
+      vE: s.tangentSpeed - s.atmRate * s.r,
+      vU: s.radialSpeed,
+    };
+  }
+
   // ------------------------------------------------------------------ cada cuadro
 
   update(time, delta) {
     if (!this.sim) return;
-    const dt = Math.min(delta, 50) / 1000;
+    const dt = Math.min(delta, 100) / 1000;
     this.hud.tickKeys(dt);
     const sim = this.sim;
     let followThrottle = null;
-    if (!this.paused && sim.status === 'flying') followThrottle = this.step(dt);
+    if (!this.paused) {
+      // paso fijo: la física no depende de los cuadros por segundo
+      this.acc = Math.min(this.acc + dt, FIXED_DT * MAX_STEPS);
+      while (this.acc >= FIXED_DT) {
+        this.acc -= FIXED_DT;
+        if (this.ignition) this.stepIgnition(FIXED_DT);
+        else if (sim.status === 'flying') followThrottle = this.step(FIXED_DT);
+      }
+    }
     this.updateHints(followThrottle);
-    this.draw(dt);
+    this.drawFrame(dt);
     if (sim.status === 'ended' && !this.ended) this.onEnded();
     if (this.ended) {
       this.endTimer += dt;
-      if (this.endTimer > 2.4 && !this.leaving) { this.leaving = true; finishFlight(sim); app.nav.go('result'); }
+      if (this.endTimer > 2.8 && !this.leaving) { this.leaving = true; finishFlight(sim); app.nav.go('result'); }
+    }
+  }
+
+  /** Estado 1 · en la plataforma: llamas, humo y vibración que crecen; el cohete NO se mueve. */
+  stepIgnition(dt) {
+    const ig = this.ignition;
+    ig.t += dt;
+    const k = clamp(ig.t / IGNITION_S, 0, 1);
+    this.spool = SPOOL_END * k * k * (3 - 2 * k) + (k < 1 ? 0 : 0);
+    const air = 1;
+    this.particles.padBillow({ x: 0, throttle: this.spool, strength: 0.5 + k * 0.8 });
+    const g = this.groundFrame();
+    this.particles.exhaust({ from: { x: g.E, y: 0 }, to: { x: g.E, y: 0 }, vel: { x: 0, y: 0 }, axis: { x: 0, y: 1 }, throttle: this.spool, air, dt: dt * PHYS.COMPRESSION });
+    this.particles.step(dt * PHYS.COMPRESSION * 0.6);
+    if (!this.reduced) this.cam.kick(0.1 + 0.5 * this.spool);
+    this.hud.setLive({ throttle: this.spool });
+    if (ig.t >= IGNITION_S) {
+      this.ignition = null;
+      this.sim.ignite();
+      // los motores ya estaban rugiendo: la física parte desde ese empuje y decide cuándo supera al peso
+      this.sim.throttle = Math.min(this.hud.controls.throttle, SPOOL_END);
+      this.hud.message('Motores al máximo. El cohete se suelta cuando el empuje supere su peso.', 'ok');
     }
   }
 
@@ -244,17 +341,74 @@ export class FlightScene extends Phaser.Scene {
     trackTransfer(sim);
     const tr = sim.stats.transfer;
     if (tr && !tr.active && sim.throttle > 0 && !hud.controls.autopilot) { hud.setThrottle(0); this.hud.togglePrograde(false); }
+    this.collectSeparation(); // también cuando separa el piloto automático
+
+    // mundo: piezas sueltas y partículas avanzan con el mismo tiempo físico que el cohete
+    const physW = Math.min(phys, 30);
+    for (const d of this.debris) stepDebris(d, physW, sim.atmRate);
+    this.cullDebris();
+    this.emitEffects(physW);
+    this.particles.step(Math.min(phys, 6));
+
+    // fase de vuelo según la altura real
+    const phase = phaseOf(sim.altitude, { grounded: sim.grounded, prev: this.phase });
+    if (phase !== this.phase) this.onPhase(phase);
+
     // rastro de mensajes importantes de la simulación
     if (sim.notice && sim.notice.t !== this.lastNoticeT) {
       this.lastNoticeT = sim.notice.t;
       this.hud.message(sim.notice.text, sim.notice.kind === 'bad' ? 'bad' : sim.notice.kind === 'warn' ? 'warn' : sim.notice.kind === 'ok' ? 'ok' : 'info');
       this.noticeUntil = performance.now() + 4500;
-      if (sim.notice.kind === 'warn' && !this.reduced) this.cameras.main.shake(300, 0.004);
+      if (sim.notice.kind === 'warn' && !this.reduced) this.cam.kick(0.4);
     }
-    // sacudida del Max-Q
+    // sacudida: motores al ras del suelo y Max-Q
     const q = sim.lastQ;
-    if (!this.reduced && q > PHYS.Q_WARN * 0.8 && Math.random() < 0.06) this.cameras.main.shake(140, 0.0012 + 0.0015 * smooth(PHYS.Q_WARN, PHYS.Q_LIMIT, q));
+    if (!this.reduced) {
+      if (sim.altitude < 1500 && sim.throttle > 0.05) this.cam.kick(0.12 + 0.3 * sim.throttle * (1 - sim.altitude / 1500));
+      if (q > PHYS.Q_WARN * 0.8) this.cam.kick(0.2 + 0.4 * smooth(PHYS.Q_WARN, PHYS.Q_LIMIT, q));
+    }
+    if (!this.maxQAnnounced && q > 8000 && q < sim.stats.maxQ * 0.9) { this.maxQAnnounced = true; this.hud.event('MAX-Q SUPERADO', 'ok'); }
+    if (sim.orbitReached && !this.orbitAnnounced) { this.orbitAnnounced = true; this.hud.event('¡ÓRBITA!', 'ok'); }
     return follow;
+  }
+
+  onPhase(next) {
+    const first = this.phase === 'pad' && next === 'liftoff';
+    this.phase = next;
+    this.hud.setPhase(next);
+    const [text, kind] = EVENT_TEXT[next] ?? [PHASE_LABEL[next], 'info'];
+    if (first) this.cam.kick(0.6);
+    this.hud.event(text, kind);
+  }
+
+  cullDebris() {
+    const rocket = { x: this.sim.x, y: this.sim.y };
+    this.debris = this.debris.filter((d) => {
+      const why = cullReason(d, rocket);
+      if (!why) return true;
+      if (why === 'impact') {
+        const g = Math.atan2(d.y, d.x);
+        this.particles.add('smoke', groundDistance(g, this.sim.t, this.sim.atmRate), 0, 0, 4, { size: 4, life: 6 });
+      }
+      return false;
+    });
+  }
+
+  /** Fuego, humo y nube de la plataforma según el empuje y el aire que queda. */
+  emitEffects(phys) {
+    const sim = this.sim;
+    const g = this.groundFrame();
+    const thr = sim.engineOut ? 0 : sim.throttle;
+    const air = pressureRatio(sim.altitude);
+    const cur = { x: g.E, y: g.U };
+    const [ax, ay] = sim.attitude();
+    const axis = { x: ax * this.uy() - ay * this.ux(), y: ax * this.ux() + ay * this.uy() };
+    if (thr > 0.04) {
+      // la nube de la plataforma sólo mientras los motores están cerca del suelo
+      if (sim.altitude < 220) this.particles.padBillow({ x: 0, throttle: thr, strength: (1 - sim.altitude / 220) * (this.reduced ? 0.4 : 1) });
+      this.particles.exhaust({ from: this.prevNozzle ?? cur, to: cur, vel: { x: g.vE, y: g.vU }, axis, throttle: thr, air, dt: phys });
+    }
+    this.prevNozzle = cur;
   }
 
   autoWarpStop() {
@@ -283,10 +437,9 @@ export class FlightScene extends Phaser.Scene {
   }
 
   explode() {
-    const { width: W, height: H } = this.scale;
-    if (!this.emitter) this.emitter = this.add.particles(0, 0, 'spark', { speed: { min: 60, max: 360 }, lifespan: 1100, scale: { start: 1.3, end: 0 }, alpha: { start: 1, end: 0 }, tint: [0xff7a3d, 0xffd24a, 0xffffff], quantity: 70, emitting: false });
-    this.emitter.explode(80, this.rx, this.ry);
-    if (!this.reduced) this.cameras.main.shake(700, 0.01);
+    const g = this.groundFrame();
+    this.particles.explosion({ x: g.E, y: g.U + this.dims.total * 0.5 * this.cam.mpp, vx: g.vE * 0.3, vy: g.vU * 0.3, n: this.reduced ? 30 : 90 });
+    if (!this.reduced) this.cam.kick(1);
     this.exploded = true;
   }
 
@@ -297,7 +450,7 @@ export class FlightScene extends Phaser.Scene {
     const hud = this.hud;
     const level = this.diffLevel;
     const out = autopilotStep(sim, this.shadow);
-    const ctx = { followThrottle, canProgradeMode: sim.altitude > 70000 && sim.status === 'flying' };
+    const ctx = { followThrottle, canProgradeMode: sim.altitude > 70000 && sim.status === 'flying', phase: this.phase };
     const transfer = this.destKind === 'transfer';
     const tr = sim.stats.transfer;
     const empty = sim.engineOut && sim.stage < sim.stageCount - 1;
@@ -314,11 +467,17 @@ export class FlightScene extends Phaser.Scene {
     if (sim.lastQ > PHYS.Q_LIMIT) warnings.push(['¡Demasiada presión del aire! Baja el empuje ya.', 'bad']);
     else if (sim.lastQ > PHYS.Q_WARN) warnings.push(['Mucha presión del aire (Max-Q): baja un poco el empuje.', 'warn']);
     if (lastEmpty && !sim.orbitReached && sim.status === 'flying') warnings.push(['Te quedaste sin combustible y todavía no estás en órbita.', 'bad']);
+    // en la plataforma con poco empuje: el cohete pesa más de lo que empuja
+    if (sim.status === 'flying' && sim.grounded && !this.ignition) {
+      const twNow = sim.thrustToWeight(Math.max(hud.controls.throttle, sim.throttle * 0.999));
+      if (hud.controls.throttle > 0.02 && twNow < 1) warnings.push([`El empuje (${twNow.toFixed(2)} veces su peso) no alcanza: ¡sube la palanca de empuje para despegar!`, 'warn']);
+    }
 
     // recomendaciones (más detalladas en fácil, solo pistas visuales en normal)
     ctx.recommendBetaDeg = null;
     ctx.suggestThrottle = level !== 'dificil' && sim.status === 'flying' && !sim.engineOut && out.throttle > 0.02 && out.throttle < 0.98 ? out.throttle : null;
     if (level !== 'dificil' && sim.mode === 'manual' && out.betaTarget != null && !sim.engineOut) ctx.recommendBetaDeg = out.betaTarget / DEG;
+    this.recommendRad = ctx.recommendBetaDeg != null && sim.status === 'flying' ? ctx.recommendBetaDeg * DEG : null;
     if (level !== 'dificil') {
       if (empty) { ctx.pulseSep = true; }
       if (sim.fairing && sim.altitude > 70000 && sim.aero().q < 100) ctx.pulseFairing = true;
@@ -353,169 +512,61 @@ export class FlightScene extends Phaser.Scene {
     }
     if (warnings.length) { [msg, kind] = warnings[0]; }
     // si hay un aviso reciente de la simulación, se deja unos segundos
-    if (this.noticeUntil && performance.now() < this.noticeUntil && !warnings.length) { /* no pisar el aviso */ } else if (msg !== undefined) hud.message(msg ?? '', msg ? (kind === 'hint' ? 'hint' : kind) : 'info');
+    if (this.noticeUntil && performance.now() < this.noticeUntil && !warnings.length) { /* no pisar el aviso */ } else if (msg !== undefined && !this.ignition) hud.message(msg ?? '', msg ? (kind === 'hint' ? 'hint' : kind) : 'info');
+    if (this.ignition) { ctx.phase = 'pad'; }
     hud.update(sim, ctx);
   }
 
   // ------------------------------------------------------------------ dibujo
 
-  anchor() {
-    const { width: W, height: H } = this.scale;
-    const alt = Math.max(0, this.sim.altitude);
-    return { cx: W * 0.5, cy: H * (0.74 - 0.2 * smooth(0, 4000, alt)) };
-  }
-
-  draw(dt) {
+  drawFrame(dt) {
+    if (this.mapOpen) return;
     const sim = this.sim;
-    const { width: W, height: H } = this.scale;
+    const view = this.view;
+    const W = view.viewW; const H = view.viewH;
     const alt = Math.max(0, sim.altitude);
-    const mpp = 0.45 + alt * 0.012;
-    const { cx, cy } = this.anchor();
-    const R = PHYS.RE;
-    const theta = sim.angle;
-    const ux = Math.cos(theta); const uy = Math.sin(theta);
-    const sRocket = R * (Math.PI / 2 - theta); // distancia recorrida sobre el suelo (m)
-    const t = performance.now() / 1000;
+    // la cámara sigue con suavidad: escala por altura real, y un pequeño retraso al acelerar fuerte
+    this.accelSmooth += (thrustAccelG(sim) - this.accelSmooth) * (1 - Math.exp(-dt * 4));
+    this.cam.update(alt, this.accelSmooth, dt);
+    const mpp = this.cam.mpp;
+    const ux = this.ux(); const uy = this.uy();
+    const [ax, ay] = sim.attitude();
+    const betaShown = Math.atan2(ax * uy - ay * ux, ax * ux + ay * uy);
+    const groundS = groundDistance(sim.angle, sim.t, sim.atmRate);
 
-    // cielo
-    const skyT = smooth(1000, 90000, alt);
-    const top = lerpColor(0x3f8fe0, 0x01030a, clamp(skyT * 1.15, 0, 1));
-    const bot = lerpColor(0xa9d8ff, 0x050b18, skyT);
-    const bg = this.bg;
-    bg.clear();
-    gradientRect(bg, 0, 0, W, H, top, bot, 40);
-    const starA = smooth(25000, 75000, alt);
-    if (starA > 0.01) {
-      for (const s of this.stars) {
-        const tw = this.reduced ? 1 : 0.7 + 0.3 * Math.sin(t * 1.5 + s.p);
-        bg.fillStyle(0xffffff, starA * tw * 0.9);
-        bg.fillCircle(((s.x * W - sRocket / 4e4) % W + W) % W, s.y * H * 0.85, s.r);
-      }
-    }
-    // Sol
-    const sunA = 1 - skyT * 0.4;
-    bg.fillStyle(0xfff6c8, 0.9 * sunA); bg.fillCircle(W * 0.82, H * 0.16, 26);
-    bg.fillStyle(0xfff6c8, 0.18 * sunA); bg.fillCircle(W * 0.82, H * 0.16, 62);
+    // velocidad respecto al aire, para las rayas de velocidad (sólo donde hay aire)
+    const [rvx, rvy] = sim.relVelocity();
+    const east = rvx * uy - rvy * ux; const up = rvx * ux + rvy * uy;
+    const k = (this.paused || sim.status !== 'flying' ? 0 : PHYS.COMPRESSION * this.warp) / mpp;
+    const flowX = -east * k; const flowY = up * k;
+    this.flow.px = (this.flow.px + flowX * dt) % 4096; this.flow.py = (this.flow.py + flowY * dt) % 4096;
+    const q = sim.lastQ;
 
-    const g = this.world;
-    g.clear();
-    // atmósfera (anillo azul) y Tierra
-    const sagitta = (Rr, s) => { const q = Rr * Rr - s * s; return q <= 0 ? Infinity : (s * s) / (Rr + Math.sqrt(q)); };
-    const poly = (Rr, lift) => {
-      const pts = [];
-      for (let x = -20; x <= W + 20; x += 14) {
-        const s = (x - cx) * mpp;
-        const sag = sagitta(Rr, s);
-        pts.push({ x, y: sag === Infinity ? H * 6 : cy + (alt - lift + sag) / mpp });
-      }
-      return pts;
+    const throttle = this.ignition ? this.spool : sim.status === 'flying' ? sim.throttle * (sim.engineOut ? 0 : 1) : 0;
+    const S = {
+      time: performance.now() / 1000,
+      reduced: this.reduced,
+      alt, mpp, baseY: H * anchorFraction(alt) - this.cam.lag, groundS,
+      starShift: (Math.PI / 2 - sim.angle) * 600,
+      stage: Math.min(sim.stage, this.vehicle.stages.length), fairing: sim.fairing,
+      throttle, engineOn: Boolean(this.ignition) || (sim.status === 'flying' && !sim.engineOut),
+      betaShown, flicker: Math.random(), airFade: pressureRatio(alt),
+      hideRocket: this.exploded, focus: this.cam.focusT < Infinity,
+      debris: this.debris, particles: this.particles, rx: sim.x, ry: sim.y,
+      flowX, flowY, flowPhaseX: this.flow.px, flowPhaseY: this.flow.py,
+      streakAlpha: clamp(q / 2500, 0, 1) * smooth(20, 90, Math.hypot(flowX, flowY)),
+      prograde: null, recommend: this.recommendRad ?? null,
     };
-    const fillPoly = (pts, color, alpha) => {
-      g.fillStyle(color, alpha);
-      g.beginPath(); g.moveTo(pts[0].x, H + 40);
-      for (const p of pts) g.lineTo(p.x, Math.min(p.y, H + 40));
-      g.lineTo(pts.at(-1).x, H + 40); g.closePath(); g.fillPath();
-    };
-    const atmA = 1 - smooth(60000, 140000, alt) * 0.4;
-    if (alt > 8000) {
-      fillPoly(poly(R + 110000, 110000), 0x5fb4ff, 0.10 * atmA);
-      fillPoly(poly(R + 55000, 55000), 0x7cc8ff, 0.16 * atmA);
-    }
-    const land = lerpColor(0x2f6b3a, 0x2368b0, smooth(0, 40000, alt));
-    fillPoly(poly(R, 0), land, 1);
-    // bruma del horizonte
-    const hz = poly(R, 0);
-    g.lineStyle(3, 0xbfe3ff, 0.55 * atmA);
-    g.beginPath(); hz.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.strokePath();
-
-    // nubes
-    if (alt < 30000) {
-      for (const c of this.clouds) {
-        const x = cx + (c.s - sRocket) / mpp;
-        if (x < -200 || x > W + 200) continue;
-        const y = cy - (c.h - alt) / mpp;
-        const w = Math.max(6, c.w / mpp);
-        g.fillStyle(0xffffff, 0.55 * (1 - smooth(14000, 30000, alt)));
-        g.fillEllipse(x, y, w, w * 0.32);
-        g.fillEllipse(x + w * 0.3, y - w * 0.08, w * 0.7, w * 0.3);
-      }
-    }
-    // plataforma y torre (a escala: solo se ven cerca del suelo)
-    if (alt < 4000) {
-      const px = cx + (0 - sRocket) / mpp;
-      const sc = 1 / mpp;
-      if (px > -400 && px < W + 400 && sc > 0.05) {
-        const ground = cy + alt / mpp;
-        g.fillStyle(0x4a5a6c, 1); g.fillRect(px - 30 * sc, ground - 3 * sc, 60 * sc, 4 * sc);
-        g.fillStyle(0x38485a, 1); g.fillRect(px - 46 * sc, ground - 95 * sc, 7 * sc, 95 * sc);
-        g.lineStyle(Math.max(1, 1.2 * sc), 0x38485a, 1);
-        for (let yy = 0; yy < 95; yy += 14) { g.beginPath(); g.moveTo(px - 46 * sc, ground - yy * sc); g.lineTo(px - 39 * sc, ground - (yy + 14) * sc); g.strokePath(); }
-      }
-    }
-
-    // pedazos que caen
-    const physDt = dt * PHYS.COMPRESSION * (this.paused || sim.status !== 'flying' ? 0 : this.warp);
-    for (const p of this.pieces) {
-      if (physDt > 0) {
-        const steps = Math.max(1, Math.ceil(physDt / 0.5));
-        const h = physDt / steps;
-        for (let i = 0; i < steps; i++) {
-          const r = Math.hypot(p.x, p.y);
-          const gg = PHYS.MU / (r * r * r);
-          p.vx -= gg * p.x * h; p.vy -= gg * p.y * h;
-          p.x += p.vx * h; p.y += p.vy * h;
-        }
-        p.rot += p.spin * physDt * 0.25;
-        p.life += physDt;
-      }
-      const dx = p.x - sim.x; const dy = p.y - sim.y;
-      const sx = cx + (dx * uy - dy * ux) / mpp;
-      const sy = cy - this.rocketCenter - (dx * ux + dy * uy) / mpp;
-      p.g.clear();
-      p.g.setPosition(sx, sy);
-      p.g.setRotation(sim.beta + p.rot);
-      drawPiece(p.g, p);
-      p.g.setVisible(!this.mapOpen && sx > -200 && sx < W + 200 && sy > -200 && sy < H + 200);
-    }
-    this.pieces = this.pieces.filter((p) => { if (p.life > 900 || Math.hypot(p.x, p.y) < PHYS.RE - 50) { p.g.destroy(); return false; } return true; });
-
-    // cohete
-    const rg = this.rocketG;
-    const rcx = cx;
-    const rcy = cy - this.rocketCenter;
-    this.rx = rcx; this.ry = rcy;
-    rg.clear();
-    if (!this.exploded) {
-      rg.setPosition(rcx, rcy);
-      // ángulo mostrado: dirección real del eje del cohete respecto a la vertical
-      const [ax, ay] = sim.attitude();
-      const betaShown = Math.atan2(ax * uy - ay * ux, ax * ux + ay * uy);
-      rg.setRotation(betaShown);
-      drawRocket(rg, this.vehicle, { stage: sim.stage, fairing: sim.fairing, throttle: sim.status === 'flying' ? sim.throttle * (sim.engineOut ? 0 : 1) : 0, flicker: this.reduced ? 0.5 : Math.random() }, this.rocketCenter);
-    }
-
-    // marcadores: dirección de avance y ángulo recomendado
-    const gh = this.ghost;
-    gh.clear();
-    if (sim.status === 'flying' && !this.exploded) {
-      const vr = sim.radialSpeed; const vt = sim.tangentSpeed;
-      if (Math.hypot(vr, vt) > 60) {
-        const ang = Math.atan2(vt, vr);
-        const mx = rcx + Math.sin(ang) * 86; const my = rcy - Math.cos(ang) * 86;
-        gh.lineStyle(2, 0x73ddcf, 0.95); gh.strokeCircle(mx, my, 8);
-        gh.beginPath(); gh.moveTo(mx - 12, my); gh.lineTo(mx - 8, my); gh.moveTo(mx + 8, my); gh.lineTo(mx + 12, my); gh.moveTo(mx, my - 12); gh.lineTo(mx, my - 8); gh.strokePath();
-      }
-      if (this.diffLevel !== 'dificil' && sim.mode === 'manual') {
-        const out = autopilotStep(sim, { ...this.shadow });
-        if (out.betaTarget != null && !sim.engineOut) {
-          const a = out.betaTarget;
-          gh.lineStyle(3, 0xffd24a, 0.9);
-          const x0 = rcx + Math.sin(a) * 60; const y0 = rcy - Math.cos(a) * 60;
-          const x1 = rcx + Math.sin(a) * 120; const y1 = rcy - Math.cos(a) * 120;
-          gh.beginPath(); gh.moveTo(x0, y0); gh.lineTo(x1, y1); gh.strokePath();
-          gh.fillStyle(0xffd24a, 0.95); gh.fillTriangle(x1, y1, x1 - Math.cos(a) * 7 - Math.sin(a) * 9, y1 - Math.sin(a) * 7 + Math.cos(a) * 9, x1 + Math.cos(a) * 7 - Math.sin(a) * 9, y1 + Math.sin(a) * 7 + Math.cos(a) * 9);
-        }
-      }
-    }
+    if (sim.status === 'flying' && Math.hypot(sim.radialSpeed, sim.tangentSpeed) > 60 && !this.exploded) S.prograde = Math.atan2(sim.tangentSpeed, sim.radialSpeed);
+    this.renderer.flameFrame = Math.floor(S.time * 14);
+    const ctx = view.ctx;
+    this.renderer.draw(ctx, view.W, view.H, shiftState(S, view.margin));
+    const [ox, oy] = this.reduced ? [0, 0] : this.cam.shakeOffset();
+    view.present(ox, oy);
   }
+}
+
+/** El lienzo tiene un margen para la sacudida: se corre el dibujo para que (0,0) sea la esquina del margen. */
+function shiftState(S, margin) {
+  return { ...S, baseY: S.baseY + margin, shiftX: margin };
 }

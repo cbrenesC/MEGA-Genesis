@@ -597,3 +597,13 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 | `8b2db7d` | Add launch module UI: launcher selection, compatibility check and launch sequence |
 | `0b2e19b` | Add README for the launch module folder |
 | (siguiente) | Add LAUNCH_CHANGES.md report for the launch module |
+
+## V3 · Despegue continuo, piezas físicas y pixel art (módulo LAUNCH)
+
+- **Física**: la nave apoyada se mueve con el suelo (`grounded`) hasta que el empuje supera el peso; `thrustToWeight()`; al separar, la pieza conserva posición/velocidad, recibe un empujoncito (`PHYS.SEP_SPEED`) y se conserva el momento. Calibración intacta (19/19 pruebas de vuelo siguen pasando).
+- **Mundo** (`js/world.js`, `js/particles.js`): fases por altura real, cámara con escala continua (suelo se aleja → planeta curvo y lejano), piezas sueltas balísticas sin giro (orientación fija en el mundo), humo/fuego en coordenadas del suelo que se quedan atrás.
+- **Escena**: paso fijo de 1/60 s, encendido en plataforma (≈2,6 s) antes de soltarse, acercamiento breve de cámara al separar, el piloto automático también genera piezas.
+- **Pixel art**: el vuelo y la plataforma se dibujan en un lienzo pequeño con píxeles enteros y se amplían sin suavizado (`js/scenes/render.js`, `rocketArt.js`).
+- **HUD** compacto por fase (altura, velocidad, combustible, empuje; datos extra en «Más datos»).
+- **Pruebas**: `tests/world.test.mjs` (15). Sin Node en el equipo se corrieron con JavaScriptCore.
+- **Pendiente de verificación manual**: pantallas pequeñas/táctiles, fase de espacio con el planeta cerca de la órbita, modo reducido de movimiento.

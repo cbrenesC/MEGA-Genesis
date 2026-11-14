@@ -120,7 +120,7 @@ if (!window.Phaser) {
     parent: 'game',
     backgroundColor: '#050b16',
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
-    render: { antialias: true, pixelArt: false, roundPixels: false },
+    render: { antialias: false, pixelArt: true, roundPixels: true }, // pixel art nítido: sin suavizado de imágenes
     fps: { target: 60 },
     scene: [BootScene, BriefingScene, HangarScene, PadScene, FlightScene, MapScene, ResultScene],
   });

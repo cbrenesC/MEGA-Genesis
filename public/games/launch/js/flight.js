@@ -33,6 +33,8 @@ export const PHYS = {
   TURN_RATE: (3 * Math.PI) / 180, // rad/s físicos que gira el cohete con A/D
   THROTTLE_RATE: 1.2, // fracción por segundo físico
   CD: 0.3,
+  SEP_SPEED: 1.6, // m/s: velocidad relativa con la que los resortes/gases empujan la etapa suelta lejos del cohete
+  FAIRING_SPEED: 2.2, // m/s: cada mitad de la cofia se abre hacia un lado
 };
 
 export const DEG = Math.PI / 180;
@@ -169,6 +171,8 @@ export class FlightSim {
     this.t = 0;
     this.x = 0; this.y = PHYS.RE; this.vx = this.v0; this.vy = 0;
     this.beta = 0; // rad desde la vertical local; + = hacia el este (derecha)
+    this.grounded = true; // apoyado en la plataforma: se mueve con el suelo hasta que el empuje supera al peso
+    this.lastSeparation = null; // datos físicos de la última pieza soltada (ver separateStage)
     this.throttle = 0;
     this.stage = 0;
     this.fuel = vehicle.stages.map((s) => s.propKg);
@@ -266,9 +270,29 @@ export class FlightSim {
     this.stats.wastedProp += this.fuel[this.stage];
     this.stats.stagingTimes.push({ stage: this.stage + 1, t: Math.round(this.t), fuelLeftPct: Math.round(frac * 100), altitudeKm: Math.round(this.altitude / 1000) });
     this.addLog(`Etapa ${this.stage + 1} separada${frac > 0.04 ? ` (¡todavía le quedaba ${Math.round(frac * 100)} % de combustible!)` : ''}.`, frac > 0.04 ? 'warn' : 'ok');
+    // La pieza suelta es un cuerpo aparte: se lleva la posición, la velocidad y la orientación del cohete
+    // y recibe un empujoncito de separación. Se conserva el momento: el cohete recibe el empujoncito contrario.
+    const axis = this.attitude();
+    const stageKg = s.dryKg + this.fuel[this.stage];
     this.stage += 1;
+    const restKg = this.mass;
+    const share = stageKg / Math.max(stageKg + restKg, 1);
+    const dvStage = -PHYS.SEP_SPEED * (1 - share);
+    this.lastSeparation = { kind: 'stage', index: this.stage - 1, massKg: stageKg, x: this.x, y: this.y, vx: this.vx + dvStage * axis[0], vy: this.vy + dvStage * axis[1], axis, t: this.t };
+    const dvRocket = PHYS.SEP_SPEED * share;
+    this.vx += dvRocket * axis[0]; this.vy += dvRocket * axis[1];
     if (this.stage >= this.stageCount) { this.throttle = 0; }
     return true;
+  }
+
+  /** Cociente empuje/peso ahora mismo (con el acelerador actual y el Isp de esta altura). */
+  thrustToWeight(throttle = this.throttle) {
+    const stage = this.currentStage;
+    if (!stage || this.engineOut) return 0;
+    const pr = pressureRatio(this.altitude);
+    const isp = stage.ispVac + (stage.ispSl - stage.ispVac) * pr;
+    const thrust = throttle * stage.mdot * (this.thrustMult[this.stage] ?? 1) * isp * PHYS.G0;
+    return thrust / (this.mass * (PHYS.MU / (this.r * this.r)));
   }
 
   dropFairing() {
@@ -278,6 +302,7 @@ export class FlightSim {
     this.stats.fairingQ = q;
     this.stats.fairingAlt = this.altitude;
     this.fairing = false;
+    this.lastSeparation = { kind: 'fairing', massKg: this.vehicle.fairingKg, x: this.x, y: this.y, vx: this.vx, vy: this.vy, axis: this.attitude(), t: this.t };
     if (q > 800) this.addLog('Cofia soltada con aire todavía denso: daña la nave.', 'warn');
     else this.addLog('Cofia soltada: la nave ya ve el espacio.', 'ok');
     return true;
@@ -387,15 +412,16 @@ export class FlightSim {
     if (this.r < PHYS.RE) {
       const ux = this.x / this.r; const uy = this.y / this.r;
       const vr = this.vx * ux + this.vy * uy;
-      if (this.t > 8 && (vr < -15 || this.altitude < -50)) {
+      if (!this.grounded && (vr < -15 || this.altitude < -50)) {
         this.destroy('crash', 'El cohete volvió a caer contra la Tierra.');
         return;
       }
       // en la plataforma: se queda quieto hasta que el empuje supere al peso
       this.x = ux * PHYS.RE; this.y = uy * PHYS.RE;
       if (vr < 0) { this.vx -= vr * ux; this.vy -= vr * uy; }
-      if (this.t <= 8) { this.vx = this.v0 * uy; this.vy = -this.v0 * ux; }
+      if (this.grounded) { this.vx = this.v0 * uy; this.vy = -this.v0 * ux; }
     }
+    if (this.grounded && this.altitude > 0.5) this.grounded = false; // ya se despegó de la plataforma
 
     // --- aerodinámica y estadísticas
     const aero = this.aero();
@@ -460,7 +486,7 @@ export class FlightSim {
       apoKm: el.hyper ? Infinity : el.apoAlt / 1000, periKm: el.periAlt / 1000,
       q: a.q, alphaDeg: a.alpha / DEG, mass: this.mass,
       stage: this.stage, stageFuelFrac: this.stageFuelFrac, fuelLeftPct: this.fuelLeftPct,
-      twr: this.currentStage && !this.engineOut ? (this.currentStage.mdot * this.throttle * (this.currentStage.ispVac * PHYS.G0)) / (this.mass * PHYS.MU / (this.r * this.r)) : 0,
+      twr: this.thrustToWeight(),
     };
   }
 }
