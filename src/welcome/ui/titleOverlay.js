@@ -34,7 +34,7 @@ export function mountTitleOverlay(scene) {
           elige una ventana segura y firma la autorización final.
         </p>
         <div class="space-title__actions">
-          <button type="button" class="space-title__button space-title__button--primary" data-title-action="start">NUEVA MISIÓN</button>
+          <button type="button" class="space-title__button space-title__button--primary" data-title-action="start">JUGAR AHORA</button>
           <button type="button" class="space-title__button" data-title-action="continue" ${hasSave ? '' : 'disabled'}>${hasSave ? 'CONTINUAR MISIÓN' : 'SIN PARTIDA GUARDADA'}</button>
           <button type="button" class="space-title__button space-title__button--subtle" data-title-action="controls">CONTROLES</button>
           <button type="button" class="space-title__button space-title__button--subtle" data-title-action="credits">CRÉDITOS</button>
