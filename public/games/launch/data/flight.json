@@ -68,6 +68,30 @@
     },
     "ESCAPE": {
       "parkingAltKm": 250
+    },
+    "searchGrid": {
+      "_about": "Programas que prueba el piloto automático para elegir el que deja la órbita más cerca de la pedida (modo fácil, pistas y puntaje de referencia).",
+      "h1": [
+        70000,
+        100000,
+        150000
+      ],
+      "p": [
+        0.35,
+        0.5,
+        0.7,
+        1.0
+      ],
+      "decel": [
+        1,
+        2,
+        4
+      ],
+      "slope": [
+        0.12,
+        0.25,
+        0.4
+      ]
     }
   },
   "vehicles": {

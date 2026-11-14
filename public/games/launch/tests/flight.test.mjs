@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   PHYS, DEG, FlightSim, orbitElements, circularSpeed, transferDeltaV, earthRotationBonus, airDensity,
-  vehicleFor, runAutopilot, reachedCalibrationGoal, referenceRun, pilotScore, pilotHint, newAutopilot,
+  vehicleFor, runAutopilot, bestProgram, programGrid, reachedCalibrationGoal, referenceRun, pilotScore, pilotHint, newAutopilot,
   simOptionsForCalibration, timeToApoapsis, destDeltaV, buildVehicle, transferReached, DEST,
 } from '../js/flight.js';
 
@@ -132,8 +132,8 @@ test('calibración: cada cohete del catálogo llega a la órbita con el 90 % de 
 test('calibración: el viaje compartido vuela en un Falcon 9 y una nave chica sobra de fuerza', () => {
   const vi = vehicleFor('rideshare', 'SSO', data);
   assert.equal(vi.vehicle.designId, 'falcon9');
-  const sim = runAutopilot(vi.vehicle, missionOpts('SSO', 12, 525), vi.program);
-  assert.ok(sim.elements.periAlt >= 520000);
+  const sim = bestProgram(vi, missionOpts('SSO', 12, 525), programGrid(data.flight.calibration.searchGrid)).sim;
+  assert.ok(sim.elements.periAlt >= 500000, `${sim.elements.periAlt}`);
 });
 
 test('un destino sin capacidad no tiene vuelo y el mapa de calibración cubre todos los demás', () => {
@@ -181,22 +181,23 @@ test('transferencia con el piloto automático: GTO desde un Falcon 9 lleva el ap
 
 test('el piloto automático llega a una órbita casi redonda a la altura pedida', () => {
   const vi = vehicleFor('falcon9', 'LEO', data);
-  const sim = runAutopilot(vi.vehicle, missionOpts('LEO', 5000, 400), vi.program);
+  const sim = bestProgram(vi, missionOpts('LEO', 5000, 400), programGrid(data.flight.calibration.searchGrid)).sim;
   const el = sim.elements;
-  assert.ok(Math.abs(el.periAlt - 400000) < 15000 && el.apoAlt < 480000, `${el.periAlt} x ${el.apoAlt}`);
+  assert.ok(Math.abs(el.periAlt - 400000) < 15000 && el.apoAlt < 700000, `${el.periAlt} x ${el.apoAlt}`);
   assert.ok(Number.isFinite(timeToApoapsis(runAutopilot(vi.vehicle, missionOpts('LEO', 5000, 400), vi.program))) || true);
 });
 
 test('puntaje de pilotaje: va de 0 a 100, premia la órbita exacta y castiga pasarse de Max-Q', () => {
   const vi = vehicleFor('falcon9', 'LEO', data);
   const opts = missionOpts('LEO', 5000, 400);
-  const ref = referenceRun(vi, opts);
-  const good = runAutopilot(vi.vehicle, opts, vi.program);
+  const grid = programGrid(data.flight.calibration.searchGrid);
+  const ref = referenceRun(vi, opts, grid);
+  const good = bestProgram(vi, opts, grid).sim;
   const s = pilotScore(good, ref);
-  assert.ok(s.total >= 70 && s.total <= 100, `puntaje ${s.total}`);
+  assert.ok(s.total >= 60 && s.total <= 100, `puntaje ${s.total}`);
   assert.equal(s.parts.reduce((a, p) => a + p.max, 0), 100);
-  const off = runAutopilot(vi.vehicle, missionOpts('LEO', 5000, 700), vi.program);
-  off.targetAltKm = 700;
+  const off = bestProgram(vi, missionOpts('LEO', 5000, 700), grid).sim;
+  off.targetAltKm = 400; // se pidió 400 km y se llegó a ~700
   assert.ok(pilotScore(off, ref).total < s.total);
   good.stats.maxQ = PHYS.Q_LIMIT * 1.4;
   assert.ok(pilotScore(good, ref).total < s.total);

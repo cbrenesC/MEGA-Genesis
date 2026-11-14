@@ -13,23 +13,25 @@
 
 export const SHARED_KEY = 'spaceMission.state.v1';
 export const LAUNCH_EVENT = 'spacemission:launch-updated';
-export const SCHEMA_VERSION = 1;
+// Versión 2: se agregan los datos del vuelo interactivo (campo `flight`) y la forma en que terminó (`result`, `events`).
+// Los campos de la versión 1 se mantienen igual, así que un módulo que lea la versión 1 sigue funcionando.
+export const SCHEMA_VERSION = 2;
 export const DIFFICULTIES = ['facil', 'normal', 'dificil'];
 export const ROLES = {
-  launch: 'Lanzamiento / Planificación de misión',
+  launch: 'Lanzamiento y planificación de la misión',
   spacecraft: 'Nave e instrumentos',
   science: 'Ciencia / Objetivo y órbita',
   mission: 'Dirección de misión (presupuesto y calendario)',
 };
 
 export async function loadData(base = './data/') {
-  const names = ['launchers', 'sites', 'orbits', 'rules', 'reference-missions', 'glossary', 'mock-missions'];
+  const names = ['launchers', 'sites', 'orbits', 'rules', 'reference-missions', 'glossary', 'mock-missions', 'flight', 'flight-calibration', 'facts'];
   const files = await Promise.all(names.map(async (name) => {
     const response = await fetch(`${base}${name}.json`);
     if (!response.ok) throw new Error(`No se pudo cargar data/${name}.json (${response.status})`);
     return response.json();
   }));
-  const [launchers, sites, orbits, rules, missions, glossary, mocks] = files;
+  const [launchers, sites, orbits, rules, missions, glossary, mocks, flight, calibration, facts] = files;
   return {
     launchers: launchers.launchers,
     sites: sites.sites,
@@ -38,6 +40,9 @@ export async function loadData(base = './data/') {
     missions: missions.missions,
     glossary: glossary.terms,
     mocks,
+    flight,
+    calibration,
+    facts: facts.facts,
   };
 }
 
@@ -167,6 +172,7 @@ export function buildLaunchOutput({ status, inputs, sources, evaluation, flight 
     events: flight ? flight.events.map(({ explain, ...rest }) => rest) : [],
     eventsEnabled,
     seed: flight?.seed ?? null,
+    flight: flight?.flightData ?? null,
     requests,
     teamReview,
   };

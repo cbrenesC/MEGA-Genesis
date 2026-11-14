@@ -14,7 +14,7 @@
     "capacityKg": 300
    },
    "SSO": {
-    "stackKg": 10709,
+    "stackKg": 10693,
     "program": {
      "h1": 70000,
      "p": 0.5,
@@ -24,19 +24,19 @@
     "capacityKg": 200
    },
    "TLI": {
-    "stackKg": 8103,
+    "stackKg": 18082,
     "program": {
-     "h1": 150000,
-     "p": 0.35,
-     "decel": 2,
-     "slope": 0.4
+     "h1": 70000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.12
     },
     "capacityKg": 30
    }
   },
   "rideshare": {
    "LEO": {
-    "stackKg": 409687,
+    "stackKg": 410878,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -46,7 +46,7 @@
     "capacityKg": 17500
    },
    "SSO": {
-    "stackKg": 350782,
+    "stackKg": 350273,
     "program": {
      "h1": 70000,
      "p": 0.5,
@@ -56,7 +56,7 @@
     "capacityKg": 12000
    },
    "GTO": {
-    "stackKg": 347986,
+    "stackKg": 347481,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -66,7 +66,7 @@
     "capacityKg": 5500
    },
    "TLI": {
-    "stackKg": 286225,
+    "stackKg": 285810,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -76,7 +76,7 @@
     "capacityKg": 3000
    },
    "ESCAPE": {
-    "stackKg": 154556,
+    "stackKg": 154108,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -88,17 +88,17 @@
   },
   "pegasus": {
    "LEO": {
-    "stackKg": 31107,
+    "stackKg": 32539,
     "program": {
-     "h1": 100000,
-     "p": 0.5,
+     "h1": 150000,
+     "p": 0.35,
      "decel": 2,
      "slope": 0.4
     },
     "capacityKg": 450
    },
    "SSO": {
-    "stackKg": 29983,
+    "stackKg": 29940,
     "program": {
      "h1": 100000,
      "p": 0.5,
@@ -110,7 +110,7 @@
   },
   "alpha": {
    "LEO": {
-    "stackKg": 49606,
+    "stackKg": 49678,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -120,7 +120,7 @@
     "capacityKg": 1030
    },
    "SSO": {
-    "stackKg": 43931,
+    "stackKg": 43804,
     "program": {
      "h1": 70000,
      "p": 0.5,
@@ -132,7 +132,7 @@
   },
   "pslv": {
    "LEO": {
-    "stackKg": 381999,
+    "stackKg": 381445,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -142,7 +142,7 @@
     "capacityKg": 3800
    },
    "SSO": {
-    "stackKg": 214311,
+    "stackKg": 213689,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -154,17 +154,17 @@
   },
   "vegac": {
    "LEO": {
-    "stackKg": 288589,
+    "stackKg": 484521,
     "program": {
-     "h1": 70000,
-     "p": 0.7,
-     "decel": 2,
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
      "slope": 0.25
     },
     "capacityKg": 3300
    },
    "SSO": {
-    "stackKg": 258925,
+    "stackKg": 257426,
     "program": {
      "h1": 100000,
      "p": 0.5,
@@ -176,7 +176,7 @@
   },
   "falcon9": {
    "LEO": {
-    "stackKg": 409687,
+    "stackKg": 410878,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -186,7 +186,7 @@
     "capacityKg": 17500
    },
    "SSO": {
-    "stackKg": 350782,
+    "stackKg": 350273,
     "program": {
      "h1": 70000,
      "p": 0.5,
@@ -196,7 +196,7 @@
     "capacityKg": 12000
    },
    "GTO": {
-    "stackKg": 347986,
+    "stackKg": 347481,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -206,7 +206,7 @@
     "capacityKg": 5500
    },
    "TLI": {
-    "stackKg": 286225,
+    "stackKg": 285810,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -216,7 +216,7 @@
     "capacityKg": 3000
    },
    "ESCAPE": {
-    "stackKg": 154556,
+    "stackKg": 154108,
     "program": {
      "h1": 150000,
      "p": 0.35,
@@ -228,7 +228,7 @@
   },
   "ariane64": {
    "LEO": {
-    "stackKg": 413285,
+    "stackKg": 440539,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -238,7 +238,7 @@
     "capacityKg": 21600
    },
    "SSO": {
-    "stackKg": 312210,
+    "stackKg": 312664,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -248,7 +248,7 @@
     "capacityKg": 15000
    },
    "GTO": {
-    "stackKg": 444202,
+    "stackKg": 443557,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -258,7 +258,7 @@
     "capacityKg": 11500
    },
    "TLI": {
-    "stackKg": 438305,
+    "stackKg": 437669,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -280,7 +280,7 @@
   },
   "falconheavy": {
    "LEO": {
-    "stackKg": 1856889,
+    "stackKg": 1854196,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -290,7 +290,7 @@
     "capacityKg": 63800
    },
    "SSO": {
-    "stackKg": 1294316,
+    "stackKg": 1292439,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -300,7 +300,7 @@
     "capacityKg": 40000
    },
    "GTO": {
-    "stackKg": 2060950,
+    "stackKg": 2063944,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -310,7 +310,7 @@
     "capacityKg": 26700
    },
    "TLI": {
-    "stackKg": 2291077,
+    "stackKg": 2287755,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -320,7 +320,7 @@
     "capacityKg": 20000
    },
    "ESCAPE": {
-    "stackKg": 2027736,
+    "stackKg": 2021858,
     "program": {
      "h1": 150000,
      "p": 0.5,
@@ -332,7 +332,7 @@
   },
   "sls": {
    "LEO": {
-    "stackKg": 1540495,
+    "stackKg": 1542733,
     "program": {
      "h1": 150000,
      "p": 0.35,

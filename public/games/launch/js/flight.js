@@ -36,6 +36,7 @@ export const PHYS = {
 };
 
 export const DEG = Math.PI / 180;
+const CIRC_ACCEL = 12; // m/s²: aceleración máxima de la quemada de circularización del piloto automático
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const wrap = (a) => { let x = a; while (x > Math.PI) x -= 2 * Math.PI; while (x < -Math.PI) x += 2 * Math.PI; return x; };
 
@@ -568,8 +569,8 @@ export function autopilotStep(sim, ap) {
       const vrDes = clamp(Math.min(Math.sqrt(2 * ap.decel * Math.max(0, tAlt - alt)), ap.slope * Math.max(vt, 1000)), -50, 4000);
       const sinPhi = clamp(gEff / a + (vrDes - vr) / (a * 5), -0.3, 1);
       out.betaTarget = Math.PI / 2 - Math.asin(sinPhi);
-      out.throttle = 1;
-      const apoReady = !el.hyper && el.apoAlt >= tAlt;
+      out.throttle = clamp(30 / Math.max(a, 1e-3), 0.25, 1); // con poca carga sobra fuerza: se baja el acelerador para apagar con precisión
+      const apoReady = !el.hyper && el.apoAlt >= tAlt - (ap.apoLead ?? 12000);
       if (apoReady) {
         out.throttle = 0; out.hint = 'cut';
         ap.phase = 'coast';
@@ -580,14 +581,16 @@ export function autopilotStep(sim, ap) {
     // se espera, con el cohete mirando hacia adelante, hasta estar cerca del punto más alto
     out.throttle = 0; out.mode = 'prograde'; out.hint = 'coast';
     const dv = Math.max(0, circularSpeed(el.ra) - Math.sqrt(PHYS.MU * (2 / Math.max(el.ra, 1) - 1 / el.a)));
-    const ve = (stage?.ispVac ?? 300) * PHYS.G0;
-    const burnS = stage && stage.mdot > 0 ? (sim.mass * (1 - Math.exp(-dv / ve))) / (stage.mdot * (sim.thrustMult[sim.stage] ?? 1)) : 0;
+    const aFull = stage && stage.mdot > 0 ? (stage.mdot * stage.ispVac * PHYS.G0 * (sim.thrustMult[sim.stage] ?? 1)) / sim.mass : 1;
+    const burnS = dv / Math.max(0.5, Math.min(aFull, CIRC_ACCEL)); // la quemada de circularización usa como máximo CIRC_ACCEL m/s²
     const eta = timeToApoapsis(sim);
     if (eta <= burnS / 2 + 1 || sim.radialSpeed < 0) { ap.phase = 'circ'; ap.circStart = sim.t; }
   }
   if (ap.phase === 'circ') {
     // quemada de circularización: empuja hacia adelante hasta que el punto más bajo alcanza la altura pedida
-    out.mode = 'prograde'; out.throttle = 1;
+    out.mode = 'prograde';
+    const aNow = stage && !sim.engineOut ? (stage.mdot * stage.ispVac * PHYS.G0 * (sim.thrustMult[sim.stage] ?? 1)) / sim.mass : 1;
+    out.throttle = clamp(CIRC_ACCEL / Math.max(aNow, 1e-3), 0.1, 1);
     if (orbitGoalMet(sim.elements, tAlt) || (sim.engineOut && sim.stage >= sim.stageCount - 1) || sim.t - ap.circStart > 900) {
       out.throttle = 0; out.hint = 'cut';
       if (sim.destId in { GTO: 1, TLI: 1, ESCAPE: 1 }) { ap.phase = 'transfer'; out.transfer = true; } else out.done = true;
@@ -818,9 +821,10 @@ export function simOptionsForMission({ payloadKg, destId, targetAltKm, latDeg, i
 }
 
 /** Vuelo de referencia del piloto automático con la carga real (para puntuar y para las pistas). */
-export function referenceRun(vehicleInfo, missionOpts) {
-  const sim = runAutopilot(vehicleInfo.vehicle, { ...missionOpts, events: [] }, vehicleInfo.program);
-  return { fuelLeftPct: sim.fuelLeftPct, reachedOrbit: sim.elements.periAlt >= PHYS.PERI_OK, sim };
+export function referenceRun(vehicleInfo, missionOpts, candidates = null) {
+  const best = candidates ? bestProgram(vehicleInfo, missionOpts, candidates) : null;
+  const sim = best ? best.sim : runAutopilot(vehicleInfo.vehicle, { ...missionOpts, events: [] }, vehicleInfo.program);
+  return { fuelLeftPct: sim.fuelLeftPct, reachedOrbit: sim.elements.periAlt >= PHYS.PERI_OK, sim, program: best?.program ?? vehicleInfo.program };
 }
 
 // ---------------------------------------------------------------------------
@@ -844,4 +848,34 @@ export function pilotHint(sim, ap) {
   else if (sim.fairing && sim.altitude > 70000 && sim.aero().q < 100) { out.action = 'fairing'; out.key = 'fairing'; }
   else if (o.hint === 'cut' || o.done) { out.action = 'cut'; out.key = 'cut'; }
   return out;
+}
+
+/**
+ * Elige, entre los programas de ascenso conocidos, el que deja la órbita más cerca de la pedida
+ * con esta carga. Sirve para el piloto automático del modo fácil, las pistas y la referencia del puntaje.
+ */
+export function programGrid(spec) {
+  const out = [];
+  for (const h1 of spec.h1) for (const p of spec.p) for (const decel of spec.decel) for (const slope of spec.slope) out.push({ h1, p, decel, slope });
+  return out;
+}
+
+export function bestProgram(vehicleInfo, missionOpts, candidates) {
+  let best = null;
+  const tAlt = missionOpts.targetAltKm * 1000;
+  const list = [vehicleInfo.program, ...candidates.filter((c) => c !== vehicleInfo.program)];
+  for (const program of list) {
+    const sim = runAutopilot(vehicleInfo.vehicle, { ...missionOpts, events: [] }, program);
+    const el = sim.elements;
+    if (DEST[missionOpts.destId].kind === 'transfer') {
+      const ok = transferReached(missionOpts.destId, el);
+      const score = ok ? 1 : el.periAlt >= PHYS.PERI_OK ? 0.4 : 0;
+      if (!best || score > best.score) best = { program, score, sim };
+      continue;
+    }
+    const err = el.periAlt >= PHYS.PERI_OK ? (Math.abs(el.periAlt - tAlt) + Math.abs(Math.min(el.hyper ? 1e8 : el.apoAlt, 1e8) - tAlt)) / 2 : 1e9;
+    const score = -err;
+    if (!best || score > best.score) best = { program, score, sim };
+  }
+  return best;
 }

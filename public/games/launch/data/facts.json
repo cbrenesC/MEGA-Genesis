@@ -1,0 +1,35 @@
+{
+  "_about": "Datos curiosos reales y verificables para la pantalla de espera y de carga.",
+  "facts": [
+    {
+      "id": "east",
+      "text": "Los cohetes casi siempre despegan hacia el este para aprovechar el giro de la Tierra. En el ecuador, el suelo se mueve a unos 1.670 km/h: ¡es una ayuda de velocidad gratis!",
+      "source": "Rotación terrestre: unos 465 m/s en el ecuador."
+    },
+    {
+      "id": "fuel",
+      "text": "Más de las tres cuartas partes de lo que pesa un cohete al despegar es combustible. La nave, que es la razón de todo el viaje, pesa una parte muy pequeña.",
+      "source": "Falcon 9, Ariane 6 y otros: la masa de propelente supera el 85 % de la masa de despegue."
+    },
+    {
+      "id": "iss",
+      "text": "La Estación Espacial Internacional va a unos 28.000 km/h y da una vuelta a la Tierra cada 90 minutos. Sus astronautas ven unos 16 amaneceres al día.",
+      "source": "NASA, datos de la Estación Espacial Internacional."
+    },
+    {
+      "id": "turn",
+      "text": "Un cohete no sube recto: se va acostando poco a poco. Para quedarte en órbita no necesitas solo altura, necesitas ir muy rápido de lado, a casi 8 km/s.",
+      "source": "Mecánica orbital: velocidad circular cerca de la Tierra ≈ 7,8 km/s."
+    },
+    {
+      "id": "kourou",
+      "text": "Europa lanza desde Kourou, en la Guayana Francesa, a solo 5° del ecuador: ahí el giro de la Tierra ayuda casi lo máximo y el cohete ahorra combustible.",
+      "source": "Latitud de Kourou ≈ 5,2° N."
+    },
+    {
+      "id": "origami",
+      "text": "Los telescopios y satélites grandes viajan doblados como un origami dentro de la punta del cohete (la cofia), y se despliegan ya en el espacio.",
+      "source": "Por ejemplo, el telescopio James Webb se desplegó durante su viaje."
+    }
+  ]
+}

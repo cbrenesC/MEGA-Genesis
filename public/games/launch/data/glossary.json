@@ -1,19 +1,98 @@
 {
-  "_about": "Explicaciones cortas en lenguaje simple. Se muestran en los botones '?' del módulo.",
+  "_about": "Explicaciones cortas para estudiantes de secundaria. 'text' = la idea en 2–3 frases con una comparación cotidiana. 'more' = el dato técnico y la fuente (aparece en 'Ver más'). 'formula' (opcional) = para los curiosos.",
   "terms": {
-    "carga-util": { "title": "Capacidad de carga", "text": "Es cuánta masa puede llevar un cohete a un destino. No es un solo número: el mismo cohete lleva mucho a una órbita baja y bastante menos a una órbita alta o a la Luna." },
-    "delta-v": { "title": "Delta-v (Δv)", "text": "Es 'cuánto hay que cambiar de velocidad' para llegar a un lugar. Funciona como el presupuesto de un viaje: cuanto más lejos o más alto vas, más Δv necesitas y más combustible gastas. Para llegar a órbita baja hacen falta unos 9,4 km/s, ¡casi 30 veces la velocidad del sonido!" },
-    "orbita-alta": { "title": "¿Por qué una órbita alta 'cuesta' más?", "text": "Cada kilómetro por segundo extra necesita mucho más combustible, y ese combustible también pesa y hay que subirlo. Por eso un cohete que sube 17 toneladas a órbita baja solo puede llevar unas 5 a la órbita de transferencia geoestacionaria." },
-    "margen": { "title": "Margen de masa", "text": "Es la diferencia entre lo que el cohete puede llevar y lo que pesa tu nave. Las naves casi siempre 'engordan' durante su construcción (cables, tornillos, cambios de diseño). Si no dejas margen, un pequeño aumento puede obligarte a cambiar de cohete al final, cuando es más caro. Verde = margen cómodo, amarillo = justo, rojo = arriesgado." },
-    "cofia": { "title": "Cofia (fairing)", "text": "Es la punta del cohete que protege a la nave del aire y del calor al subir. Tu nave tiene que caber dentro, plegada. Por eso los paneles solares y antenas grandes se doblan como un origami. Cuando el cohete sale de la atmósfera, la cofia se abre y se descarta." },
-    "confiabilidad": { "title": "Confiabilidad", "text": "Qué fracción de los lanzamientos de ese cohete salió bien. Un 99 % suena perfecto, pero significa que 1 de cada 100 falla. Para una misión única y cara conviene un cohete con historial largo; para un CubeSat barato se puede aceptar más riesgo." },
-    "inclinacion": { "title": "Inclinación y latitud", "text": "La inclinación es el ángulo entre la órbita y el ecuador. Desde un sitio de lanzamiento lo más fácil es llegar a una inclinación igual o mayor que su latitud. Bajarla después cuesta muchísimo combustible. Por eso Europa lanza desde Kourou, casi en el ecuador." },
-    "ventana": { "title": "Ventana de lanzamiento", "text": "El período en el que hay que despegar para llegar al destino. Para órbitas bajas casi siempre hay ventana; para Marte, los planetas se alinean bien solo cada unos 26 meses." },
-    "rideshare": { "title": "Viaje compartido (rideshare)", "text": "Varias naves comparten un mismo cohete y se reparten el costo. Es la forma más barata de llegar al espacio para CubeSats, pero no eliges ni la fecha ni la órbita exacta: vas adonde va la misión principal." },
-    "maxq": { "title": "Max-Q", "text": "El momento de máxima presión del aire sobre el cohete, cerca de un minuto después del despegue. El cohete ya va rápido y el aire todavía es denso. Muchos cohetes bajan la potencia un momento para no sufrir daños." },
-    "gto": { "title": "GTO y GEO", "text": "GEO es una órbita a 35.786 km donde un satélite parece quedarse quieto sobre un punto del ecuador. El cohete normalmente deja la nave en GTO, una órbita alargada, y la nave usa su propio motor para redondearla. Cuanto más lejos del ecuador se lanza, más combustible gasta la nave en ese paso." },
-    "propelente": { "title": "Cargar menos combustible", "text": "Si la nave es un poco pesada para el cohete, se puede cargar menos combustible en sus tanques. La nave pesa menos al despegar, pero tendrá menos combustible para mantenerse en órbita, así que vivirá menos años." },
-    "trade": { "title": "Estudio de compromisos (trade study)", "text": "Los ingenieros de NASA comparan varias opciones lado a lado antes de decidir. Casi nunca hay una única respuesta correcta: una opción es más barata, otra más segura, otra sale antes. Lo importante es saber qué estás sacrificando." },
-    "presupuesto": { "title": "Presupuesto", "text": "El lanzamiento suele ser una de las partidas más grandes de una misión. Cada millón que gastas en el cohete es un millón menos para instrumentos, pruebas u operaciones." }
+    "carga-util": {
+      "title": "Capacidad de carga",
+      "text": "Es cuánto peso puede subir un cohete. No es un solo número: el mismo cohete sube mucho a una órbita baja y bastante menos a una órbita alta o a la Luna, como una moto que sube menos peso por una cuesta más empinada.",
+      "more": "En el catálogo (data/launchers.json) cada cohete tiene una capacidad distinta para cada destino. Son datos redondeados y aproximados para el juego."
+    },
+    "delta-v": {
+      "title": "Presupuesto de velocidad (delta-v)",
+      "text": "Es cuánto tiene que cambiar de velocidad tu nave para llegar a un lugar. Es como el dinero para un viaje: mientras más lejos vas, más velocidad necesitas y más combustible gastas. Para quedarte en órbita baja necesitas unos 9,4 km/s: casi 30 veces la velocidad del sonido.",
+      "more": "Valor típico desde el suelo, incluyendo las pérdidas por gravedad y por el aire (fuente: tablas de delta-v de libros de mecánica orbital y NASA 'Basics of Space Flight').",
+      "formula": "Δv = ve · ln(m inicial / m final)  (ecuación del cohete)"
+    },
+    "orbita-alta": {
+      "title": "¿Por qué cuesta más llegar a una órbita alta?",
+      "text": "Cada kilómetro por segundo extra pide muchísimo más combustible, y ese combustible también pesa y hay que subirlo. Por eso un cohete que sube 17 toneladas a una órbita baja solo puede llevar unas 5 a los 36.000 km.",
+      "more": "La masa de combustible crece de forma exponencial con el delta-v (ecuación del cohete)."
+    },
+    "margen": {
+      "title": "Margen de peso",
+      "text": "Es lo que le sobra al cohete después de cargar tu nave. Casi todas las naves engordan mientras las construyen (cables, tornillos, cambios), así que conviene dejar espacio. Verde = cómodo, amarillo = justo, rojo = arriesgado.",
+      "more": "Margen % = (capacidad − masa de la nave) / capacidad × 100. Los umbrales cambian con la dificultad (data/rules.json)."
+    },
+    "cofia": {
+      "title": "La punta que protege tu nave (cofia)",
+      "text": "Es la nariz del cohete: cubre la nave del aire y del calor al subir. Tu nave tiene que caber adentro, doblada como un origami. Cuando el cohete ya casi no tiene aire alrededor, la cofia se abre en dos y se suelta.",
+      "more": "En inglés se llama fairing. Los tamaños útiles del catálogo son aproximados (guías de usuario de cada cohete)."
+    },
+    "confiabilidad": {
+      "title": "¿De cada 100 lanzamientos, cuántos salen bien?",
+      "text": "Un cohete con 99 % de confiabilidad suena perfecto, pero significa que 1 de cada 100 falla. Para una misión única y cara conviene un cohete con mucha experiencia; para un CubeSat barato se puede arriesgar más.",
+      "more": "Se calcula con el historial público de lanzamientos de cada cohete. En cohetes nuevos con pocos vuelos es un dato estimado para el juego."
+    },
+    "inclinacion": {
+      "title": "Qué tan inclinada va la órbita respecto al ecuador",
+      "text": "Una órbita en el ecuador tiene 0° y una que pasa sobre los polos tiene cerca de 90°. Desde un sitio de lanzamiento es fácil llegar a órbitas igual de inclinadas que su latitud, o más. Hacerlas menos inclinadas gasta muchísimo combustible. Por eso Europa lanza desde Kourou, casi en el ecuador.",
+      "more": "Un giro de plano de Δi grados a la velocidad v cuesta Δv = 2·v·sen(Δi/2).",
+      "formula": "Δv = 2 · v · sen(Δi / 2)"
+    },
+    "ventana": {
+      "title": "Ventana de lanzamiento",
+      "text": "Es el momento en que hay que despegar para llegar bien a tu destino. Para una órbita baja casi siempre hay ventana; para Marte, los planetas se acomodan bien solo cada unos 26 meses, así que si la pierdes, esperas más de dos años.",
+      "more": "El intervalo de 26 meses es el periodo sinódico aproximado de la Tierra y Marte."
+    },
+    "rideshare": {
+      "title": "Viaje compartido (rideshare)",
+      "text": "Varias naves comparten un mismo cohete y se reparten el costo, como en un bus. Es la forma más barata de llegar al espacio para CubeSats, pero no eliges ni la fecha ni la órbita exacta: vas adonde va la misión principal.",
+      "more": "Programas como Transporter y Bandwagon de SpaceX. El precio del catálogo es una tarifa pública aproximada por kilogramo."
+    },
+    "maxq": {
+      "title": "El momento de más presión del aire (Max-Q)",
+      "text": "Cerca de un minuto después de despegar, el cohete ya va muy rápido pero el aire todavía es denso: es como sacar la mano por la ventana de un carro a toda velocidad. Si empuja el aire con demasiada fuerza se puede romper, así que muchos cohetes bajan la potencia un momento.",
+      "more": "Max-Q es el máximo de la presión dinámica q = ½·ρ·v². En el juego, el aviso amarillo es a 30 kPa y el límite es 40 kPa.",
+      "formula": "q = ½ · ρ · v²"
+    },
+    "gto": {
+      "title": "La órbita de los 36.000 km (GTO y GEO)",
+      "text": "A 36.000 km de altura, un satélite da una vuelta cada 24 horas y parece quedarse quieto sobre un punto del ecuador (órbita geoestacionaria, GEO). Normalmente el cohete lo deja en una órbita alargada (GTO) y el satélite usa su propio motor para redondearla. Mientras más lejos del ecuador se lanza, más combustible gasta en ese paso.",
+      "more": "GEO está a 35.786 km de altura. La nave paga Δv(latitud) − Δv(0) en el paso de GTO a GEO."
+    },
+    "propelente": {
+      "title": "Cargar menos combustible",
+      "text": "Si tu nave pesa un poco de más para el cohete, puedes llenar menos sus tanques. Pesa menos al despegar, pero tendrá menos combustible para mantenerse en órbita, así que vivirá menos años.",
+      "more": "En el juego, la vida útil es proporcional al combustible de operación que le queda a la nave."
+    },
+    "trade": {
+      "title": "Comparar opciones (trade study)",
+      "text": "Los ingenieros de la NASA ponen varias opciones lado a lado antes de decidir. Casi nunca hay una única respuesta correcta: una opción es más barata, otra más segura, otra sale antes. Lo importante es saber qué estás sacrificando.",
+      "more": "En inglés se llama trade study."
+    },
+    "presupuesto": {
+      "title": "Presupuesto",
+      "text": "El lanzamiento suele ser una de las partidas más grandes de una misión. Cada millón que gastas en el cohete es un millón menos para instrumentos, pruebas u operaciones.",
+      "more": "Las cifras de costo del catálogo son aproximadas (contratos públicos de la NASA y precios publicados)."
+    },
+    "apoapsis": {
+      "title": "Punto más alto de la órbita (apoapsis)",
+      "text": "Cuando tu órbita no es redonda sino alargada, hay un punto donde estás más lejos de la Tierra: ese es el punto más alto. Ahí la nave va más despacio. Es el mejor lugar para encender el motor y redondear la órbita.",
+      "more": "Apoapsis = punto más alto de una órbita. Si es la órbita de la Tierra se llama apogeo."
+    },
+    "periapsis": {
+      "title": "Punto más bajo de la órbita (periapsis)",
+      "text": "Es el punto de tu órbita donde estás más cerca de la Tierra. Si queda dentro del aire (menos de unos 150 km), la nave va rozando la atmósfera, se frena y termina cayendo. Para quedarte en órbita, el punto más bajo tiene que estar sobre la atmósfera.",
+      "more": "En el juego, tu órbita 'cuenta' cuando el periapsis supera 150 km de altura. Si es la órbita de la Tierra se llama perigeo."
+    },
+    "gravity-turn": {
+      "title": "Giro gravitacional",
+      "text": "Un cohete no sube recto: empieza vertical para salir rápido del aire y después se va acostando poco a poco. Así usa la gravedad para torcer su camino, y lo más importante es ir de lado, no hacia arriba: ¡para quedarte en órbita necesitas velocidad horizontal!",
+      "more": "En el juego, inclina de a poquito a partir de unos 2 km de altura. Si inclinas muy rápido con el aire denso, el cohete se puede romper."
+    },
+    "throttle": {
+      "title": "Empuje (acelerador)",
+      "text": "Controla qué tan fuerte empujan los motores, de 0 a 100 %. Más empuje te acelera más, pero gasta más combustible y, mientras haya mucho aire, aumenta la presión sobre el cohete.",
+      "more": "Los motores reales no siempre pueden bajar mucho el empuje ni volver a encenderse; el juego lo simplifica."
+    }
   }
 }
