@@ -976,3 +976,12 @@ html.sms-reduced-animations #boot .boot-consent {
 #commander-skip{position:absolute;right:14px;bottom:14px;z-index:3;padding:10px 13px;border:1px solid rgba(201,244,248,.36);background:rgba(7,23,33,.38);color:rgba(238,253,255,.7);font:12px 'Press Start 2P',monospace;cursor:pointer;opacity:.55;transition:opacity .2s,background .2s}
 #commander-skip:hover,#commander-skip:focus-visible{opacity:1;background:rgba(7,23,33,.82);color:#fff}
 @media(max-width:600px){.commander-intro__top{font-size:12px;padding:10px}#commander-skip{font-size:9px;padding:9px;right:8px;bottom:8px}}
+
+/* Cinematic commander briefing transitions: subtle, crisp, no abrupt cuts. */
+.commander-intro:not([hidden]){opacity:0;transition:opacity 650ms ease-in-out;will-change:opacity}
+.commander-intro.commander-intro--visible{opacity:1}
+.commander-intro.commander-intro--leaving{opacity:0;transition-duration:550ms}
+.commander-intro__panel{transform:translateY(12px) scale(.985);opacity:.85;transition:transform 650ms cubic-bezier(.22,1,.36,1),opacity 650ms ease;will-change:transform,opacity}
+.commander-intro--visible .commander-intro__panel{transform:translateY(0) scale(1);opacity:1}
+.commander-intro--leaving .commander-intro__panel{transform:translateY(-5px) scale(.99);opacity:0;transition-duration:550ms}
+@media(prefers-reduced-motion:reduce){.commander-intro:not([hidden]),.commander-intro__panel{transition-duration:150ms}}
