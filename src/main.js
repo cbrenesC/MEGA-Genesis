@@ -37,34 +37,29 @@ commanderOverlay.setAttribute('role', 'dialog');
 commanderOverlay.setAttribute('aria-modal', 'true');
 commanderOverlay.setAttribute('aria-label', 'Introducción del comandante');
 commanderOverlay.innerHTML = `
-  <div class="commander-intro__panel">
-    <div class="commander-intro__header"><span>◈ MISSION CONTROL // TRANSMISSION 001</span><span class="commander-intro__signal">● LIVE</span></div>
-    <div class="commander-intro__display">
-      <video id="commander-intro-video" src="/intro comander.mp4" playsinline preload="auto" controls></video>
-      <div class="commander-intro__scanlines" aria-hidden="true"></div>
-    </div>
-    <div class="commander-intro__footer">
-      <div><strong>COMMANDER BRIEFING</strong><small>MISSION STATUS: AWAITING DEPLOYMENT</small></div>
-      <button type="button" id="commander-continue">CONTINUE ▶</button>
-    </div>
-    <p class="commander-intro__hint">Watch the briefing or continue directly to the mission.</p>
+  <video id="commander-intro-video" src="/intro_comander.mp4" autoplay playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" aria-label="Mensaje del comandante"></video>
+  <div class="commander-intro__fallback" hidden>
+    <p>COMMANDER TRANSMISSION READY</p>
+    <button type="button" id="commander-retry">▶ INICIAR TRANSMISIÓN</button>
   </div>`;
 document.getElementById('app').append(commanderOverlay);
 const commanderVideo = document.getElementById('commander-intro-video');
 let commanderStarted = false;
 function enterMissionMap() {
   commanderVideo.pause();
+  if (document.fullscreenElement === commanderOverlay) void document.exitFullscreen().catch(() => {});
   commanderOverlay.hidden = true;
   document.getElementById('settings-toggle')?.setAttribute('hidden', '');
   document.getElementById('boot')?.classList.add('hidden');
   const scene = game.scene.getScene('SpaceCenterScene');
   scene?.input?.keyboard?.resetKeys?.();
 }
-document.getElementById('commander-continue').addEventListener('click', enterMissionMap);
+document.getElementById('commander-retry').addEventListener('click', () => { commanderVideo.muted = false; void commanderVideo.play(); });
 commanderVideo.addEventListener('ended', enterMissionMap);
 commanderVideo.addEventListener('error', () => {
-  commanderOverlay.querySelector('.commander-intro__hint').textContent =
-    'Video unavailable. Select CONTINUE to enter the mission.';
+  const fallback = commanderOverlay.querySelector('.commander-intro__fallback');
+  fallback.hidden = false;
+  fallback.querySelector('p').textContent = 'TRANSMISSION UNAVAILABLE';
 });
 window.__MEGA_ENTER_MAP__ = () => {
   if (commanderStarted) return;
@@ -78,13 +73,17 @@ window.__MEGA_ENTER_MAP__ = () => {
   }
   document.getElementById('boot')?.classList.add('hidden');
   commanderOverlay.hidden = false;
+  if (commanderOverlay.requestFullscreen) void commanderOverlay.requestFullscreen().catch(() => {});
   const prefs = window.__SMS_GET_PREFERENCES__?.();
   commanderVideo.muted = prefs?.audio === false;
   commanderVideo.volume = Math.min(1, Math.max(0, prefs?.musicVolume ?? 0.8));
   commanderVideo.currentTime = 0;
   void commanderVideo.play().catch(() => {
-    commanderOverlay.querySelector('.commander-intro__hint').textContent =
-      'Press play to watch the briefing, or CONTINUE to enter the mission.';
+    // Browsers may block autoplay with sound; retry muted automatically.
+    commanderVideo.muted = true;
+    void commanderVideo.play().catch(() => {
+      commanderOverlay.querySelector('.commander-intro__fallback').hidden = false;
+    });
   });
 };
 import('./welcome/main.js').then(() => {
