@@ -985,3 +985,16 @@ html.sms-reduced-animations #boot .boot-consent {
 .commander-intro--visible .commander-intro__panel{transform:translateY(0) scale(1);opacity:1}
 .commander-intro--leaving .commander-intro__panel{transform:translateY(-5px) scale(.99);opacity:0;transition-duration:550ms}
 @media(prefers-reduced-motion:reduce){.commander-intro:not([hidden]),.commander-intro__panel{transition-duration:150ms}}
+
+/* NASA learning consoles, English-only pixel UI. */
+.mission-terminal[hidden]{display:none!important}
+.mission-terminal{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;background:rgba(2,10,18,.82);font-family:'VT323',monospace;color:#e6f5f6}
+.mission-terminal__panel{width:min(740px,96vw);max-height:85dvh;overflow:auto;background:#0c2231;border:4px solid #80d5db;box-shadow:0 0 0 5px #1d4351,0 22px 80px #000a;padding:0 25px 25px}
+.mission-terminal__top{margin:0 -25px 25px;padding:12px 17px;background:#173b4c;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:18px;letter-spacing:1px}
+.mission-terminal__top button{border:0;background:transparent;color:#fff;cursor:pointer;font-size:22px}
+.mission-terminal h2{font:clamp(13px,2vw,19px)/1.6 'Press Start 2P',monospace;color:#93e9e8}
+.mission-terminal p{font:clamp(20px,2.4vw,27px)/1.35 'VT323',monospace;color:#d1e6e8}
+.mission-terminal__actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:25px}
+.mission-terminal__actions button,.mission-terminal__actions a{padding:11px 15px;background:#173f4c;color:#d5ffff;border:2px solid #6cb8be;text-decoration:none;cursor:pointer;font:16px 'VT323',monospace}
+.mission-terminal__actions [data-launch]{background:#70d8bf;color:#092a2c;border-color:#a8fff0}
+.mission-terminal__actions [hidden]{display:none!important}
