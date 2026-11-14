@@ -29,11 +29,63 @@ const game = new Phaser.Game({
   scene: [BootScene, SpaceCenterScene, PauseScene],
 });
 
-window.__MEGA_ENTER_MAP__ = () => {
-  const screen = document.getElementById('space-title-overlay');
-  if (screen) { screen.querySelectorAll('video,audio').forEach(media => { media.pause(); media.removeAttribute('src'); media.load(); }); screen.remove(); }
+const commanderOverlay = document.createElement('section');
+commanderOverlay.id = 'commander-intro';
+commanderOverlay.className = 'commander-intro';
+commanderOverlay.hidden = true;
+commanderOverlay.setAttribute('role', 'dialog');
+commanderOverlay.setAttribute('aria-modal', 'true');
+commanderOverlay.setAttribute('aria-label', 'Introducción del comandante');
+commanderOverlay.innerHTML = `
+  <div class="commander-intro__panel">
+    <div class="commander-intro__header"><span>◈ MISSION CONTROL // TRANSMISSION 001</span><span class="commander-intro__signal">● LIVE</span></div>
+    <div class="commander-intro__display">
+      <video id="commander-intro-video" src="/intro comander.mp4" playsinline preload="auto" controls></video>
+      <div class="commander-intro__scanlines" aria-hidden="true"></div>
+    </div>
+    <div class="commander-intro__footer">
+      <div><strong>COMMANDER BRIEFING</strong><small>MISSION STATUS: AWAITING DEPLOYMENT</small></div>
+      <button type="button" id="commander-continue">CONTINUE ▶</button>
+    </div>
+    <p class="commander-intro__hint">Watch the briefing or continue directly to the mission.</p>
+  </div>`;
+document.getElementById('app').append(commanderOverlay);
+const commanderVideo = document.getElementById('commander-intro-video');
+let commanderStarted = false;
+function enterMissionMap() {
+  commanderVideo.pause();
+  commanderOverlay.hidden = true;
+  document.getElementById('settings-toggle')?.setAttribute('hidden', '');
   document.getElementById('boot')?.classList.add('hidden');
-  document.getElementById('settings-toggle')?.setAttribute('hidden','');
+  const scene = game.scene.getScene('SpaceCenterScene');
+  scene?.input?.keyboard?.resetKeys?.();
+}
+document.getElementById('commander-continue').addEventListener('click', enterMissionMap);
+commanderVideo.addEventListener('ended', enterMissionMap);
+commanderVideo.addEventListener('error', () => {
+  commanderOverlay.querySelector('.commander-intro__hint').textContent =
+    'Video unavailable. Select CONTINUE to enter the mission.';
+});
+window.__MEGA_ENTER_MAP__ = () => {
+  if (commanderStarted) return;
+  commanderStarted = true;
+  const screen = document.getElementById('space-title-overlay');
+  if (screen) {
+    screen.querySelectorAll('video,audio').forEach(media => {
+      media.pause(); media.removeAttribute('src'); media.load();
+    });
+    screen.remove();
+  }
+  document.getElementById('boot')?.classList.add('hidden');
+  commanderOverlay.hidden = false;
+  const prefs = window.__SMS_GET_PREFERENCES__?.();
+  commanderVideo.muted = prefs?.audio === false;
+  commanderVideo.volume = Math.min(1, Math.max(0, prefs?.musicVolume ?? 0.8));
+  commanderVideo.currentTime = 0;
+  void commanderVideo.play().catch(() => {
+    commanderOverlay.querySelector('.commander-intro__hint').textContent =
+      'Press play to watch the briefing, or CONTINUE to enter the mission.';
+  });
 };
 import('./welcome/main.js').then(() => {
   // Phaser has already been instantiated. Never wait for a potentially missed boot event.
