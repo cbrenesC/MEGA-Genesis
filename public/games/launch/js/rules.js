@@ -220,11 +220,11 @@ export function evaluateLauncher(launcher, data, inputs, options = {}) {
   // 1. ¿Llega a ese destino?
   checks.push(cap.baseCapacityKg == null
     ? { id: 'orbit', status: 'fail', label: 'Destino',
-      detail: `${launcher.name} no llega hasta ${place}: no tiene fuerza para un viaje tan largo. Prueba un cohete más grande.`,
+      detail: `${launcher.name} no llega a ${place}: no tiene fuerza para un viaje tan largo. Prueba un cohete más grande.`,
       why: 'Para ir más lejos hace falta mucha más velocidad, y eso significa mucho más combustible. Un cohete pequeño se queda sin fuerza antes de llegar.',
       more: `Presupuesto de velocidad (delta-v) aproximado desde el suelo: ${orbitDef.deltaVKmS} km/s. Valor típico de libros de mecánica orbital.`, term: 'orbita-alta' }
     : { id: 'orbit', status: 'ok', label: 'Destino',
-      detail: `Sí llega hasta ${place}. Puede subir hasta ${fmtKg(cap.baseCapacityKg)} (${massLike(cap.baseCapacityKg)}).`,
+      detail: `Sí llega a ${place}. Puede subir hasta ${fmtKg(cap.baseCapacityKg)} (${massLike(cap.baseCapacityKg)}).`,
       why: `Llegar hasta ahí pide un presupuesto de velocidad (delta-v) de unos ${orbitDef.deltaVKmS} km/s. ${speedLike(7.8)}: así de rápido hay que ir solo para quedarse en órbita.`,
       more: `Δv aproximado desde el suelo, con las pérdidas por gravedad y aire: ${orbitDef.deltaVKmS} km/s. Capacidad: ${launcher.sources?.capacityKg ?? 'ver data/launchers.json'}.`, term: 'delta-v' });
 

@@ -11,7 +11,7 @@
       "window": null,
       "plain": "Entre 200 y 2.000 km de altura. Es la más fácil y barata de alcanzar. Ahí vive la Estación Espacial Internacional y da una vuelta a la Tierra cada 90 minutos.",
       "examples": "Estación Espacial, telescopios pequeños, redes de internet por satélite.",
-      "short": "órbita baja (LEO)"
+      "short": "la órbita baja (LEO)"
     },
     {
       "id": "SSO",
@@ -23,7 +23,7 @@
       "window": null,
       "plain": "Una órbita que pasa cerca de los polos y ve cada lugar de la Tierra siempre a la misma hora del día. Sirve para sacar fotos con la misma luz. Cuesta algo más porque no aprovecha el giro de la Tierra.",
       "examples": "Landsat, PACE y casi todos los satélites que observan la Tierra.",
-      "short": "órbita polar (SSO)"
+      "short": "la órbita polar (SSO)"
     },
     {
       "id": "GTO",
@@ -35,7 +35,7 @@
       "window": null,
       "plain": "Una órbita alargada que llega hasta 36.000 km de altura. Desde ahí la nave usa su propio motor para quedarse \"quieta\" sobre un punto del ecuador (órbita geoestacionaria).",
       "examples": "Satélites del clima GOES y satélites de comunicaciones.",
-      "short": "órbita alargada hacia los 36.000 km (GTO)"
+      "short": "la órbita alargada hacia los 36.000 km (GTO)"
     },
     {
       "id": "TLI",
@@ -50,7 +50,7 @@
       },
       "plain": "La nave sale de la órbita de la Tierra en una trayectoria que la lleva hasta la Luna, a unos 384.000 km.",
       "examples": "Artemis I, CAPSTONE, Lunar Reconnaissance Orbiter.",
-      "short": "camino hacia la Luna (TLI)"
+      "short": "el camino hacia la Luna (TLI)"
     },
     {
       "id": "ESCAPE",
@@ -65,7 +65,7 @@
       },
       "plain": "La nave se libera de la gravedad de la Tierra para viajar a otro planeta o a un asteroide. Es el destino que más combustible pide.",
       "examples": "Europa Clipper, Psyche, Lucy y los rovers que van a Marte.",
-      "short": "salida de la Tierra (escape)"
+      "short": "la salida de la Tierra hacia otro planeta (escape)"
     }
   ]
 }

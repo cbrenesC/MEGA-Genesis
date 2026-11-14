@@ -144,7 +144,7 @@ export function renderCatalog() {
     <p>${esc(od.plain)} <span class="muted">Ejemplos: ${esc(od.examples)}</span></p>
     <p class="muted">¿Cuánta velocidad hay que ganar para llegar a cada destino? Es el presupuesto de velocidad (delta-v) ${termBtn('delta-v', '¿Qué es delta-v?')}:</p>
     <div class="dv-bars">${app.data.orbits.map((o) => `
-      <div class="dv-row ${o.id === orbit.type ? 'is-target' : ''}"><span>${o.id === orbit.type ? '▶ ' : ''}${esc(o.short ?? o.name)}</span><span class="bar"><i style="width:${(o.deltaVKmS / maxDv) * 100}%"></i></span><span>${o.deltaVKmS} km/s</span></div>`).join('')}
+      <div class="dv-row ${o.id === orbit.type ? 'is-target' : ''}"><span>${o.id === orbit.type ? '▶ ' : ''}${esc(o.name)}</span><span class="bar"><i style="width:${(o.deltaVKmS / maxDv) * 100}%"></i></span><span>${o.deltaVKmS} km/s</span></div>`).join('')}
     </div>
   </article>
   <div class="catalog-toolbar">
