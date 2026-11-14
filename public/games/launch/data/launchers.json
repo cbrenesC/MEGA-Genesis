@@ -1,0 +1,236 @@
+{
+  "_about": "Catálogo de lanzadores del módulo LAUNCH. Todas las cifras están SIMPLIFICADAS y redondeadas para el juego; no sirven para diseñar una misión real. 'capacityKg' = masa máxima que el lanzador pone en cada tipo de órbita (null = no puede llegar). 'dataQuality' indica si la cifra es 'publicada' (dato público del fabricante o de NASA, redondeado), 'aproximada' (rango público, elegimos un valor) o 'estimada' (no hay dato público; la calculamos/inventamos para el juego). Para agregar un lanzador, copia un bloque y cambia los valores; la lógica no tiene cifras escritas a mano.",
+  "_units": {
+    "capacityKg": "kg",
+    "costMUSD": "millones de dólares (USD) por lanzamiento",
+    "costPerKgUSD": "USD por kg (solo viajes compartidos)",
+    "reliability": "fracción 0-1 de lanzamientos exitosos (simplificado)",
+    "fairing.diameterM / heightM": "espacio útil aproximado dentro de la cofia, en metros",
+    "availabilityMonths": "meses hasta el próximo cupo disponible (ficticio, para el juego)"
+  },
+  "launchers": [
+    {
+      "id": "electron",
+      "name": "Electron",
+      "provider": "Rocket Lab (EE. UU. / Nueva Zelanda)",
+      "class": "pequeño",
+      "fictional": false,
+      "summary": "Cohete pequeño y dedicado para CubeSats y smallsats. Tú eliges la órbita y la fecha.",
+      "capacityKg": { "LEO": 300, "SSO": 200, "GTO": null, "TLI": 30, "ESCAPE": null },
+      "costMUSD": 7.5,
+      "pricing": "dedicado",
+      "reliability": 0.92,
+      "fairing": { "diameterM": 1.07, "heightM": 1.8 },
+      "availabilityMonths": 3,
+      "sites": ["mahia", "wallops"],
+      "sources": {
+        "capacityKg": "Rocket Lab, página de Electron (300 kg a LEO, 200 kg a SSO 500 km). TLI: estimada con la etapa Photon usada en CAPSTONE (NASA, 2022, ~25 kg).",
+        "costMUSD": "Aproximada: precio público citado por Rocket Lab y prensa especializada (~7,5 MUSD).",
+        "reliability": "Aproximada: historial público de lanzamientos de Electron (Wikipedia, 'List of Electron launches'), redondeado.",
+        "fairing": "Aproximada: Rocket Lab Payload User's Guide (cofia de 1,2 m de diámetro exterior)."
+      },
+      "dataQuality": { "capacityKg": "publicada", "costMUSD": "aproximada", "reliability": "aproximada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "rideshare",
+      "name": "Viaje compartido (rideshare) en Falcon 9",
+      "provider": "SpaceX, programa Transporter / Bandwagon",
+      "class": "compartido",
+      "fictional": false,
+      "summary": "Tu nave viaja junto con decenas de otras. Muy barato, pero la órbita y la fecha las decide la misión principal.",
+      "capacityKg": { "LEO": 450, "SSO": 450, "GTO": null, "TLI": null, "ESCAPE": null },
+      "pricing": "por-kg",
+      "costPerKgUSD": 6500,
+      "minCostMUSD": 0.35,
+      "costMUSD": null,
+      "reliability": 0.99,
+      "fairing": { "diameterM": 1.0, "heightM": 1.4 },
+      "availabilityMonths": 4,
+      "fixedOrbit": { "LEO": { "altitudeKm": 550, "inclinationDeg": 45 }, "SSO": { "altitudeKm": 525, "inclinationDeg": 97.5 } },
+      "sites": ["vsfb", "ksc"],
+      "sources": {
+        "capacityKg": "Aproximada: límite por cliente de un puerto ESPA Grande (~450 kg). No es la capacidad del cohete, sino el espacio que te venden.",
+        "costPerKgUSD": "Aproximada: tarifa pública de SpaceX Rideshare (2024-2025, del orden de 6.000-6.500 USD/kg con un mínimo por cliente).",
+        "reliability": "Aproximada: historial de Falcon 9 (más de 400 vuelos, muy pocas fallas).",
+        "fairing": "Aproximada: volumen típico de un puerto ESPA Grande."
+      },
+      "dataQuality": { "capacityKg": "aproximada", "costMUSD": "aproximada", "reliability": "aproximada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "pegasus",
+      "name": "Pegasus XL",
+      "provider": "Northrop Grumman (EE. UU.)",
+      "class": "pequeño",
+      "fictional": false,
+      "summary": "Se lanza desde debajo de un avión. Caro para su tamaño, pero puede despegar cerca del ecuador.",
+      "capacityKg": { "LEO": 450, "SSO": 300, "GTO": null, "TLI": null, "ESCAPE": null },
+      "costMUSD": 56,
+      "pricing": "dedicado",
+      "reliability": 0.93,
+      "fairing": { "diameterM": 1.1, "heightM": 2.1 },
+      "availabilityMonths": 12,
+      "sites": ["kwaj", "ksc", "vsfb"],
+      "sources": {
+        "capacityKg": "Aproximada: Pegasus User's Guide (Northrop Grumman), LEO baja.",
+        "costMUSD": "Publicada: contrato de NASA para lanzar ICON (2014, ~56 MUSD).",
+        "reliability": "Aproximada: historial público de Pegasus XL, redondeado.",
+        "fairing": "Aproximada: Pegasus User's Guide."
+      },
+      "dataQuality": { "capacityKg": "aproximada", "costMUSD": "publicada", "reliability": "aproximada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "alpha",
+      "name": "Alpha",
+      "provider": "Firefly Aerospace (EE. UU.)",
+      "class": "pequeño",
+      "fictional": false,
+      "summary": "Lleva más de una tonelada y es barato, pero todavía tiene pocos vuelos y varias fallas: más riesgo.",
+      "capacityKg": { "LEO": 1030, "SSO": 630, "GTO": null, "TLI": null, "ESCAPE": null },
+      "costMUSD": 15,
+      "pricing": "dedicado",
+      "reliability": 0.65,
+      "fairing": { "diameterM": 2.0, "heightM": 3.0 },
+      "availabilityMonths": 6,
+      "sites": ["vsfb"],
+      "sources": {
+        "capacityKg": "Publicada: Firefly, página de Alpha (1.030 kg a LEO, 630 kg a SSO 500 km).",
+        "costMUSD": "Aproximada: precio público citado por Firefly (~15 MUSD).",
+        "reliability": "Aproximada: pocos vuelos y varias fallas/éxitos parciales en el historial público; valor redondeado para el juego.",
+        "fairing": "Aproximada: Firefly Alpha Payload User's Guide (cofia de ~2 m)."
+      },
+      "dataQuality": { "capacityKg": "publicada", "costMUSD": "aproximada", "reliability": "aproximada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "pslv",
+      "name": "PSLV-XL",
+      "provider": "ISRO (India)",
+      "class": "mediano",
+      "fictional": false,
+      "summary": "Lanzador mediano y económico, muy usado para órbitas polares y satélites de observación.",
+      "capacityKg": { "LEO": 3800, "SSO": 1750, "GTO": 1400, "TLI": null, "ESCAPE": null },
+      "costMUSD": 30,
+      "pricing": "dedicado",
+      "reliability": 0.94,
+      "fairing": { "diameterM": 2.9, "heightM": 5.0 },
+      "availabilityMonths": 9,
+      "sites": ["sdsc"],
+      "sources": {
+        "capacityKg": "Publicada: ISRO, página de PSLV (1.750 kg a SSO 600 km; ~1.425 kg a sub-GTO). LEO aproximada.",
+        "costMUSD": "Aproximada: rango citado en prensa (~20-30 MUSD).",
+        "reliability": "Aproximada: historial público de PSLV, redondeado.",
+        "fairing": "Aproximada: cofia de 3,2 m de diámetro exterior."
+      },
+      "dataQuality": { "capacityKg": "publicada", "costMUSD": "aproximada", "reliability": "aproximada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "vegac",
+      "name": "Vega C",
+      "provider": "Avio / Arianespace (Europa)",
+      "class": "mediano",
+      "fictional": false,
+      "summary": "Lanzador europeo mediano pensado para órbitas polares. No llega a órbitas altas.",
+      "capacityKg": { "LEO": 3300, "SSO": 2300, "GTO": null, "TLI": null, "ESCAPE": null },
+      "costMUSD": 45,
+      "pricing": "dedicado",
+      "reliability": 0.88,
+      "fairing": { "diameterM": 3.0, "heightM": 6.0 },
+      "availabilityMonths": 12,
+      "sites": ["kourou"],
+      "sources": {
+        "capacityKg": "Publicada: ESA, ficha de Vega C (~2.300 kg a órbita polar de 700 km). LEO aproximada.",
+        "costMUSD": "Estimada: las cifras públicas varían mucho; usamos un valor intermedio para el juego.",
+        "reliability": "Aproximada: pocos vuelos, con una falla en 2022 (VV22); redondeado.",
+        "fairing": "Aproximada: cofia de 3,3 m de diámetro exterior."
+      },
+      "dataQuality": { "capacityKg": "publicada", "costMUSD": "estimada", "reliability": "aproximada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "falcon9",
+      "name": "Falcon 9",
+      "provider": "SpaceX (EE. UU.)",
+      "class": "mediano-pesado",
+      "fictional": false,
+      "summary": "El lanzador más usado del mundo. La primera etapa se reutiliza, por eso lleva algo menos de lo que podría.",
+      "capacityKg": { "LEO": 17500, "SSO": 12000, "GTO": 5500, "TLI": 3000, "ESCAPE": 1500 },
+      "costMUSD": 70,
+      "pricing": "dedicado",
+      "reliability": 0.99,
+      "fairing": { "diameterM": 4.6, "heightM": 11.0 },
+      "availabilityMonths": 6,
+      "sites": ["ksc", "vsfb"],
+      "sources": {
+        "capacityKg": "Aproximada: SpaceX publica 22.800 kg a LEO y 8.300 kg a GTO en modo desechable; usamos valores típicos con primera etapa reutilizable (~17,5 t LEO, ~5,5 t GTO). SSO, TLI y escape: estimadas para el juego.",
+        "costMUSD": "Publicada y redondeada: precio estándar en la web de SpaceX (~70 MUSD).",
+        "reliability": "Aproximada: historial público (más de 400 vuelos, muy pocas fallas).",
+        "fairing": "Aproximada: Falcon User's Guide (cofia de 5,2 m de diámetro exterior)."
+      },
+      "dataQuality": { "capacityKg": "aproximada", "costMUSD": "publicada", "reliability": "aproximada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "ariane64",
+      "name": "Ariane 6 (versión A64)",
+      "provider": "ArianeGroup / Arianespace (Europa)",
+      "class": "pesado",
+      "fictional": false,
+      "summary": "Lanzador europeo pesado. Despega cerca del ecuador, lo que ayuda mucho a llegar a órbita geoestacionaria.",
+      "capacityKg": { "LEO": 21600, "SSO": 15000, "GTO": 11500, "TLI": 8600, "ESCAPE": 5000 },
+      "costMUSD": 125,
+      "pricing": "dedicado",
+      "reliability": 0.92,
+      "fairing": { "diameterM": 4.5, "heightM": 14.0 },
+      "availabilityMonths": 12,
+      "sites": ["kourou"],
+      "sources": {
+        "capacityKg": "Aproximada: Arianespace, Ariane 6 User's Manual (A64: ~11,5 t a GTO, ~21,6 t a LEO, ~8,6 t a transferencia lunar). SSO y escape: estimadas.",
+        "costMUSD": "Aproximada: valores citados en prensa (~115 M EUR), convertidos y redondeados.",
+        "reliability": "Estimada: lanzador nuevo con pocos vuelos; valor del juego.",
+        "fairing": "Aproximada: cofia de 5,4 m de diámetro exterior."
+      },
+      "dataQuality": { "capacityKg": "aproximada", "costMUSD": "aproximada", "reliability": "estimada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "falconheavy",
+      "name": "Falcon Heavy",
+      "provider": "SpaceX (EE. UU.)",
+      "class": "superpesado",
+      "fictional": false,
+      "summary": "Tres núcleos de Falcon 9 juntos. Enorme capacidad, pero su cofia es la misma que la de Falcon 9.",
+      "capacityKg": { "LEO": 63800, "SSO": 40000, "GTO": 26700, "TLI": 20000, "ESCAPE": 16800 },
+      "costMUSD": 150,
+      "pricing": "dedicado",
+      "reliability": 0.97,
+      "fairing": { "diameterM": 4.6, "heightM": 11.0 },
+      "availabilityMonths": 18,
+      "sites": ["ksc"],
+      "sources": {
+        "capacityKg": "Publicada (modo desechable): SpaceX, página de Falcon Heavy (63,8 t LEO, 26,7 t GTO, 16,8 t a Marte). SSO y TLI: estimadas.",
+        "costMUSD": "Aproximada: contratos de NASA para Psyche (~117 MUSD), GOES-U (~153 MUSD) y Europa Clipper (~178 MUSD).",
+        "reliability": "Estimada: pocos vuelos, todos exitosos; usamos un valor prudente por la muestra pequeña.",
+        "fairing": "Aproximada: misma cofia que Falcon 9."
+      },
+      "dataQuality": { "capacityKg": "publicada", "costMUSD": "aproximada", "reliability": "estimada", "fairing": "aproximada", "availabilityMonths": "estimada" }
+    },
+    {
+      "id": "sls",
+      "name": "SLS (configuración de carga)",
+      "provider": "NASA (EE. UU.)",
+      "class": "superpesado",
+      "fictional": true,
+      "summary": "El cohete del programa Artemis. Enorme y muy caro; solo tiene sentido para cargas gigantes rumbo a la Luna o más allá.",
+      "capacityKg": { "LEO": 95000, "SSO": null, "GTO": null, "TLI": 27000, "ESCAPE": 20000 },
+      "costMUSD": 2200,
+      "pricing": "dedicado",
+      "reliability": 0.95,
+      "fairing": { "diameterM": 7.5, "heightM": 19.0 },
+      "availabilityMonths": 48,
+      "sites": ["ksc"],
+      "sources": {
+        "capacityKg": "Aproximada: NASA, SLS Reference Guide (Block 1: más de 27 t a TLI, ~95 t a LEO). Escape: estimada.",
+        "costMUSD": "Aproximada: NASA OIG (IG-22-003) estima ~2.200 MUSD por cada SLS.",
+        "reliability": "Estimada: un solo vuelo sin tripulación (Artemis I, 2022).",
+        "fairing": "FICTICIA para el juego: inspirada en la cofia de carga de 8,4 m planeada para Block 1B, que todavía no vuela."
+      },
+      "dataQuality": { "capacityKg": "aproximada", "costMUSD": "aproximada", "reliability": "estimada", "fairing": "estimada", "availabilityMonths": "estimada" }
+    }
+  ]
+}

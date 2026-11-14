@@ -1,0 +1,98 @@
+{
+  "_about": "Reglas ajustables del módulo LAUNCH. Todos los valores son de juego (simplificados). Cambia aquí el balance sin tocar el código.",
+  "massMargin": {
+    "_about": "Umbrales del margen de masa, en % de la capacidad efectiva del lanzador. Debajo de 0 % el lanzador queda bloqueado.",
+    "facil":   { "greenPct": 10, "yellowPct": 3 },
+    "normal":  { "greenPct": 15, "yellowPct": 5 },
+    "dificil": { "greenPct": 20, "yellowPct": 8 }
+  },
+  "physics": {
+    "_about": "Constantes simplificadas. upperStageExhaustKmS ~ velocidad de escape de gases de una etapa superior típica (Isp ~340 s). leoOrbitalSpeedKmS: velocidad en órbita baja. gtoApogeeSpeedKmS y geoSpeedKmS: para calcular el empujón que necesita la nave para pasar de GTO a GEO.",
+    "upperStageExhaustKmS": 3.33,
+    "leoOrbitalSpeedKmS": 7.8,
+    "gtoApogeeSpeedKmS": 1.6,
+    "geoSpeedKmS": 3.07,
+    "g0": 9.80665
+  },
+  "difficulty": {
+    "facil": {
+      "label": "Fácil",
+      "description": "Menos opciones y explicaciones paso a paso. El sitio de lanzamiento y la inclinación se eligen solos.",
+      "launchers": ["electron", "rideshare", "falcon9", "falconheavy"],
+      "siteChoice": false,
+      "inclinationRules": false,
+      "launchWindows": false,
+      "gtoLatitudePenalty": false,
+      "propellantOffload": false,
+      "eventsDefaultOn": false,
+      "events": ["failure"],
+      "partialFailureShare": 0,
+      "delayCostMUSDPerMonth": 0
+    },
+    "normal": {
+      "label": "Normal",
+      "description": "Catálogo amplio, eventos de clima e inserción imprecisa. Los retrasos de calendario cuestan dinero.",
+      "launchers": ["electron", "rideshare", "alpha", "pslv", "vegac", "falcon9", "ariane64", "falconheavy"],
+      "siteChoice": false,
+      "inclinationRules": true,
+      "launchWindows": true,
+      "gtoLatitudePenalty": false,
+      "propellantOffload": true,
+      "eventsDefaultOn": true,
+      "events": ["weather", "orbitOffset", "failure"],
+      "partialFailureShare": 0.3,
+      "delayCostMUSDPerMonth": 1
+    },
+    "dificil": {
+      "label": "Difícil",
+      "description": "Todos los lanzadores, eliges el sitio, la latitud cambia lo que le cuesta a tu nave llegar a GEO, hay ventanas de lanzamiento y todos los eventos aleatorios.",
+      "launchers": ["electron", "rideshare", "pegasus", "alpha", "pslv", "vegac", "falcon9", "ariane64", "falconheavy", "sls"],
+      "siteChoice": true,
+      "inclinationRules": true,
+      "launchWindows": true,
+      "gtoLatitudePenalty": true,
+      "propellantOffload": true,
+      "eventsDefaultOn": true,
+      "events": ["weather", "minorAnomaly", "orbitOffset", "failure"],
+      "partialFailureShare": 0.3,
+      "delayCostMUSDPerMonth": 2
+    }
+  },
+  "events": {
+    "weather": {
+      "label": "Retraso por clima",
+      "_probability": "= weatherRisk del sitio",
+      "minDays": 1, "maxDays": 5,
+      "costMUSDPerDay": 0.15,
+      "explain": "Cada día de espera cuesta dinero: el equipo, la plataforma y el combustible siguen ocupados."
+    },
+    "minorAnomaly": {
+      "label": "Anomalía menor (se cancela la cuenta regresiva)",
+      "_probability": "= factor x (1 - confiabilidad), con un tope",
+      "factor": 3, "maxProbability": 0.25,
+      "delayDays": 7, "costMUSD": 1.0,
+      "explain": "Un sensor marca un valor raro y se detiene la cuenta regresiva. Revisarlo cuesta una semana y dinero, pero es mucho mejor que arriesgar la misión."
+    },
+    "orbitOffset": {
+      "label": "Inserción en una órbita un poco distinta",
+      "_probability": "= baseProbability + extra si el margen de masa es bajo",
+      "baseProbability": 0.05,
+      "extraIfYellow": 0.04,
+      "extraIfRed": 0.12,
+      "minCorrectionMS": 15, "maxCorrectionMS": 70,
+      "noPropulsionLifetimeLossPct": 25,
+      "explain": "El cohete dejó la nave un poco fuera del objetivo. La nave gasta su propio combustible para corregir, y ese combustible ya no estará para alargar la misión."
+    },
+    "failure": {
+      "label": "Falla del lanzador",
+      "_probability": "= 1 - confiabilidad",
+      "partialLifetimeLossPct": [50, 80],
+      "explain": "Aunque un lanzador sea muy confiable, ningún lanzamiento es 100 % seguro. Por eso las misiones importantes eligen cohetes con buen historial."
+    }
+  },
+  "outcome": {
+    "_about": "Si un evento le quita a la nave al menos este % de vida útil, el resultado es 'éxito parcial'.",
+    "partialIfLifetimeLossPct": 20
+  },
+  "dailyStandbyNote": "El costo por día y por mes es un valor de juego, no un dato real."
+}

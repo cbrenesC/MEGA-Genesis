@@ -1,0 +1,76 @@
+{
+  "_about": "MOCKS TEMPORALES. Estos escenarios reemplazan los datos que deberían llegar de otros módulos (objetivo de misión, nave/instrumentos, órbita, presupuesto y calendario) mientras esos módulos no existan o no los publiquen en el estado compartido. Cuando el estado compartido tenga datos reales, el módulo los usa y estos valores se ignoran pieza por pieza. Todas las naves son ficticias, algunas inspiradas en misiones reales.",
+  "defaultScenario": "smallsat",
+  "scenarios": [
+    {
+      "id": "cubesat",
+      "label": "CubeSat universitario (6U)",
+      "objective": "Probar una cámara pequeña para fotografiar glaciares.",
+      "spacecraft": { "name": "GlaciarSat-1", "massKg": 12, "propellantKg": 0, "ispS": 0, "diameterM": 0.3, "heightM": 0.4, "designLifetimeYears": 2,
+        "instruments": [ { "id": "cam", "name": "Cámara de 5 m/píxel", "massKg": 1.5 } ] },
+      "orbit": { "type": "SSO", "altitudeKm": 525, "inclinationDeg": 97.5 },
+      "budget": { "totalMUSD": 5, "committedMUSD": 2 },
+      "schedule": { "monthsToTargetDate": 8, "nextWindowMonths": 0 }
+    },
+    {
+      "id": "smallsat",
+      "label": "Smallsat de detección de incendios",
+      "objective": "Detectar incendios forestales desde el espacio cada día.",
+      "spacecraft": { "name": "Fénix", "massKg": 180, "propellantKg": 15, "ispS": 220, "diameterM": 0.9, "heightM": 1.2, "designLifetimeYears": 5,
+        "instruments": [ { "id": "ir", "name": "Cámara infrarroja", "massKg": 22 }, { "id": "vis", "name": "Cámara visible", "massKg": 8 } ] },
+      "orbit": { "type": "SSO", "altitudeKm": 550, "inclinationDeg": 97.6 },
+      "budget": { "totalMUSD": 60, "committedMUSD": 35 },
+      "schedule": { "monthsToTargetDate": 6, "nextWindowMonths": 0 }
+    },
+    {
+      "id": "equatorial",
+      "label": "Telescopio de rayos X ecuatorial (inspirado en IXPE)",
+      "objective": "Observar rayos X desde una órbita casi ecuatorial, lejos de la radiación de la Anomalía del Atlántico Sur.",
+      "spacecraft": { "name": "Prisma-X", "massKg": 330, "propellantKg": 0, "ispS": 0, "diameterM": 1.0, "heightM": 2.0, "designLifetimeYears": 3,
+        "instruments": [ { "id": "xray", "name": "Tres telescopios de rayos X", "massKg": 170 } ] },
+      "orbit": { "type": "LEO", "altitudeKm": 600, "inclinationDeg": 0.5 },
+      "budget": { "totalMUSD": 220, "committedMUSD": 150 },
+      "schedule": { "monthsToTargetDate": 12, "nextWindowMonths": 0 }
+    },
+    {
+      "id": "oceans",
+      "label": "Observatorio de océanos (inspirado en PACE)",
+      "objective": "Medir el color del océano y los aerosoles de la atmósfera.",
+      "spacecraft": { "name": "Marea", "massKg": 2000, "propellantKg": 250, "ispS": 225, "diameterM": 2.6, "heightM": 4.5, "designLifetimeYears": 5,
+        "instruments": [ { "id": "oci", "name": "Espectrómetro de color oceánico", "massKg": 270 }, { "id": "pol", "name": "Dos polarímetros", "massKg": 60 } ] },
+      "orbit": { "type": "SSO", "altitudeKm": 680, "inclinationDeg": 98 },
+      "budget": { "totalMUSD": 900, "committedMUSD": 750 },
+      "schedule": { "monthsToTargetDate": 12, "nextWindowMonths": 0 }
+    },
+    {
+      "id": "geo",
+      "label": "Satélite meteorológico geoestacionario",
+      "objective": "Vigilar huracanes sobre América las 24 horas.",
+      "spacecraft": { "name": "Vigía-G", "massKg": 5200, "propellantKg": 2800, "ispS": 310, "diameterM": 3.9, "heightM": 6.0, "designLifetimeYears": 15, "stationKeepingMSPerYear": 50,
+        "instruments": [ { "id": "abi", "name": "Generador de imágenes", "massKg": 450 }, { "id": "glm", "name": "Mapeador de rayos", "massKg": 125 } ] },
+      "orbit": { "type": "GTO", "altitudeKm": 35786, "inclinationDeg": 0 },
+      "budget": { "totalMUSD": 1200, "committedMUSD": 950 },
+      "schedule": { "monthsToTargetDate": 18, "nextWindowMonths": 0 }
+    },
+    {
+      "id": "lunar",
+      "label": "Orbitador lunar",
+      "objective": "Buscar hielo de agua en los cráteres del polo sur de la Luna.",
+      "spacecraft": { "name": "Selene-Sur", "massKg": 1800, "propellantKg": 900, "ispS": 300, "diameterM": 2.5, "heightM": 3.5, "designLifetimeYears": 3,
+        "instruments": [ { "id": "neutron", "name": "Detector de neutrones", "massKg": 30 }, { "id": "radar", "name": "Radar", "massKg": 60 } ] },
+      "orbit": { "type": "TLI", "altitudeKm": 100, "inclinationDeg": 90 },
+      "budget": { "totalMUSD": 600, "committedMUSD": 420 },
+      "schedule": { "monthsToTargetDate": 10, "nextWindowMonths": 0 }
+    },
+    {
+      "id": "mars",
+      "label": "Orbitador marciano",
+      "objective": "Estudiar cómo Marte pierde su atmósfera.",
+      "spacecraft": { "name": "Ares-Aire", "massKg": 3500, "propellantKg": 1900, "ispS": 315, "diameterM": 3.5, "heightM": 5.0, "designLifetimeYears": 6,
+        "instruments": [ { "id": "spec", "name": "Espectrómetro ultravioleta", "massKg": 40 }, { "id": "mag", "name": "Magnetómetro", "massKg": 10 } ] },
+      "orbit": { "type": "ESCAPE", "altitudeKm": null, "inclinationDeg": null },
+      "budget": { "totalMUSD": 900, "committedMUSD": 700 },
+      "schedule": { "monthsToTargetDate": 14, "nextWindowMonths": 14 }
+    }
+  ]
+}

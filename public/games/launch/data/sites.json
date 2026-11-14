@@ -1,0 +1,12 @@
+{
+  "_about": "Sitios de lanzamiento simplificados. 'latitudeDeg' es aproximada (dato público, redondeado). 'inclinationRangeDeg' es el rango de inclinaciones que el juego permite lanzar directamente desde ese sitio (simplificación: la inclinación mínima es la latitud; el máximo depende de qué direcciones son seguras para no sobrevolar zonas pobladas). 'weatherRisk' es la probabilidad (ficticia, para el juego) de un retraso por clima.",
+  "sites": [
+    { "id": "ksc", "name": "Cabo Cañaveral / Centro Espacial Kennedy", "country": "EE. UU. (Florida)", "latitudeDeg": 28.5, "inclinationRangeDeg": [28.5, 57], "weatherRisk": 0.35, "weatherNote": "Tormentas eléctricas y vientos frecuentes.", "source": "Latitud pública; rango de inclinaciones simplificado (corredores al este sobre el Atlántico)." },
+    { "id": "vsfb", "name": "Base Vandenberg", "country": "EE. UU. (California)", "latitudeDeg": 34.7, "inclinationRangeDeg": [56, 145], "weatherRisk": 0.15, "weatherNote": "Vientos en altura; niebla (no suele impedir el lanzamiento).", "source": "Latitud pública; especializada en órbitas polares y SSO (lanza hacia el sur sobre el Pacífico)." },
+    { "id": "kourou", "name": "Centro Espacial Guayanés (Kourou)", "country": "Guayana Francesa", "latitudeDeg": 5.2, "inclinationRangeDeg": [5.2, 100], "weatherRisk": 0.2, "weatherNote": "Lluvias tropicales y vientos en altura.", "source": "Latitud pública; rango simplificado." },
+    { "id": "mahia", "name": "Península de Mahia (Rocket Lab LC-1)", "country": "Nueva Zelanda", "latitudeDeg": -39.3, "inclinationRangeDeg": [39.3, 120], "weatherRisk": 0.3, "weatherNote": "Viento fuerte del océano.", "source": "Latitud pública; rango simplificado." },
+    { "id": "wallops", "name": "Wallops (NASA) / MARS", "country": "EE. UU. (Virginia)", "latitudeDeg": 37.8, "inclinationRangeDeg": [37.8, 60], "weatherRisk": 0.25, "weatherNote": "Vientos y frentes fríos.", "source": "Latitud pública; rango simplificado." },
+    { "id": "sdsc", "name": "Centro Espacial Satish Dhawan (Sriharikota)", "country": "India", "latitudeDeg": 13.7, "inclinationRangeDeg": [18, 140], "weatherRisk": 0.25, "weatherNote": "Temporada de monzón.", "source": "Latitud pública; rango simplificado (desvío para no sobrevolar Sri Lanka)." },
+    { "id": "kwaj", "name": "Atolón Kwajalein (lanzamiento desde avión)", "country": "Islas Marshall", "latitudeDeg": 9.0, "inclinationRangeDeg": [9.0, 60], "weatherRisk": 0.15, "weatherNote": "Chubascos tropicales.", "source": "Latitud pública; usado por Pegasus XL (por ejemplo NuSTAR, 2012)." }
+  ]
+}
