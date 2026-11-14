@@ -36,8 +36,9 @@ window.__MEGA_ENTER_MAP__ = () => {
   document.getElementById('settings-toggle')?.setAttribute('hidden','');
 };
 import('./welcome/main.js').then(() => {
-  if (game.isBooted) window.dispatchEvent(new Event('mega-map-ready'));
-  else game.events.once('ready', () => window.dispatchEvent(new Event('mega-map-ready')));
+  // Phaser has already been instantiated. Never wait for a potentially missed boot event.
+  window.__MEGA_MAP_READY__ = true;
+  window.dispatchEvent(new Event('mega-map-ready'));
 }).catch(error => console.error('No se pudo cargar la bienvenida original',error));
 
 document.getElementById('fullscreen-button')?.addEventListener('click', () => {
