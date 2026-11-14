@@ -17,9 +17,9 @@ export function mountTitleOverlay(scene) {
   screen.setAttribute('aria-label', 'Pantalla de inicio de Space Mission');
   screen.innerHTML = `
     <video class="space-title__video" autoplay muted loop playsinline preload="auto" aria-hidden="true">
-      <source src="https://raw.githubusercontent.com/Andrescastrorodri/demogame/main/public/title-background.mp4" type="video/mp4" />
+      <source src="/title-background.mp4" type="video/mp4" />
     </video>
-    <audio class="space-title__music" src="https://raw.githubusercontent.com/Andrescastrorodri/demogame/main/public/title-music.mp3" preload="auto" loop aria-hidden="true"></audio>
+    <audio class="space-title__music" src="/title-music.mp3" preload="auto" loop aria-hidden="true"></audio>
     <div class="space-title__video-error" role="status" hidden>El video de fondo no está disponible. Verifica public/title-background.mp4.</div>
     <div class="space-title__gradient" aria-hidden="true"></div>
     <div class="space-title__layout">
