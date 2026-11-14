@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07111d" />
+    <meta name="description" content="Explora el complejo orbital de Space Mission en Pixel Art." />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <title>SPACE MISSION · Complejo orbital</title>
+  </head>
+  <body>
+    <main class="game-frame" id="app">
+      <div class="game-stage" id="game-container" aria-label="Mapa explorable del complejo espacial">
+        <div class="loading-card" id="loading-screen">
+          <span class="loading-mark" aria-hidden="true">SM</span>
+          <span class="loading-kicker">SPACE MISSION // CARTOGRAFÍA 01</span>
+          <strong>Inicializando complejo orbital</strong>
+          <span class="loading-track"><i></i></span>
+          <small>CALIBRANDO SISTEMAS DE NAVEGACIÓN</small>
+        </div>
+
+        <header class="hud-top" aria-label="Estado de la expedición">
+          <div class="brand-lockup">
+            <img src="/logo.svg" alt="" class="brand-mark" />
+            <div><strong>SPACE<span>MISSION</span></strong><small>COMPLEJO ORBITAL · NIVEL 01</small></div>
+          </div>
+          <div class="status-cluster">
+            <span class="signal-dot"></span><span>ENLACE ESTABLE</span>
+            <i></i><span class="status-zone" id="zone-label">CENTRO DE CONTROL</span>
+          </div>
+          <button class="icon-button fullscreen-button" id="fullscreen-button" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
+        </header>
+
+        <div class="hud-left">
+          <div class="section-tag"><span class="tag-line"></span> MODO DE EXPLORACIÓN</div>
+          <h1 id="room-title">Launch<br />Control Center</h1>
+          <p id="room-subtitle">Centro de operaciones de misión</p>
+          <div class="hud-rule"></div>
+          <div class="coordinate-readout"><span>SECTOR</span><strong id="sector-readout">LCC · 01</strong></div>
+          <div class="coordinate-readout"><span>COORDENADAS</span><strong id="coordinate-readout">— / —</strong></div>
+          <div class="signal-meter"><span></span><span></span><span></span><span></span><span></span><small>EXPLORACIÓN ACTIVA</small></div>
+        </div>
+
+        <aside class="map-panel" aria-label="Plano del complejo">
+          <div class="panel-heading"><span>PLANO DEL COMPLEJO</span><b>01 / 04</b></div>
+          <div class="map-wrap"><canvas id="minimap" width="176" height="116" aria-label="Plano de cuatro zonas"></canvas></div>
+          <div class="map-legend"><i class="legend-you"></i>TU POSICIÓN <span class="legend-door"></span> ACCESOS</div>
+        </aside>
+
+        <div class="interaction-prompt" id="interaction-prompt" aria-live="polite"></div>
+        <div class="door-notice" id="door-notice" aria-live="polite"></div>
+
+        <div class="media-panel is-hidden" id="media-panel" role="dialog" aria-label="Controles de pantalla multimedia">
+          <div class="media-panel-heading"><div><span class="section-tag">MEDIA SCREEN // LCC-01</span><strong>Pantalla de misión</strong></div><button class="media-close" id="media-close" aria-label="Cerrar controles">×</button></div>
+          <p>Contenido reproducido en la pantalla del centro de control.</p>
+          <div class="media-actions"><button id="media-play">▶ Iniciar</button><button id="media-pause">Ⅱ Pausar</button><button id="media-change">↗ Cambiar medio</button></div>
+          <input id="media-file" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" hidden />
+          <small>PNG · JPG · WEBP · MP4 · WEBM</small>
+        </div>
+
+        <div class="pause-layer is-hidden" id="pause-layer">
+          <div class="pause-card"><span class="section-tag">SISTEMA EN ESPERA</span><strong>Exploración en pausa</strong><p>El complejo permanece en línea. Tu recorrido se reanudará donde lo dejaste.</p><button id="resume-button">REANUDAR RECORRIDO <span>↗</span></button><small>ESC PARA VOLVER</small></div>
+        </div>
+
+        <div class="hud-bottom">
+          <div class="controls-strip"><span class="section-tag">NAVEGACIÓN</span><div class="control-key"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVER</span></div><div class="control-key"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd><span>MOVER</span></div><div class="control-key"><kbd>E</kbd><span>INTERACTUAR</span></div><div class="control-key"><kbd>ESC</kbd><span>PAUSA</span></div></div>
+          <div class="bottom-right"><span class="pixel-flourish">✦</span><span>VISTA TOPOGRÁFICA<br /><b>ESTACIÓN DE EXPLORACIÓN</b></span></div>
+        </div>
+
+        <div class="mobile-controls" id="mobile-controls" aria-label="Controles táctiles">
+          <div class="dpad"><button data-move="up" aria-label="Arriba">↑</button><button data-move="left" aria-label="Izquierda">←</button><button data-move="down" aria-label="Abajo">↓</button><button data-move="right" aria-label="Derecha">→</button></div>
+          <button class="mobile-action" id="mobile-interact">E<br /><small>USAR</small></button><button class="mobile-pause" id="mobile-pause" aria-label="Pausa">Ⅱ</button>
+        </div>
+        <div class="map-vignette" aria-hidden="true"></div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
