@@ -47,7 +47,10 @@ select, input[type=number] { min-height: 44px; padding: 8px 10px; border-radius:
 
 /* Panel de decisiones (HTML sobre el canvas) */
 .ui { position: absolute; z-index: 10; top: var(--top); left: 0; right: 0; bottom: 0; overflow-y: auto; padding: 16px 18px 40px; -webkit-overflow-scrolling: touch; display: grid; align-content: start; gap: 14px; }
-.ui > * { max-width: 1060px; width: 100%; margin-inline: auto; }
+.ui { overflow-x: hidden; }
+.ui > * { max-width: 1060px; width: 100%; min-width: 0; margin-inline: auto; }
+.card, .screen-grid > *, .grid-2 > * { min-width: 0; }
+.facts dd, .lv p, .checks p { overflow-wrap: anywhere; }
 body[data-scene="BriefingScene"] .ui > *, body[data-scene="HangarScene"] .ui > *, body[data-scene="ResultScene"] .ui > * { margin-right: auto; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; backdrop-filter: blur(4px); }
 .card.hero { border-color: #3d6a86; }
@@ -260,6 +263,8 @@ pre.json { max-height: 320px; overflow: auto; background: #061020; border: 1px s
 .tr-ticks { position: absolute; inset: 0 -30px 0 auto; display: flex; flex-direction: column; justify-content: space-between; font: .65rem ui-monospace, monospace; color: var(--muted); pointer-events: none; }
 .tr-ticks i { font-style: normal; transform: translateX(34px); }
 .throttle.is-limit { border-color: var(--red); }
+.tr-suggest { position: absolute; left: -10px; right: -10px; height: 0; border-top: 3px dashed var(--yellow); pointer-events: none; z-index: 2; }
+.tr-suggest span { position: absolute; left: 62px; top: -10px; white-space: nowrap; font: 700 .72rem ui-monospace, monospace; color: var(--yellow); background: rgba(5,12,24,.85); padding: 1px 6px; border-radius: 6px; }
 .th-label { text-align: center; font-size: .78rem; color: var(--muted); }
 .th-label b { display: block; font: 700 1.1rem ui-monospace, monospace; color: var(--white); }
 .th-btns { display: flex; gap: 4px; }
@@ -297,34 +302,48 @@ pre.json { max-height: 320px; overflow: auto; background: #061020; border: 1px s
 }
 @media (max-width: 700px) {
   :root { --top: 98px; }
+  .facts { grid-template-columns: 1fr; gap: 0; }
+  .facts dt { margin-top: 8px; font-size: .82rem; }
+  .catalog { grid-template-columns: 1fr; }
+  .lv dl { grid-template-columns: 1fr 1fr; }
   .topbar { flex-wrap: wrap; gap: 4px 8px; padding: 4px 8px; }
+  .topbar .back span { display: none; }
+  .topbar .back { min-width: 36px; justify-content: center; font-size: 1.3rem; }
   .steps { order: 3; flex-basis: 100%; margin-left: 0; }
   .steps button span { display: none; }
   .steps button.is-active span { display: inline; }
-  .res-pills { flex: 1; overflow-x: auto; }
+  .res-pills { flex: 1; min-width: 0; }
+  .res-pills .pills { gap: 4px; justify-content: flex-end; }
+  .pill { padding: 3px 7px; font-size: .74rem; }
   .ui { padding: 10px 10px 30px; }
   .card { padding: 14px; }
   .dv-row { grid-template-columns: 110px 1fr 54px !important; }
   .telemetry { grid-template-columns: repeat(3, 1fr); gap: 2px 8px; padding: 6px 8px; }
   .t-item:nth-child(3), .t-item:nth-child(7) { display: none; }
   .t-item b { font-size: .9rem; }
+  .t-label { font-size: .64rem; }
   .hud-top { flex-direction: column; align-items: stretch; gap: 4px; }
-  .hud-tools { justify-content: flex-start; }
-  .warp button, .tool { min-height: 40px; padding: 4px 8px; font-size: .85rem; }
-  .hud-msg { top: 150px; font-size: .95rem; padding: 8px 12px; }
-  .hud-left { top: 160px; bottom: 190px; left: 4px; width: 70px; }
-  .hud-attitude { display: none; }
-  .hud-bottom { left: 4px; right: 4px; bottom: 4px; flex-direction: column; align-items: stretch; }
-  .fuel { min-width: 0; margin-left: 76px; }
-  .f-row { grid-template-columns: 74px 1fr 56px; }
-  .hud-actions { justify-content: stretch; }
-  .big-btn { flex: 1 1 28%; min-width: 0; min-height: 58px; font-size: .95rem; }
-  .big-btn.sep { flex-basis: 100%; min-height: 64px; order: -1; }
-  .steer { flex: 1 1 100%; } .steer .big-btn { flex: 1; min-height: 66px; font-size: 1.2rem; }
+  .hud-tools { justify-content: flex-start; flex-wrap: nowrap; gap: 4px; }
+  .warp { padding: 2px; gap: 2px; }
+  .warp button, .tool { min-height: 40px; padding: 4px 7px; font-size: .8rem; }
+  .tool .tl { display: none; }
+  .hud-msg { top: 132px; font-size: .9rem; padding: 7px 10px; max-width: 94vw; }
+  .hud-left { top: 196px; bottom: 296px; left: 4px; width: 70px; min-height: 120px; }
+  .throttle { width: 44px; }
   .tr-ticks { display: none; }
+  .hud-attitude { display: none; }
+  .hud-bottom { left: 4px; right: 4px; bottom: 4px; flex-direction: column; align-items: stretch; gap: 6px; }
+  .fuel { min-width: 0; margin-left: 76px; padding: 5px 8px; gap: 2px; }
+  .f-row { grid-template-columns: 78px 1fr 58px; font-size: .74rem; }
+  .hud-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .steer { display: contents; }
+  .big-btn { min-width: 0; min-height: 56px; font-size: .92rem; padding: 6px 8px; }
+  .big-btn.sep { grid-column: 1 / -1; min-height: 62px; order: -1; }
+  .big-btn.finish, .big-btn.transfer, #b-prograde { grid-column: 1 / -1; }
   .pad-card { margin-bottom: 0; }
   .countdown { font-size: 2rem; }
 }
+@media (max-width: 700px) { body[data-scene="FlightScene"] { --top: 54px; } body[data-scene="FlightScene"] .steps { display: none; } body[data-scene="PadScene"] .steps { display: none; } body[data-scene="PadScene"] { --top: 54px; } }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }

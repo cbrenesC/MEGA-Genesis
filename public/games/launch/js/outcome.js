@@ -150,9 +150,9 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
   // --- el cohete sobrevivió: ¿llegó a la órbita?
   const parkingOk = el.periAlt >= PHYS.PERI_OK;
   if (!parkingOk) {
-    events.push({ id: 'noOrbit', phase: 'insertion', label: 'No llegaste a la órbita', consequence: `Tu punto más bajo quedó en ${Math.round(periKm)} km: dentro del aire. La nave va a caer.`,
+    events.push({ id: 'noOrbit', phase: 'insertion', label: 'No llegaste a la órbita', consequence: periKm < 0 ? `Tu punto más bajo quedó ${Math.abs(Math.round(periKm)).toLocaleString('es')} km por debajo del suelo: la trayectoria choca con la Tierra.` : `Tu punto más bajo quedó en ${Math.round(periKm)} km: dentro del aire. La nave va a caer.`,
       explain: 'Para quedarte en órbita, el punto más bajo (periapsis) tiene que quedar sobre la atmósfera, a más de unos 150 km. Para eso hay que acelerar de lado, no solo subir.', severity: 'fatal' });
-    story.push(`Tu punto más bajo quedó en ${Math.round(periKm)} km, dentro del aire. La nave no se quedó en órbita.`);
+    story.push(periKm < 0 ? `Tu punto más bajo quedó ${Math.abs(Math.round(periKm)).toLocaleString('es')} km por debajo del suelo: tu trayectoria choca con la Tierra. Faltó acelerar de lado.` : `Tu punto más bajo quedó en ${Math.round(periKm)} km, dentro del aire. La nave no se quedó en órbita.`);
     return { ...base, result: 'falla', headline: 'No llegaste a la órbita', achievedOrbit: null, lifetimeYears: 0, story, failureKind: 'no-orbit' };
   }
 
@@ -169,7 +169,7 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
   if (d.kind === 'transfer') {
     const reached = transferReached(destId, el);
     const win = windowErrorDeg(sim);
-    const winOk = win != null && win <= d.windowTolDeg;
+    const winOk = win == null || win <= d.windowTolDeg; // sin encendido propio (la ascensión ya alcanzó la energía) no hay ventana que fallar
     if (reached && winOk) {
       achieved = { type: destId, altitudeKm: null, inclinationDeg: incl, note: `Hiciste el encendido de transferencia en el momento justo: ${d.label}.` };
       headline = '¡Transferencia perfecta!';

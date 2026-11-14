@@ -88,3 +88,10 @@ export function usesPart(fraction) {
   if (fraction < 0.95) return 'casi todo';
   return 'prácticamente todo';
 }
+
+/** Versión corta para espacios chicos: 17,5 M US$ · 2,2 mil M US$. */
+export function fmtMUSDShort(m) {
+  if (Math.abs(m) >= 1000) return `${nf(m / 1000, 1)} mil M US$`;
+  if (Math.abs(m) < 1) return `${nf(m * 1000, 0)} mil US$`;
+  return `${nf(m, 1)} M US$`;
+}

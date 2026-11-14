@@ -594,8 +594,14 @@ export function autopilotStep(sim, ap) {
     out.throttle = clamp(CIRC_ACCEL / Math.max(aNow, 1e-3), 0.1, 1);
     if (orbitGoalMet(sim.elements, tAlt) || (sim.engineOut && sim.stage >= sim.stageCount - 1) || sim.t - ap.circStart > 900) {
       out.throttle = 0; out.hint = 'cut';
-      if (sim.destId in { GTO: 1, TLI: 1, ESCAPE: 1 }) { ap.phase = 'transfer'; out.transfer = true; } else out.done = true;
+      if (sim.destId in { GTO: 1, TLI: 1, ESCAPE: 1 }) { ap.phase = ap.waitWindow ? 'window' : 'transfer'; out.transfer = !ap.waitWindow; } else out.done = true;
     }
+  }
+  if (ap.phase === 'window') {
+    // la nave espera, mirando hacia adelante, hasta que empieza la ventana de transferencia
+    out.mode = 'prograde'; out.throttle = 0; out.hint = 'window';
+    const w = transferWindow(sim);
+    if (!w || w.waitS <= 1.5) { ap.phase = 'transfer'; out.transfer = true; out.throttle = 1; }
   }
   if (ap.phase === 'transfer') {
     out.transfer = true; out.mode = 'prograde'; out.throttle = 1;
@@ -663,13 +669,16 @@ export function trackTransfer(sim) {
  * Corre una misión completa con el piloto automático (para calibrar, probar y puntuar).
  * Devuelve el simulador terminado.
  */
-export function runAutopilot(vehicle, opts, apParams = {}, maxT = 3000) {
+export function runAutopilot(vehicle, opts, apParams = {}, maxT = null) {
   const sim = new FlightSim(vehicle, opts);
   const ap = newAutopilot(apParams);
   sim.ignite();
-  const dt = 0.25;
   let doneFor = 0;
-  while (sim.status === 'flying' && sim.t < maxT) {
+  const limit = maxT ?? (apParams.waitWindow ? 14000 : 3000);
+  while (sim.status === 'flying' && sim.t < limit) {
+    // mientras solo se espera (órbita sin motor) se avanza con pasos largos
+    const waiting = sim.throttle < 0.01 && sim.altitude > PHYS.ATM_TOP && (ap.phase === 'coast' || ap.phase === 'window');
+    const dt = waiting ? 2 : 0.25;
     const c = applyAutopilot(sim, ap);
     sim.advance(dt, { throttle: c.throttle, betaTarget: sim.mode === 'prograde' ? null : c.betaTarget });
     trackTransfer(sim);

@@ -49,7 +49,7 @@ export class FlightScene extends Phaser.Scene {
     this.dims = rocketDims(this.vehicle);
     this.diffLevel = inputs().difficulty;
     this.destKind = DEST[sim.destId].kind;
-    this.ap = newAutopilot(app.reference?.program ?? app.vehicleInfo.program);
+    this.ap = newAutopilot({ ...(app.reference?.program ?? app.vehicleInfo.program), waitWindow: true });
     this.shadow = newAutopilot(app.reference?.program ?? app.vehicleInfo.program);
     this.warp = 1;
     this.autoWarp = null;
@@ -317,6 +317,7 @@ export class FlightScene extends Phaser.Scene {
 
     // recomendaciones (más detalladas en fácil, solo pistas visuales en normal)
     ctx.recommendBetaDeg = null;
+    ctx.suggestThrottle = level !== 'dificil' && sim.status === 'flying' && !sim.engineOut && out.throttle > 0.02 && out.throttle < 0.98 ? out.throttle : null;
     if (level !== 'dificil' && sim.mode === 'manual' && out.betaTarget != null && !sim.engineOut) ctx.recommendBetaDeg = out.betaTarget / DEG;
     if (level !== 'dificil') {
       if (empty) { ctx.pulseSep = true; }
@@ -337,7 +338,7 @@ export class FlightScene extends Phaser.Scene {
       } else if (ctx.canFinish && transfer && tr && !tr.active) msg = '¡Transferencia lista! Pulsa «Terminar vuelo».';
       else if (phase === 'coast' && sim.throttle > 0.02) msg = `¡Apaga el motor (X)! Tu punto más alto ya llegó a ${Math.round(tAlt / 1000)} km.`;
       else if (phase === 'coast') msg = 'Deja que suba solo hasta el punto más alto. Pulsa ⏩ Saltar para ir más rápido.';
-      else if (phase === 'circ' && !circular) msg = sim.mode === 'prograde' ? `¡Ahora empuja al 100 %! Hasta que tu punto más bajo llegue a ${Math.round(tAlt / 1000)} km.` : '¡Ahora! Pulsa 🧭 Mirar adelante (R) y empuja al 100 %.';
+      else if (phase === 'circ' && !circular) msg = sim.mode === 'prograde' ? `¡Ahora empuja${out.throttle < 0.98 ? ` con ${Math.round(out.throttle * 100)} % de fuerza (la marca «sugerido»)` : ' al 100 %'}! Hasta que tu punto más bajo llegue a ${Math.round(tAlt / 1000)} km.` : '¡Ahora! Pulsa 🧭 Mirar adelante (R) y empuja con la fuerza sugerida.';
       else if (circular && sim.throttle > 0.02) msg = '¡Órbita redonda! Apaga el motor (X) y pulsa «Terminar vuelo».';
       else if (circular) msg = '¡Órbita lograda! Pulsa «Terminar vuelo».';
       else if (phase === 'ascent' && ctx.recommendBetaDeg != null) {

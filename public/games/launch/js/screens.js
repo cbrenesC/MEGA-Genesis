@@ -6,7 +6,7 @@ import {
   buildSuggestions, buildRequests, tradeHighlights, matchReferenceMission, operationalPropellant,
 } from './rules.js';
 import { ROLES, DIFFICULTIES } from './state.js';
-import { fmtKg, fmtMUSD, fmtPct, massLike, costLike } from './plain.js';
+import { fmtKg, fmtMUSD, fmtMUSDShort, fmtPct, massLike, costLike } from './plain.js';
 import {
   app, inputs, diff, current, orbitDef, recompute, invalidateDecision, requiredRoles, teamApproved, currentOutput, writeLaunch, clearLaunch, randomSeed,
 } from './store.js';
@@ -374,10 +374,10 @@ export function renderResources({ compact = false } = {}) {
   const lifetime = f ? f.lifetimeYears : e ? e.lifetimeYears : sc.designLifetimeYears;
   if (compact) {
     return `<div class="pills">
-      <span class="pill" title="Dinero que te queda"><b>💲</b> ${fmtMUSD(remaining)}</span>
+      <span class="pill" title="Dinero que te queda: ${fmtMUSD(remaining)}"><b>💲</b> ${fmtMUSDShort(remaining)}</span>
       <span class="pill ${st ? `status-${st.cls}` : ''}" title="Espacio libre en el cohete"><b>⚖</b> ${e ? `${st.icon} ${e.marginPct} %` : '—'}</span>
       <span class="pill" title="Mes de lanzamiento"><b>📅</b> ${e ? `mes ${e.date.launchMonth}` : `mes ${schedule.monthsToTargetDate}`}</span>
-      <span class="pill" title="Vida de la nave"><b>⏳</b> ${lifetime}/${sc.designLifetimeYears} a</span>
+      <span class="pill" title="Vida de la nave en años"><b>⏳</b> ${lifetime}/${sc.designLifetimeYears} a</span>
     </div>`;
   }
   return `

@@ -31,7 +31,8 @@ export async function prepareLaunch() {
   app.reference = null;
   if (!vi) return;
   const grid = programGrid(app.data.flight.calibration.searchGrid);
-  const list = [vi.program, ...grid];
+  const transfer = ['GTO', 'TLI', 'ESCAPE'].includes(app.opts.destId);
+  const list = [vi.program, ...grid].map((p) => (transfer ? { ...p, waitWindow: true } : p));
   let best = null;
   for (let i = 0; i < list.length; i += 10) {
     for (const program of list.slice(i, i + 10)) {

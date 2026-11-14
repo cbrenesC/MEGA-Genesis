@@ -45,15 +45,15 @@ export class Hud {
           <button data-warp="1" class="is-on" title="Tiempo normal (1)">1×</button><button data-warp="2" title="Doble de rápido (2)">2×</button><button data-warp="5" title="Cinco veces más rápido (3)">5×</button>
           <button id="b-jump" title="Saltar hasta el punto más alto de tu órbita (J)" hidden>⏩ Saltar</button>
         </div>
-        <button id="b-map" class="tool" title="Ver tu órbita desde arriba (M)">🌍 Mapa</button>
-        ${difficulty === 'facil' ? '<button id="b-auto" class="tool" aria-pressed="false" title="Que el piloto automático vuele por ti (P)">🤖 Piloto automático: <span>no</span></button>' : ''}
+        <button id="b-map" class="tool" title="Ver tu órbita desde arriba (M)">🌍 <span>Mapa</span></button>
+        ${difficulty === 'facil' ? '<button id="b-auto" class="tool" aria-pressed="false" title="Que el piloto automático vuele por ti (P)">🤖 <span class="tl">Piloto automático:</span> <b class="auto-state">no</b></button>' : ''}
         <button id="b-pause" class="tool" title="Pausa (Esc)">⏸</button>
       </div>
     </div>
     <div class="hud-msg" id="hud-msg" role="status" aria-live="polite"></div>
     <div class="hud-left">
       <div class="throttle" id="throttle" role="slider" aria-label="Empuje" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-        <div class="tr-fill" id="tr-fill"></div><div class="tr-knob" id="tr-knob"></div>
+        <div class="tr-fill" id="tr-fill"></div><div class="tr-suggest" id="tr-suggest" hidden><span>sugerido</span></div><div class="tr-knob" id="tr-knob"></div>
         <div class="tr-ticks"><i>100</i><i>50</i><i>0</i></div>
       </div>
       <div class="th-label">Empuje ${TERM('throttle', '¿Qué es el empuje?')}<b id="th-val">0 %</b></div>
@@ -174,7 +174,7 @@ export class Hud {
     if (!btn) return;
     this.controls.autopilot = force ?? !this.controls.autopilot;
     btn.setAttribute('aria-pressed', String(this.controls.autopilot));
-    btn.querySelector('span').textContent = this.controls.autopilot ? 'sí' : 'no';
+    btn.querySelector('.auto-state').textContent = this.controls.autopilot ? 'sí' : 'no';
     btn.classList.toggle('is-on', this.controls.autopilot);
     this.h.autopilot(this.controls.autopilot);
   }
@@ -258,6 +258,8 @@ export class Hud {
     if (tr) { tr.hidden = !ctx.canTransfer; tr.classList.toggle('pulse', Boolean(ctx.pulseTransfer)); }
     $('#b-prograde', root).hidden = !ctx.canProgradeMode;
 
+    const sg = $('#tr-suggest', root);
+    if (ctx.suggestThrottle != null) { sg.hidden = false; sg.style.bottom = `${Math.round(ctx.suggestThrottle * 100)}%`; sg.querySelector('span').textContent = `sugerido ${Math.round(ctx.suggestThrottle * 100)} %`; } else sg.hidden = true;
     // el deslizador sigue al piloto automático / apagado de motor
     if (ctx.followThrottle != null && Math.abs(ctx.followThrottle - this.controls.throttle) > 0.01) this.setThrottle(ctx.followThrottle);
     sim.status === 'flying' && $('#throttle', root).classList.toggle('is-limit', sim.engineOut);

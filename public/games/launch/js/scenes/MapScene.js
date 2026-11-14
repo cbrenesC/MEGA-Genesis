@@ -17,7 +17,7 @@ export class MapScene extends Phaser.Scene {
     const style = { fontFamily: 'system-ui, sans-serif', fontSize: '14px', color: '#eaf4ff', backgroundColor: 'rgba(5,12,24,.75)', padding: { x: 6, y: 3 } };
     this.txt = {};
     for (const k of ['apo', 'peri', 'impact', 'rocket', 'window', 'target']) this.txt[k] = this.add.text(0, 0, '', style).setOrigin(0.5, 1).setDepth(5);
-    this.status = this.add.text(0, 0, '', { ...style, fontSize: '17px', align: 'center', padding: { x: 12, y: 8 }, wordWrap: { width: 460 } }).setOrigin(0.5, 0).setDepth(6);
+    this.status = this.add.text(0, 0, '', { ...style, fontSize: '17px', align: 'center', padding: { x: 12, y: 8 }, wordWrap: { width: 480 } }).setOrigin(0.5, 1).setDepth(6);
     this.stars = Array.from({ length: 120 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.3 + 0.3 }));
   }
 
@@ -48,8 +48,8 @@ export class MapScene extends Phaser.Scene {
     g.lineStyle(1, 0xffd24a, 0.6); this.dashed(g, cx, cy, (R + PHYS.PERI_OK) * scale);
     // órbita objetivo
     g.lineStyle(2, 0x73ddcf, 0.8); this.dashed(g, cx, cy, (R + tAlt) * scale);
-    const [tx, ty] = P(0, R + tAlt);
-    this.setLabel('target', tx, ty - 6, `Meta: ${Math.round(tAlt / 1000)} km`);
+    const [tx, ty] = P(-(R + tAlt) * Math.SQRT1_2, -(R + tAlt) * Math.SQRT1_2);
+    this.setLabel('target', tx - 10, ty + 24, `Órbita pedida: ${Math.round(tAlt / 1000)} km`);
 
     // trayectoria proyectada
     const p = el.h * el.h / PHYS.MU;
@@ -129,7 +129,7 @@ export class MapScene extends Phaser.Scene {
     } else if (closes) text = '✔ ¡Tu órbita cierra! Te quedas dando vueltas a la Tierra.';
     else if (el.hyper) text = '⚠ Vas tan rápido que escapas de la Tierra.';
     else text = `✖ Tu órbita no cierra: el punto más bajo (${fmtKm(el.periAlt)}) está dentro de la Tierra o del aire. Sigue acelerando de lado.`;
-    this.status.setText(text).setPosition(W / 2, 14);
+    this.status.setText(text).setPosition(W / 2, H - (W < 700 ? 215 : 150));
     this.status.setColor(closes || el.hyper ? '#bff5d6' : '#ffc4c4');
   }
 
