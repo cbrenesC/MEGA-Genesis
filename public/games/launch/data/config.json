@@ -1,0 +1,285 @@
+{
+  "_comment": "Reglas y parámetros del módulo de lanzamiento. Todo es ajustable sin tocar la lógica (js/engine.js).",
+  "orbits": {
+    "LEO": {
+      "id": "LEO",
+      "name": "Órbita baja (LEO)",
+      "altitude_km": 400,
+      "inclination_deg": 51.6,
+      "delta_v_ms": 9400,
+      "inclination_editable": true
+    },
+    "SSO": {
+      "id": "SSO",
+      "name": "Órbita sincrónica al Sol (SSO)",
+      "altitude_km": 700,
+      "inclination_deg": 98.2,
+      "delta_v_ms": 9700,
+      "inclination_editable": false
+    },
+    "GTO": {
+      "id": "GTO",
+      "name": "Transferencia a geoestacionaria (GTO)",
+      "altitude_km": 35786,
+      "inclination_deg": null,
+      "delta_v_ms": 10300,
+      "inclination_editable": false
+    },
+    "TLI": {
+      "id": "TLI",
+      "name": "Trayectoria lunar / escape (TLI)",
+      "altitude_km": 384400,
+      "inclination_deg": null,
+      "delta_v_ms": 12500,
+      "inclination_editable": false
+    }
+  },
+  "sites": {
+    "cape": {
+      "id": "cape",
+      "name": "Cabo Cañaveral / KSC, EE. UU.",
+      "latitude_deg": 28.5,
+      "orbits_allowed": [
+        "LEO",
+        "GTO",
+        "TLI"
+      ],
+      "weather_delay_chance": 0.25,
+      "note": "Los lanzamientos van hacia el este sobre el océano; los polares no son seguros desde aquí."
+    },
+    "vandenberg": {
+      "id": "vandenberg",
+      "name": "Vandenberg, California, EE. UU.",
+      "latitude_deg": 34.7,
+      "orbits_allowed": [
+        "LEO",
+        "SSO"
+      ],
+      "weather_delay_chance": 0.12,
+      "note": "Mira al océano Pacífico hacia el sur: ideal para órbitas polares."
+    },
+    "kourou": {
+      "id": "kourou",
+      "name": "Kourou, Guayana Francesa",
+      "latitude_deg": 5.2,
+      "orbits_allowed": [
+        "LEO",
+        "SSO",
+        "GTO",
+        "TLI"
+      ],
+      "weather_delay_chance": 0.15,
+      "note": "Casi en el ecuador: la rotación de la Tierra ayuda más."
+    },
+    "mahia": {
+      "id": "mahia",
+      "name": "Mahia, Nueva Zelanda",
+      "latitude_deg": 39.3,
+      "orbits_allowed": [
+        "LEO",
+        "SSO",
+        "TLI"
+      ],
+      "weather_delay_chance": 0.2,
+      "note": "Sitio privado de Rocket Lab; vientos fuertes frecuentes."
+    }
+  },
+  "physics": {
+    "adapter_pct": 0.03,
+    "adapter_min_kg": 2,
+    "earth_rotation_ms_equator": 465,
+    "rotation_gain_per_kms": 0.35,
+    "plane_change_penalty_per_deg": 0.02,
+    "plane_change_min_factor": 0.4,
+    "capacity_note": "Capacidad ajustada = capacidad base × factor de sitio × factor de plano. Modelo simplificado."
+  },
+  "margin_thresholds": {
+    "green_min_pct": 15,
+    "yellow_min_pct": 0,
+    "thin_margin_risk_below_pct": 10,
+    "thin_margin_max_penalty": 0.04,
+    "extra_fuel_reserve_pct": 10
+  },
+  "difficulty": {
+    "easy": {
+      "label": "Fácil",
+      "launcher_ids": [
+        "rideshare_sso",
+        "electron",
+        "vega_c",
+        "falcon9",
+        "falcon_heavy"
+      ],
+      "choose_site": false,
+      "choose_inclination": false,
+      "failure_scale": 0.5,
+      "event_scale": 0.5,
+      "enforce_deadline": false,
+      "guided": true,
+      "random_events": [
+        "weather_delay",
+        "minor_anomaly"
+      ]
+    },
+    "normal": {
+      "label": "Normal",
+      "launcher_ids": null,
+      "choose_site": true,
+      "choose_inclination": false,
+      "failure_scale": 1.0,
+      "event_scale": 1.0,
+      "enforce_deadline": false,
+      "guided": false,
+      "random_events": [
+        "weather_delay",
+        "minor_anomaly",
+        "off_nominal_orbit"
+      ]
+    },
+    "hard": {
+      "label": "Difícil",
+      "launcher_ids": null,
+      "choose_site": true,
+      "choose_inclination": true,
+      "failure_scale": 1.25,
+      "event_scale": 1.5,
+      "enforce_deadline": true,
+      "guided": false,
+      "random_events": [
+        "weather_delay",
+        "minor_anomaly",
+        "off_nominal_orbit"
+      ]
+    }
+  },
+  "events": {
+    "weather_delay": {
+      "phase": "countdown",
+      "title": "Retraso por clima",
+      "delay_days": [
+        2,
+        10
+      ],
+      "extra_cost_pct_per_day": 0.004,
+      "desc": "El clima obligó a cancelar la cuenta regresiva. Esperar cuesta dinero: el equipo en tierra y la plataforma siguen ocupados.",
+      "learn": "Por eso las ventanas de lanzamiento tienen días de reserva."
+    },
+    "minor_anomaly": {
+      "phase_options": [
+        "max_q",
+        "stage_sep",
+        "fairing_sep"
+      ],
+      "reliability_multiplier": 2.0,
+      "max_probability": 0.45,
+      "fuel_loss_pct": [
+        5,
+        15
+      ],
+      "title": "Anomalía menor",
+      "desc": "Un sistema del cohete se comportó fuera de lo normal. La nave compensó gastando combustible extra.",
+      "learn": "Menos combustible en el tanque significa menos años de vida útil."
+    },
+    "off_nominal_orbit": {
+      "phase": "insertion",
+      "reliability_multiplier": 1.5,
+      "max_probability": 0.4,
+      "altitude_deviation_pct": [
+        5,
+        15
+      ],
+      "inclination_deviation_deg": [
+        0.1,
+        0.6
+      ],
+      "correction_fuel_pct": [
+        8,
+        20
+      ],
+      "title": "Órbita distinta a la planeada",
+      "desc": "El cohete soltó la nave en una órbita algo más baja de lo previsto. Tu nave deberá corregirla con sus propios motores.",
+      "learn": "Cada corrección de órbita consume delta-v, es decir, combustible."
+    },
+    "failure": {
+      "phase_weights": {
+        "liftoff": 0.1,
+        "max_q": 0.2,
+        "stage_sep": 0.25,
+        "fairing_sep": 0.1,
+        "insertion": 0.35
+      },
+      "title": "Falla del lanzador",
+      "desc": "El cohete no logró llevar la nave a la órbita. La misión se pierde.",
+      "learn": "Por eso la confiabilidad del lanzador importa tanto como su precio."
+    }
+  },
+  "timeline": {
+    "phases": [
+      {
+        "id": "countdown",
+        "label": "Cuenta regresiva",
+        "t": -10,
+        "text": "Los controladores verifican cada sistema. Si el clima o un sensor no está bien, se cancela y se espera a otro día: por eso existen las ventanas de lanzamiento con días de reserva."
+      },
+      {
+        "id": "liftoff",
+        "label": "Despegue",
+        "t": 0,
+        "text": "Los motores se encienden y el empuje vence el peso del cohete. Si el empuje es mayor que el peso, despega."
+      },
+      {
+        "id": "max_q",
+        "label": "Max-Q",
+        "t": 70,
+        "text": "Max-Q: el momento de mayor presión del aire sobre la estructura. El cohete va rápido y el aire aún es denso, así que algunos reducen el empuje un instante."
+      },
+      {
+        "id": "stage_sep",
+        "label": "Separación de etapas",
+        "t": 160,
+        "text": "Separación de etapas: el cohete suelta la parte vacía que ya no necesita. Menos peso = más aceleración con el mismo combustible."
+      },
+      {
+        "id": "fairing_sep",
+        "label": "Separación de cofia",
+        "t": 210,
+        "text": "Separación de cofia: fuera de la atmósfera densa, la 'nariz' se abre y se suelta. Es peso muerto: solo servía para proteger la nave del aire."
+      },
+      {
+        "id": "insertion",
+        "label": "Inserción orbital",
+        "t": 540,
+        "text": "Inserción orbital: para quedarse en órbita no basta subir, hay que ir de lado MUY rápido (~7,8 km/s en órbita baja). Esa velocidad es el delta-v que pagas."
+      },
+      {
+        "id": "deploy",
+        "label": "Despliegue de la nave",
+        "t": 600,
+        "text": "Despliegue: la nave se separa del cohete y abre paneles y antenas. Desde aquí manda tu diseño."
+      }
+    ]
+  },
+  "roles": [
+    {
+      "id": "launch",
+      "name": "Launch / Mission Planning",
+      "short": "Lanzamiento",
+      "owner": true
+    },
+    {
+      "id": "spacecraft",
+      "name": "Spacecraft Engineer",
+      "short": "Nave"
+    },
+    {
+      "id": "science",
+      "name": "Science / Instruments",
+      "short": "Ciencia"
+    },
+    {
+      "id": "comms",
+      "name": "Comms & Operations",
+      "short": "Comunicaciones"
+    }
+  ]
+}

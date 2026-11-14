@@ -1,0 +1,71 @@
+{
+  "payload_capacity": {
+    "title": "Capacidad de carga",
+    "short": "Es la masa máxima que un cohete puede llevar a una órbita concreta.",
+    "why": "Cambia según el destino: un cohete que lleva 20 t a órbita baja lleva mucho menos a una órbita alta."
+  },
+  "mass_margin": {
+    "title": "Margen de masa",
+    "short": "Es lo que sobra entre la capacidad del cohete y la masa real de tu nave.",
+    "why": "Las naves casi siempre engordan durante el diseño (cables, soportes, imprevistos). Con un margen del 15 % o más hay espacio para crecer sin cambiar de lanzador."
+  },
+  "delta_v": {
+    "title": "Delta-v",
+    "short": "Es el 'cambio de velocidad' que necesita un cohete para llegar a un destino.",
+    "why": "Piensa en ella como la 'moneda' del espacio: cada maniobra la gasta. Un destino más alto o más lejano exige más delta-v, y por tanto más combustible y un cohete más potente."
+  },
+  "fairing": {
+    "title": "Cofia",
+    "short": "Es la 'nariz' del cohete: una carcasa que protege a tu nave durante la subida por la atmósfera.",
+    "why": "Tu nave plegada debe caber dentro. Si es demasiado ancha o alta, no cabe aunque el cohete tenga potencia de sobra."
+  },
+  "reliability": {
+    "title": "Confiabilidad",
+    "short": "Es la probabilidad histórica de que un cohete lleve su carga a la órbita sin fallar.",
+    "why": "Un cohete barato con 70 % de confiabilidad significa que 3 de cada 10 misiones se pierden. Piensa en cuánto cuesta tu nave, no solo el lanzamiento."
+  },
+  "max_q": {
+    "title": "Max-Q",
+    "short": "Es el instante en que el cohete sufre la mayor presión del aire contra su estructura.",
+    "why": "Va rápido pero el aire aún es denso. Por eso algunos cohetes reducen el empuje un momento."
+  },
+  "stage_sep": {
+    "title": "Separación de etapas",
+    "short": "El cohete suelta la parte vacía que ya no necesita para volverse más ligero.",
+    "why": "Es como soltar un tanque vacío: menos peso, más aceleración con el mismo combustible."
+  },
+  "fairing_sep": {
+    "title": "Separación de cofia",
+    "short": "Ya fuera de lo más denso de la atmósfera, la cofia se abre y se suelta.",
+    "why": "Es peso muerto, ya que su único trabajo era proteger la nave del aire."
+  },
+  "inclination": {
+    "title": "Inclinación",
+    "short": "Es el ángulo de tu órbita respecto al ecuador.",
+    "why": "Desde un sitio de latitud 28° llegas fácil a inclinaciones de 28° o más. Para menos, hay que gastar combustible en cambiar el plano."
+  },
+  "window": {
+    "title": "Ventana de lanzamiento",
+    "short": "Son los días y horas en que lanzar permite llegar a la órbita deseada.",
+    "why": "La Tierra gira, así que el cohete solo puede salir cuando el destino 'pasa' sobre el sitio de lanzamiento. Perder la ventana significa esperar."
+  },
+  "leo": { "title": "LEO", "short": "Órbita baja: unos 400 km de altura. La Estación Espacial Internacional está aquí.", "why": "Es el destino más barato en delta-v: casi todo lanzador llega." },
+  "sso": { "title": "SSO", "short": "Órbita sincrónica al Sol: pasa siempre a la misma hora local sobre cada lugar.", "why": "Es perfecta para fotografiar la Tierra con la misma luz. Requiere un lanzamiento polar, que cuesta algo de carga." },
+  "gto": { "title": "GTO", "short": "Órbita de transferencia a geoestacionaria: se sube a ~36 000 km para quedarse 'fija' sobre un punto del ecuador.", "why": "Es muy alta, así que casi la mitad de la capacidad que tendrías a LEO se pierde." },
+  "tli": { "title": "TLI", "short": "Inyección translunar: la trayectoria para viajar hacia la Luna (o más lejos).", "why": "Es el destino que más combustible exige. Sirve también como referencia para sondas interplanetarias." },
+  "rideshare": {
+    "title": "Rideshare",
+    "short": "Muchos satélites pequeños comparten el mismo cohete y reparten el costo.",
+    "why": "Es barato, pero la órbita y la fecha las decide el cliente principal."
+  },
+  "cost": {
+    "title": "Costo",
+    "short": "Lo que cuesta el lanzamiento, en millones de dólares. Sale del presupuesto de toda la misión.",
+    "why": "Cada dólar gastado en el cohete es un dólar menos para instrumentos, operaciones o imprevistos."
+  },
+  "lead_time": {
+    "title": "Plazo de reserva",
+    "short": "Es cuánto tiempo hay que reservar el cohete antes de poder usarlo.",
+    "why": "Los lanzadores pesados tienen pocas salidas al año. Si tu misión tiene fecha límite, un cohete muy solicitado puede ser un problema."
+  }
+}

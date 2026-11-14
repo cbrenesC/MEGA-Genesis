@@ -29,17 +29,8 @@ const game = new Phaser.Game({
   scene: [BootScene, SpaceCenterScene, PauseScene],
 });
 
-window.__MEGA_ENTER_MAP__ = () => {
-  const screen = document.getElementById('space-title-overlay');
-  if (screen) { screen.querySelectorAll('video,audio').forEach(media => { media.pause(); media.removeAttribute('src'); media.load(); }); screen.remove(); }
-  document.getElementById('boot')?.classList.add('hidden');
-  document.getElementById('settings-toggle')?.setAttribute('hidden','');
-};
-import('./welcome/main.js').then(() => {
-  // Phaser has already been instantiated. Never wait for a potentially missed boot event.
-  window.__MEGA_MAP_READY__ = true;
-  window.dispatchEvent(new Event('mega-map-ready'));
-}).catch(error => console.error('No se pudo cargar la bienvenida original',error));
+const loading = document.getElementById('loading-screen');
+game.events.once('ready', () => window.setTimeout(() => loading?.classList.add('is-gone'), 500));
 
 document.getElementById('fullscreen-button')?.addEventListener('click', () => {
   if (!game.scale.isFullscreen) game.scale.startFullscreen();
@@ -70,4 +61,3 @@ document.getElementById('mobile-interact')?.addEventListener('pointerdown', (eve
 });
 
 window.addEventListener('beforeunload', () => game.destroy(true));
-

@@ -1,0 +1,15 @@
+{
+  "disclaimer": "Masas y datos APROXIMADOS (cifras públicas redondeadas) para comparar con la misión del jugador. Fuente: páginas de misión de NASA/ESA y proveedores de lanzamiento.",
+  "missions": [
+    { "name": "Cubesats en rideshare (p. ej. misiones Transporter)", "orbit": "SSO", "mass_kg": 10, "launcher_id": "rideshare_sso", "real_launcher": "Falcon 9 (Transporter)", "note": "Decenas de satélites pequeños comparten un cohete." },
+    { "name": "CAPSTONE (NASA)", "orbit": "TLI", "mass_kg": 25, "launcher_id": "electron", "real_launcher": "Electron + Photon", "note": "Un CubeSat de 12U que probó la órbita lunar de Artemis (2022)." },
+    { "name": "Sentinel-2C (ESA/Copernicus)", "orbit": "SSO", "mass_kg": 1200, "launcher_id": "vega_c", "real_launcher": "Vega", "note": "Observación de la Tierra en órbita polar." },
+    { "name": "Landsat 9 (NASA/USGS)", "orbit": "SSO", "mass_kg": 2700, "launcher_id": "vega_c", "real_launcher": "Atlas V", "note": "Observación de la Tierra; el juego sugiere un lanzador de masa similar." },
+    { "name": "SWOT (NASA/CNES)", "orbit": "LEO", "mass_kg": 2200, "launcher_id": "falcon9", "real_launcher": "Falcon 9", "note": "Mide el agua de la superficie de la Tierra (2022)." },
+    { "name": "DSCOVR (NASA/NOAA)", "orbit": "TLI", "mass_kg": 570, "launcher_id": "falcon9", "real_launcher": "Falcon 9", "note": "Observatorio solar y terrestre enviado al punto L1 (2015)." },
+    { "name": "GOES-U (NOAA/NASA)", "orbit": "GTO", "mass_kg": 5200, "launcher_id": "falcon_heavy", "real_launcher": "Falcon Heavy", "note": "Satélite meteorológico geoestacionario (2024)." },
+    { "name": "Europa Clipper (NASA)", "orbit": "TLI", "mass_kg": 6000, "launcher_id": "falcon_heavy", "real_launcher": "Falcon Heavy", "note": "Sonda a Júpiter: necesita velocidad de escape (2024)." },
+    { "name": "James Webb Space Telescope (NASA/ESA/CSA)", "orbit": "TLI", "mass_kg": 6200, "launcher_id": "ariane6", "real_launcher": "Ariane 5 ECA", "note": "Telescopio enviado al punto L2 (2021). Ariane 6 es el sucesor de Ariane 5." },
+    { "name": "Artemis I – Orion (NASA)", "orbit": "TLI", "mass_kg": 26000, "launcher_id": "sls_block1", "real_launcher": "SLS Block 1", "note": "Cápsula Orion en viaje de prueba alrededor de la Luna (2022)." }
+  ]
+}

@@ -5,115 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#07111d" />
     <meta name="description" content="Explora el complejo orbital de Space Mission en Pixel Art." />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <title>SPACE MISSION · Complejo orbital</title>
   </head>
   <body>
     <main class="game-frame" id="app">
-      <div id="boot" aria-label="Pantalla de bienvenida">
-        <div class="boot-inner">
-          <h1 class="boot-game-title">SPACE MISSION</h1>
-          <object class="boot-animation" data="/preloader.svg" type="image/svg+xml" aria-label="Animación de carga de Space Mission">
-            <img src="/preloader.svg" alt="Cargando Space Mission" />
-          </object>
-          <div class="boot-progress" role="progressbar" aria-label="Cargando juego">
-            <span class="boot-progress__fill"></span>
-          </div>
-          <p class="boot-status" aria-live="polite">INITIALIZING MISSION</p>
-        </div>
-        <section id="boot-setup" class="boot-stage boot-dialog-stage" hidden>
-          <div class="boot-dialog">
-            <p class="boot-step">STEP 01 / 02</p>
-            <h2 data-i18n="IDIOMA Y SONIDO">IDIOMA Y SONIDO</h2>
-            <label class="boot-form-field">
-              <span data-i18n="IDIOMA">IDIOMA</span>
-              <select id="boot-language" name="language">
-                <option value="en" selected>English</option>
-                <option value="es">Español</option>
-                <option value="pt">Português</option>
-                <option value="de">Deutsch</option>
-                <option value="it">Italiano</option>
-                <option value="zh">中文（简体）</option>
-                <option value="ja">日本語</option>
-              </select>
-            </label>
-            <div class="boot-setup-toggles">
-              <label class="boot-toggle-row"><span data-i18n="AUDIO">AUDIO</span><input type="checkbox" id="setup-audio" checked role="switch" /><span class="boot-switch" aria-hidden="true"><span class="boot-switch-on">ON</span><span class="boot-switch-off">OFF</span></span></label>
-              <label class="boot-toggle-row"><span data-i18n="ANIMACIONES Y VIDEO">ANIMACIONES Y VIDEO</span><input type="checkbox" id="setup-animations" checked role="switch" /><span class="boot-switch" aria-hidden="true"><span class="boot-switch-on">ON</span><span class="boot-switch-off">OFF</span></span></label>
-            </div>
-            <label class="boot-form-field boot-range-field">
-              <span><span data-i18n="MÚSICA">MÚSICA</span><output id="setup-music-value">18%</output></span>
-              <input type="range" name="musicVolume" min="0" max="100" value="18" />
-            </label>
-            <label class="boot-form-field boot-range-field">
-              <span><span data-i18n="NOTIFICACIONES Y EFECTOS">NOTIFICACIONES Y EFECTOS</span><output id="setup-effects-value">45%</output></span>
-              <input type="range" name="effectsVolume" min="0" max="100" value="45" />
-            </label>
-            <button type="button" id="setup-continue" class="boot-primary" data-i18n="CONTINUAR">CONTINUAR</button>
-          </div>
-        </section>
-        <section id="boot-consent" class="boot-stage boot-dialog-stage" hidden>
-          <div class="boot-dialog">
-            <p class="boot-step">STEP 02 / 02</p>
-            <h2 data-i18n="GUARDADO, PERMISOS Y TÉRMINOS">GUARDADO, PERMISOS Y TÉRMINOS</h2>
-            <p>Space Mission utiliza almacenamiento local para guardar partidas y preferencias. Una cookie recuerda tu autorización; también puedes jugar sin guardar el progreso.</p>
-            <div class="boot-consent__options">
-              <label><input id="consent-terms" type="checkbox" /> Acepto los términos: Space Mission es una simulación de ingeniería espacial. Guardar es opcional; el audio y las animaciones dependen del navegador. Las traducciones se realizan con recursos incluidos o funciones locales disponibles.</label>
-            </div>
-            <div class="boot-consent__actions">
-              <button id="consent-accept" type="button" class="boot-primary" data-i18n="ACEPTAR Y CONTINUAR" disabled>ACEPTAR Y CONTINUAR</button>
-              <button id="consent-decline" type="button" disabled data-i18n="CONTINUAR SIN GUARDAR">CONTINUAR SIN GUARDAR</button>
-            </div>
-          </div>
-        </section>
-        <section id="boot-brands" class="boot-stage boot-brands" hidden aria-label="Presentación de Space Mission">
-          <div class="boot-brand-logos">
-            <img src="/logo.svg" alt="Emblema de Space Mission" />
-            <img src="/favicon.svg" alt="Símbolo de Space Mission" />
-          </div>
-          <div class="boot-recommendations">
-            <div class="boot-recommendation"><span class="boot-recommendation__icon" aria-hidden="true"><svg viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><rect x="5" y="9" width="38" height="25" rx="2"/><path d="M24 34v7m-10 0h20"/></svg></span><span data-i18n="COMPUTADORA RECOMENDADA">COMPUTADORA RECOMENDADA</span></div>
-            <div class="boot-recommendation"><span class="boot-recommendation__icon" aria-hidden="true"><svg viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M9 28v-4a15 15 0 0 1 30 0v4"/><rect x="5" y="26" width="9" height="15" rx="3"/><rect x="34" y="26" width="9" height="15" rx="3"/></svg></span><span data-i18n="AUDÍFONOS RECOMENDADOS">AUDÍFONOS RECOMENDADOS</span></div>
-          </div>
-          <p id="boot-rotate-hint" hidden data-i18n="GIRA TU TELÉFONO PARA JUGAR EN HORIZONTAL">GIRA TU TELÉFONO PARA JUGAR EN HORIZONTAL</p>
-          <p class="boot-tagline" data-i18n="UNA MISIÓN ESTÁ POR COMENZAR">UNA MISIÓN ESTÁ POR COMENZAR</p>
-        </section>
-        <section id="boot-localizing" class="boot-stage boot-localizing" hidden aria-label="Preparando idioma">
-          <div class="boot-dialog boot-localizing-dialog">
-            <object class="boot-localizing-svg" data="/preloader.svg" type="image/svg+xml" aria-label="Animación de preparación del idioma">
-              <img src="/preloader.svg" alt="Preparando traducciones" />
-            </object>
-            <h2 data-i18n="PREPARANDO TRADUCCIONES">PREPARANDO TRADUCCIONES</h2>
-            <div class="boot-localizing-progress" role="progressbar" aria-label="Preparando traducciones">
-              <span id="boot-localizing-fill"></span>
-            </div>
-            <p id="boot-localizing-label" data-i18n="OPTIMIZANDO TEXTOS DEL JUEGO">OPTIMIZANDO TEXTOS DEL JUEGO</p>
-          </div>
-        </section>
-        <section id="boot-intro" class="boot-stage boot-intro" hidden aria-label="Introducción del logotipo">
-          <video id="logo-intro-video" src="/logo-intro.mp4" muted playsinline preload="auto" aria-label="Video introductorio Space Mission"></video>
-        </section>
-      </div>
-
-      <button id="settings-toggle" type="button" aria-label="Configuración" title="Configuración" aria-expanded="false">⚙</button>
-      <section id="settings-dialog" class="settings-dialog" role="dialog" aria-modal="false" aria-label="Configuración de Space Mission" hidden>
-        <div class="settings-dialog__heading">
-          <h2>CONFIGURACIÓN</h2>
-          <button type="button" data-action="close-settings" aria-label="Cerrar configuración">✕</button>
-        </div>
-        <label class="settings-dialog__option"><span>Audio <small>Music and game sound</small></span><input type="checkbox" name="audio" checked /></label>
-        <label class="settings-dialog__option"><span>Language <small>Choose game language</small></span>
-          <select id="settings-language" name="language"><option value="en">English</option><option value="es">Español</option><option value="pt">Português</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="zh">中文（简体）</option><option value="ja">日本語</option></select>
-        </label>
-        <label class="settings-dialog__option"><span>Animaciones / video <small>Videos y animaciones del juego</small></span><input type="checkbox" name="animations" checked /></label>
-        <label class="settings-dialog__volume"><span>Volumen de música <output data-value="musicVolume">18%</output></span><input type="range" name="musicVolume" min="0" max="100" value="18" /></label>
-        <label class="settings-dialog__volume"><span>Notificaciones y efectos <output data-value="effectsVolume">45%</output></span><input type="range" name="effectsVolume" min="0" max="100" value="45" /></label>
-        <p class="settings-storage-status"></p>
-        <button type="button" class="settings-allow" data-action="allow-storage">PERMITIR GUARDAR PARTIDAS</button>
-        <button type="button" class="settings-clear" data-action="clear-preferences">BORRAR PREFERENCIAS</button>
-      </section>
-
       <div class="game-stage" id="game-container" aria-label="Mapa explorable del complejo espacial">
+        <div class="loading-card" id="loading-screen">
+          <span class="loading-mark" aria-hidden="true">SM</span>
+          <span class="loading-kicker">SPACE MISSION // CARTOGRAFÍA 01</span>
+          <strong>Inicializando complejo orbital</strong>
+          <span class="loading-track"><i></i></span>
+          <small>CALIBRANDO SISTEMAS DE NAVEGACIÓN</small>
+        </div>
+
         <header class="hud-top" aria-label="Estado de la expedición">
           <div class="brand-lockup">
             <img src="/logo.svg" alt="" class="brand-mark" />
