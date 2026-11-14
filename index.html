@@ -10,6 +10,42 @@
   </head>
   <body>
     <main class="game-frame" id="app">
+      <section id="welcome-overlay" class="welcome-overlay" aria-label="Bienvenida a Space Mission">
+        <div id="welcome-loader" class="welcome-loader">
+          <h1>SPACE MISSION</h1>
+          <object data="/preloader.svg" type="image/svg+xml" aria-label="Animación de carga"><span class="welcome-loader-fallback">✦</span></object>
+          <div class="welcome-progress"><span id="welcome-progress-fill"></span></div>
+          <p id="welcome-status">DESCARGANDO RECURSOS</p>
+        </div>
+        <section id="welcome-setup" class="welcome-dialog" hidden>
+          <small>STEP 01 / 02</small><h2>IDIOMA Y SONIDO</h2>
+          <label>IDIOMA<select id="welcome-language"><option value="en">English</option><option value="es">Español</option><option value="pt">Português</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="zh">中文（简体）</option><option value="ja">日本語</option></select></label>
+          <label class="welcome-toggle">AUDIO <input type="checkbox" id="welcome-audio" checked /></label>
+          <label class="welcome-toggle">ANIMACIONES Y VIDEO <input type="checkbox" id="welcome-animations" checked /></label>
+          <label>MÚSICA <output id="welcome-music-value">18%</output><input type="range" id="welcome-music" min="0" max="100" value="18" /></label>
+          <label>NOTIFICACIONES Y EFECTOS <output id="welcome-effects-value">45%</output><input type="range" id="welcome-effects" min="0" max="100" value="45" /></label>
+          <button id="welcome-continue">CONTINUAR</button>
+        </section>
+        <section id="welcome-consent" class="welcome-dialog" hidden>
+          <small>STEP 02 / 02</small><h2>GUARDADO, PERMISOS Y TÉRMINOS</h2>
+          <p>Space Mission utiliza almacenamiento local para guardar preferencias y progreso. Puedes continuar sin guardar.</p>
+          <label class="welcome-toggle"><input id="welcome-terms" type="checkbox" /> Acepto los términos de uso de esta simulación espacial.</label>
+          <button id="welcome-accept" disabled>ACEPTAR Y CONTINUAR</button>
+          <button id="welcome-decline">CONTINUAR SIN GUARDAR</button>
+        </section>
+        <section id="welcome-title" class="welcome-title" hidden>
+          <div class="welcome-title-bg"></div><div class="welcome-title-gradient"></div>
+          <div class="welcome-title-content">
+            <p class="welcome-kicker">SPACE MISSION // MEGA GENESIS</p>
+            <h1><span>SPACE</span><span>MISSION</span></h1>
+            <p class="welcome-subtitle">EXPLORACIÓN · INGENIERÍA · SUPERVIVENCIA</p>
+            <div class="welcome-rule"></div>
+            <p class="welcome-description">Diseña tu misión, explora el centro espacial y prepárate para el lanzamiento.</p>
+            <div class="welcome-actions"><button id="welcome-play">▶ JUGAR AHORA</button><button id="welcome-settings">⚙ CONFIGURACIÓN</button></div>
+            <p class="welcome-meta">WASD / FLECHAS · MOVER &nbsp; E · INTERACTUAR</p>
+          </div>
+        </section>
+      </section>
       <div class="game-stage" id="game-container" aria-label="Mapa explorable del complejo espacial">
         <div class="loading-card" id="loading-screen">
           <span class="loading-mark" aria-hidden="true">SM</span>
