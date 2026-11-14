@@ -31,7 +31,7 @@ const game = new Phaser.Game({
 
 window.__MEGA_ENTER_MAP__ = () => {
   const screen = document.getElementById('space-title-overlay');
-  if (screen) screen.remove();
+  if (screen) { screen.querySelectorAll('video,audio').forEach(media => { media.pause(); media.removeAttribute('src'); media.load(); }); screen.remove(); }
   document.getElementById('boot')?.classList.add('hidden');
   document.getElementById('settings-toggle')?.setAttribute('hidden','');
 };
