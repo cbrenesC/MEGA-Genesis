@@ -10,6 +10,7 @@ const ASSETS = [
   { path: '/title-background.mp4', expected: 7691806, label: 'Cargando video de inicio' },
   { path: '/title-music.mp3', expected: 5054718, label: 'Preparando música de inicio' },
   { path: '/game-music.mp3', expected: 4560938, label: 'Preparando música de la misión' },
+  { path: '/logo-intro.mp4', expected: 991972, label: 'Cargando introducción' },
   { path: '/preloader.svg', expected: 50996, label: 'Preparando animaciones' },
   { path: '/favicon.svg', expected: 670, label: 'Preparando identidad visual' },
 ];
