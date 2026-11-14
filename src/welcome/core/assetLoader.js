@@ -5,6 +5,7 @@
  */
 import { hasStorageConsent } from './consent.js';
 
+const ORIGINAL_MEDIA = Object.fromEntries(['title-background.mp4','title-music.mp3','game-music.mp3','logo-intro.mp4'].map(name => ['/'+name,'https://raw.githubusercontent.com/Andrescastrorodri/demogame/main/public/'+name]));
 const CACHE_NAME = 'space-mission-media-v1';
 const ASSETS = [
   { path: '/title-background.mp4', expected: 7691806, label: 'Cargando video de inicio' },
@@ -19,7 +20,7 @@ const memory = new Map();
 let loading = null;
 
 export function assetUrl(path) {
-  return memory.get(path)?.url || path;
+  return memory.get(path)?.url || ORIGINAL_MEDIA[path] || path;
 }
 
 async function getFromCache(path) {
@@ -44,7 +45,7 @@ async function fetchOne(asset, onBytes) {
     getBlobUrl(asset.path, blob);
     return { path: asset.path, ok: true, cached: true };
   }
-  const response = await fetch(asset.path, { cache: 'force-cache', signal: AbortSignal.timeout?.(18000) });
+  const response = await fetch(ORIGINAL_MEDIA[asset.path] || asset.path, { cache: 'force-cache', signal: AbortSignal.timeout?.(18000) });
   if (!response.ok) throw Error(`${asset.path}: HTTP ${response.status}`);
   const expected = Number(response.headers.get('content-length')) || 0;
   if (!response.body) {
