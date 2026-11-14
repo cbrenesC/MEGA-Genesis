@@ -51,13 +51,23 @@ commanderOverlay.innerHTML = `
 document.getElementById('app').append(commanderOverlay);
 const commanderVideo = document.getElementById('commander-intro-video');
 let commanderStarted = false;
+let commanderClosing = false;
+const COMMANDER_FADE_MS = 550;
 function enterMissionMap() {
-  commanderVideo.pause();
-  commanderOverlay.hidden = true;
+  if (commanderClosing || commanderOverlay.hidden) return;
+  commanderClosing = true;
+  commanderOverlay.classList.remove('commander-intro--visible');
+  commanderOverlay.classList.add('commander-intro--leaving');
+  commanderVideo.volume = 0;
+  window.setTimeout(() => {
+    commanderVideo.pause();
+    commanderOverlay.hidden = true;
+    commanderOverlay.classList.remove('commander-intro--leaving');
   document.getElementById('settings-toggle')?.setAttribute('hidden', '');
   document.getElementById('boot')?.classList.add('hidden');
   const scene = game.scene.getScene('SpaceCenterScene');
-  scene?.input?.keyboard?.resetKeys?.();
+    scene?.input?.keyboard?.resetKeys?.();
+  }, COMMANDER_FADE_MS);
 }
 document.getElementById('commander-skip').addEventListener('click', enterMissionMap);
 document.getElementById('commander-retry').addEventListener('click', () => { commanderVideo.muted = false; void commanderVideo.play(); });
@@ -79,6 +89,11 @@ window.__MEGA_ENTER_MAP__ = () => {
   }
   document.getElementById('boot')?.classList.add('hidden');
   commanderOverlay.hidden = false;
+  commanderOverlay.classList.remove('commander-intro--leaving');
+  // Two frames guarantee the browser paints the initial transparent state.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    commanderOverlay.classList.add('commander-intro--visible');
+  }));
   const prefs = window.__SMS_GET_PREFERENCES__?.();
   commanderVideo.muted = prefs?.audio === false;
   commanderVideo.volume = Math.min(1, Math.max(0, prefs?.musicVolume ?? 0.8));
