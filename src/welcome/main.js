@@ -183,6 +183,8 @@ async function prepareEntireLanguage() {
 
 async function playLogoIntro() {
   if (!getPreferences().animations) return;
+  const introAvailable = await fetch('/logo-intro.mp4', { method: 'HEAD' }).then(r => r.ok && (r.headers.get('content-type') || '').includes('video')).catch(() => false);
+  if (!introAvailable) return;
   introVideo.src = assetUrl('/logo-intro.mp4');
   introVideo.preload = 'auto';
   introVideo.volume = Math.min(.16,getPreferences().musicVolume);
@@ -273,6 +275,7 @@ localizeDOM(document);
 
 /* MEGA Genesis integration: Phaser map is created by the host entrypoint. */
 window.addEventListener('mega-map-ready', () => window.dispatchEvent(new Event('sms-ready')));
+if (window.__MEGA_MAP_READY__) queueMicrotask(() => window.dispatchEvent(new Event('sms-ready')));
 window.addEventListener('sms-intro-complete', () => {
   const adapter = {
     events: { on(){}, off(){}, once(){} },
