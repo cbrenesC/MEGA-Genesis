@@ -5,22 +5,19 @@
  */
 import { hasStorageConsent } from './consent.js';
 
-const ORIGINAL_MEDIA = Object.fromEntries(['title-background.mp4','title-music.mp3','game-music.mp3','logo-intro.mp4'].map(name => ['/'+name,'https://raw.githubusercontent.com/Andrescastrorodri/demogame/main/public/'+name]));
 const CACHE_NAME = 'space-mission-media-v1';
 const ASSETS = [
   { path: '/title-background.mp4', expected: 7691806, label: 'Cargando video de inicio' },
   { path: '/title-music.mp3', expected: 5054718, label: 'Preparando música de inicio' },
   { path: '/game-music.mp3', expected: 4560938, label: 'Preparando música de la misión' },
-  { path: '/logo-intro.mp4', expected: 991972, label: 'Cargando introducción' },
   { path: '/preloader.svg', expected: 50996, label: 'Preparando animaciones' },
-  { path: '/icon.png', expected: 3582, label: 'Preparando recursos gráficos' },
   { path: '/favicon.svg', expected: 670, label: 'Preparando identidad visual' },
 ];
 const memory = new Map();
 let loading = null;
 
 export function assetUrl(path) {
-  return memory.get(path)?.url || ORIGINAL_MEDIA[path] || path;
+  return memory.get(path)?.url || path;
 }
 
 async function getFromCache(path) {
@@ -45,7 +42,7 @@ async function fetchOne(asset, onBytes) {
     getBlobUrl(asset.path, blob);
     return { path: asset.path, ok: true, cached: true };
   }
-  const response = await fetch(ORIGINAL_MEDIA[asset.path] || asset.path, { cache: 'force-cache', signal: AbortSignal.timeout?.(18000) });
+  const response = await fetch(asset.path, { cache: 'force-cache', signal: AbortSignal.timeout?.(18000) });
   if (!response.ok) throw Error(`${asset.path}: HTTP ${response.status}`);
   const expected = Number(response.headers.get('content-length')) || 0;
   if (!response.body) {
@@ -91,7 +88,7 @@ function waitForMediaReady(path, timeoutMs = 4500) {
 }
 
 async function prepareGraphics() {
-  const paths = ['/preloader.svg', '/icon.png', '/favicon.svg'];
+  const paths = ['/preloader.svg', '/favicon.svg'];
   await Promise.all(paths.map(path => new Promise(resolve => {
     const img = new Image();
     img.onload = async () => {
