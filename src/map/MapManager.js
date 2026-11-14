@@ -21,13 +21,11 @@ export class MapManager {
   build() {
     this.createTilemap();
     this.collision.addPerimeter(GAME.worldWidth, GAME.worldHeight);
-    this.drawBuildingWalls();
-    this.drawLaunchPad();
-    this.drawOutdoorDetails();
+    this.segmentHorizontal(128, 1152, 128);
+    this.segmentHorizontal(128, 1152, 832);
+    this.segmentVertical(128, 128, 832);
+    this.segmentVertical(1152, 128, 832);
     this.buildControlCenter();
-    this.buildEngineering();
-    this.buildResources();
-    this.buildDoors();
     this.drawCeilingLights();
     this.scene.physics.world.setBounds(0, 0, GAME.worldWidth, GAME.worldHeight);
     this.scene.solidColliders = this.collision.solids;
@@ -286,9 +284,9 @@ export class MapManager {
       g.fillStyle(0x73ddd9, .78).fillRect(x, 479, 9, 2);
       g.fillStyle(0xe08e51, .8).fillRect(x + 28, 684, 5, 3);
     }
-    this.addLabel('TELEMETRÍA / VUELO', 358, 343, '#7cd7db', 7);
-    this.addLabel('NAV · TRACKING', 734, 343, '#7cd7db', 7);
-    this.addLabel('COMMS / SENSORES', 512, 536, '#7cd7db', 7);
+    this.addLabel('MISSION DESIGN / LAUNCH', 358, 343, '#7cd7db', 7);
+    this.addLabel('LUNAR ROVER / SYSTEMS', 734, 343, '#7cd7db', 7);
+    this.addLabel('ENGINEERING / SCIENCE', 512, 536, '#7cd7db', 7);
     this.machines.push(new AnimatedMachine(scene, { x: 1074, y: 682, texture: 'server-rack', type: 'server', scale: .82 }));
   }
 
@@ -370,10 +368,7 @@ export class MapManager {
   }
 
   drawCeilingLights() {
-    const positions = [
-      [320, 190], [490, 190], [790, 190], [960, 190], [1488, 190], [1776, 190], [2080, 190], [2320, 190],
-      [320, 919], [865, 919], [320, 1639], [840, 1639], [1278, 388], [1278, 502], [1278, 1144], [1278, 1312],
-    ];
+    const positions = [[320,190],[490,190],[790,190],[960,190],[320,790],[960,790]];
     for (const [x, y] of positions) {
       this.graphics.fillStyle(0x223e47, .6).fillRect(x - 13, y - 2, 26, 5);
       const lamp = this.scene.add.rectangle(x, y, 10, 3, 0x64d5d1).setDepth(y + 5).setAlpha(.66);
