@@ -125,7 +125,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     const blocked = this.inputsBlocked();
     const animate = !blocked && getPreferences().animations && !this.reducedMotion.matches;
     if (animate) this.motionClock += delta;
-    this.crew.update(delta, animate, this.player);
+    this.crew.update(delta, animate, this.player, this.motionClock);
     if (blocked) {
       this.interactionSignal.hide();
       this.prompt.classList.remove('visible');
