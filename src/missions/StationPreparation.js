@@ -70,7 +70,14 @@ export class StationPreparation {
       const view = reviewFlightPlan(this.data, this.launch);
       if (step.kind === 'launch-mission') return Boolean(this.launch.scenarioId);
       if (step.kind === 'launch-rocket') return Boolean(view.selected?.compatible);
-      if (step.kind === 'launch-payload') return view.reason !== 'payload';
+      if (step.kind === 'launch-payload') {
+        const payload = this.launch.payload ?? {};
+        const validFields = Object.entries(PAYLOAD_FIELDS).every(([key, [min, max]]) => {
+          const value = Number(payload[key]);
+          return Number.isFinite(value) && value >= min && value <= max;
+        });
+        return validFields && view.reason !== 'payload';
+      }
       if (step.kind === 'launch-review') return view.ready;
       return false;
     }
