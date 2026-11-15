@@ -644,3 +644,10 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - Se dibujan: órbita de la Luna y la Luna (donde llega la transferencia del juego), zona de influencia de la Tierra (924.000 km) y de la Luna, órbita de la Tierra, Sol, y los 7 planetas restantes con su órbita y su zona de influencia. Barra de escala (km / millones de km / UA).
 - **Sólo es dibujo**: la física del juego sigue usando únicamente la gravedad de la Tierra; la Luna y los planetas no atraen al cohete. Las posiciones de los planetas son aproximadas (año 2000) y fijas.
 - Revisado con una página de prueba (Phaser simulado); no probado dentro del juego (requiere Vite/Node).
+
+## V3.6 · Masas reales, carga de combustible y clima real visible (módulo LAUNCH)
+
+- **Masas reales**: `data/launchers.json → liftoffMassKg` (dato publicado por NASA, SpaceX, ESA, ISRO, Rocket Lab, Firefly; la fuente va en `sources.liftoffMassKg`). El cohete pesa lo mismo para cualquier destino. La calibración ya no ajusta la masa sino la eficiencia de los motores (`ispK`, entre 0,85 y 1,10): `calibrateIsp()` en `flight.js`, `tests/calibrate.mjs` actualizado. Recalibrado con JavaScriptCore (34 pares).
+- **Combustible**: en la estación del cohete, deslizador de 75–100 % (`FUEL_RANGE`) que muestra toneladas cargadas, peso al despegue y empuje/peso (`fuelSummary`). La plataforma muestra el peso real del cohete y el combustible en toneladas. El catálogo muestra cuánto pesa cada cohete.
+- **Clima real** (`js/weather.js`): al llegar a la plataforma se consulta el clima de ese momento en las coordenadas del sitio (Open-Meteo; sólo se envían las coordenadas del sitio). Sin conexión: día/noche por la posición real del Sol y clima típico del mes. Se dibuja: noche (cielo, Luna, estrellas, reflectores), nubosidad real, techo de nubes, lluvia o nieve con el viento, niebla y relámpagos (no con «reducir movimiento»). Es visual e informativo: los retrasos por clima del juego no cambian.
+- **Pruebas**: `tests/world.test.mjs` 24 (clima) y 25 (masas y combustible).

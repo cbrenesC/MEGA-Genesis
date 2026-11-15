@@ -1,5 +1,6 @@
 import { loadData } from '../../games/launch/js/state.js';
 import { operationalPropellant } from '../../games/launch/js/rules.js';
+import { vehicleFor, fuelSummary, FUEL_RANGE } from '../../games/launch/js/flight.js';
 import { CATEGORIES, COMPONENTS, emptyBuild, LIMITS, RECOMMENDED_BUILD, RULES, restoreMission, selectComponent, validateBuild } from '../../games/rover/js/rules.js';
 import { roverCanvas } from '../../games/rover/js/art.js';
 import { hasStorageConsent } from '../welcome/core/consent.js';
@@ -100,6 +101,29 @@ export class StationPreparation {
     root.append(label);
   }
 
+  /** Carga de combustible del cohete: deslizador dentro de lo permitido, con toneladas, peso al despegue y empuje/peso. */
+  rocketFuel(root, view, chosen) {
+    const info = vehicleFor(chosen.launcherId, view.resolved.inputs.orbit.type, this.data);
+    if (!info) { this.number(root, 'rocketFuel', view.rocketFuelPct, FUEL_RANGE.minPct, FUEL_RANGE.maxPct, 1, rocketFuelPct => this.changeLaunch({ rocketFuelPct })); return; }
+    const tons = kg => formatNumber(kg / 1000, kg < 100000 ? 1 : 0);
+    const label = el('label', t('station.field.rocketFuel'));
+    const slider = el('input');
+    Object.assign(slider, { type: 'range', min: FUEL_RANGE.minPct, max: FUEL_RANGE.maxPct, step: 1, value: view.rocketFuelPct });
+    slider.dataset.focus = 'rocketFuel';
+    const amount = el('output');
+    const detail = el('p', '', 'muted');
+    const show = () => {
+      const f = fuelSummary(info.vehicle, chosen.launchMassKg, slider.valueAsNumber / 100);
+      amount.textContent = t('station.fuel.amount', { pct: slider.value, tons: tons(f.propKg), full: tons(f.fullKg) });
+      detail.textContent = t('station.fuel.detail', { liftoff: tons(f.liftoffKg), twr: formatNumber(f.twr, 2), min: FUEL_RANGE.minPct, max: FUEL_RANGE.maxPct });
+    };
+    slider.oninput = show;
+    slider.onchange = () => this.changeLaunch({ rocketFuelPct: slider.valueAsNumber });
+    show();
+    label.append(slider, amount);
+    root.append(label, detail);
+  }
+
   number(root, key, value, min, max, step, onChange) {
     const label = el('label', t(`station.field.${key}`));
     const input = el('input');
@@ -156,7 +180,7 @@ export class StationPreparation {
             return [id, `${site.name} · ${Math.abs(site.latitudeDeg)}° ${site.latitudeDeg < 0 ? 'S' : 'N'}`];
           }), chosen.siteId, siteId => this.changeLaunch({ siteId }));
         } else this.note(fields, 'station.selectedSite', { site: chosen.site.name });
-        this.number(grid, 'rocketFuel', view.rocketFuelPct, 75, 100, 1, rocketFuelPct => this.changeLaunch({ rocketFuelPct }));
+        this.rocketFuel(grid, view, chosen);
         const available = Math.floor(operationalPropellant(spacecraft));
         if (view.rules.propellantOffload && available > 0) {
           const label = el('label', t('station.field.offload'));
