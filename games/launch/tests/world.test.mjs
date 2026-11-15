@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { PHYS, FlightSim, vehicleFor, runAutopilot, orbitElements, circularSpeed } from '../js/flight.js';
+import { PHYS, FlightSim, vehicleFor, runAutopilot, orbitElements, circularSpeed, withPilotMargin, orbitGoalMet, COAST_DV } from '../js/flight.js';
 import {
   phaseOf, cameraScale, anchorFraction, FlightCamera, skyProgress, makeDebris, stepDebris, cullReason,
   angleFromVertical, toCameraFrame, groundDistance, thrustAccelG, focusEnvelope,
@@ -243,4 +243,54 @@ test('17 · acercamiento de la separación: sube y baja suave y siempre vuelve a
   assert.ok(min < base / 4, 'se acerca de verdad');
   assert.ok(Math.abs(cam.mpp - base) / base < 1e-9, 'vuelve a la escala normal');
   assert.equal(focusEnvelope(Infinity), 0);
+});
+
+test('18 · caída sin combustible: la velocidad de caída NO depende de hacia dónde mira la punta', () => {
+  const fall = (beta) => {
+    const sim = freshSim();
+    sim.status = 'flying'; sim.grounded = false; sim.fuel = sim.fuel.map(() => 0);
+    sim.x = 0; sim.y = PHYS.RE + 40000; sim.vx = sim.atmRate * sim.y; sim.vy = 0; sim.beta = beta;
+    // se sostiene la punta en ese ángulo (como si el jugador la aguantara) para comparar sólo la resistencia
+    for (let i = 0; i < 300 && sim.status === 'flying'; i++) { sim.beta = beta; sim.advance(0.2, { steer: 0, betaTarget: beta }); }
+    return { alt: sim.altitude, vr: sim.radialSpeed };
+  };
+  const up = fall(0); const side = fall(Math.PI / 2); const down = fall(Math.PI);
+  assert.ok(Math.abs(up.vr - side.vr) < 1e-6 && Math.abs(up.vr - down.vr) < 1e-6, `caída igual: ${up.vr} / ${side.vr} / ${down.vr}`);
+  assert.ok(Math.abs(up.alt - side.alt) < 1e-3);
+  assert.ok(up.vr < -100, 'y sí cae');
+});
+
+test('19 · sin empuje y con aire, la punta se alinea sola con el viento (como una flecha)', () => {
+  const sim = freshSim();
+  sim.status = 'flying'; sim.grounded = false; sim.fuel = sim.fuel.map(() => 0);
+  sim.x = 0; sim.y = PHYS.RE + 30000; sim.vx = sim.atmRate * sim.y; sim.vy = -600; sim.beta = 0.6;
+  for (let i = 0; i < 200 && sim.status === 'flying'; i++) sim.advance(0.2, { steer: 0 });
+  assert.ok(Math.abs(Math.abs(sim.beta) - Math.PI) < 0.1, `punta hacia abajo: ${sim.beta}`);
+});
+
+test('20 · margen de pilotaje: mismo empuje y peso, el combustible dura más y sobra para la órbita', () => {
+  const vi = vehicleFor('falcon9', 'LEO', data);
+  const k = data.flight.calibration.pilotMargin.normal;
+  const boosted = withPilotMargin(vi.vehicle, k);
+  const a = boosted.stages[0]; const b = vi.vehicle.stages[0];
+  assert.ok(Math.abs(a.mdot * a.ispSl - b.mdot * b.ispSl) / (b.mdot * b.ispSl) < 1e-9, 'mismo empuje');
+  assert.equal(a.propKg, b.propKg);
+  assert.ok(data.flight.calibration.pilotMargin.facil >= k && k >= data.flight.calibration.pilotMargin.dificil && data.flight.calibration.pilotMargin.dificil > 1);
+  // con la carga máxima del catálogo: sin margen casi no sobra; con margen sobra y la órbita queda redonda
+  const opts = { payloadKg: vi.capacityKg, destId: 'LEO', targetAltKm: 250, latDeg: 28.5, incDeg: 28.5 };
+  const base = runAutopilot(vi.vehicle, opts, vi.program);
+  const runs = [vi.program, { ...vi.program, coastDv: COAST_DV }].map((p) => runAutopilot(boosted, opts, p));
+  const easy = runs.sort((x, y) => y.fuelLeftPct - x.fuelLeftPct)[0];
+  assert.ok(easy.elements.periAlt >= PHYS.PERI_OK, 'llega a la órbita');
+  assert.ok(easy.fuelLeftPct > base.fuelLeftPct + 0.8, `sobra más: ${base.fuelLeftPct} → ${easy.fuelLeftPct}`);
+  assert.ok(easy.elements.apoAlt - easy.elements.periAlt < 60000, 'órbita casi redonda, sin estirar el otro lado');
+});
+
+test('21 · órbita lista: también vale una órbita redonda un poco más baja (no hay que quemar todo el combustible)', () => {
+  const R = PHYS.RE;
+  const el = (periKm, apoKm) => { const rp = R + periKm * 1000; const ra = R + apoKm * 1000; const a = (rp + ra) / 2; const v = Math.sqrt(PHYS.MU * (2 / ra - 1 / a)); return orbitElements(0, ra, v, 0); };
+  assert.equal(orbitGoalMet(el(246, 252), 250000), true, 'llegó a la altura pedida');
+  assert.equal(orbitGoalMet(el(232, 238), 250000), true, 'redonda, un poco más abajo');
+  assert.equal(orbitGoalMet(el(160, 238), 250000), false, 'todavía ovalada');
+  assert.equal(orbitGoalMet(el(120, 125), 250000), false, 'redonda pero dentro de la atmósfera');
 });

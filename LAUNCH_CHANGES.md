@@ -609,3 +609,11 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - **HUD** compacto por fase (altura, velocidad, combustible, empuje; datos extra en «Más datos»).
 - **Pruebas**: `tests/world.test.mjs` (15). Sin Node en el equipo se corrieron con JavaScriptCore.
 - **Pendiente de verificación manual**: pantallas pequeñas/táctiles, fase de espacio con el planeta cerca de la órbita, modo reducido de movimiento.
+
+## V3.1 · Física: órbita alcanzable y caída pareja (módulo LAUNCH)
+
+- **Caída**: la resistencia del aire ya no depende de hacia dónde mira la punta (antes era hasta 7× mayor de costado). Sin empuje y con aire, la punta se alinea sola con el viento (estabilidad de flecha).
+- **Órbita lista** (`orbitGoalMet`): también vale una órbita redonda (≤ 15 km entre punto más alto y más bajo) sobre la atmósfera aunque quede un poco más abajo de la pedida. Antes se seguía empujando hasta gastar todo y estirar el otro lado.
+- **Guiado**: quemada final `hold` (casi horizontal, levanta la punta lo justo para no caer) e inserción directa (`coastDv`) cuando el ascenso quedó empinado. El juego prueba ambas por misión (`flow.js`); la calibración usa la forma clásica y no cambió.
+- **Margen de pilotaje** (`data/flight.json → calibration.pilotMargin`): fácil 1,4 · normal 1,25 · difícil 1,12. Las etapas superiores rinden k veces más con el mismo empuje; la primera etapa no cambia.
+- **Pruebas**: `tests/world.test.mjs` 18–21. Corridas con JavaScriptCore (sin Node). No probado dentro del juego: la página ahora necesita Vite.

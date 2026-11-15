@@ -1,6 +1,6 @@
 // Flujo del lanzamiento: prepara el cohete y los imprevistos, y traduce el vuelo terminado a resultado.
 
-import { vehicleFor, FlightSim, programGrid, programScore, runAutopilot, missionRotationBonus, PHYS } from './flight.js';
+import { vehicleFor, withPilotMargin, COAST_DV, FlightSim, programGrid, programScore, runAutopilot, missionRotationBonus, PHYS } from './flight.js';
 import { planFlightEvents, resolveFlight, resolveAutomatic } from './outcome.js';
 import { app, inputs, current, currentOutput, writeLaunch } from './store.js';
 
@@ -25,6 +25,8 @@ export async function prepareLaunch() {
   const e = current();
   const dest = inputs().orbit.type;
   const vi = vehicleFor(e.launcherId, dest, app.data);
+  // margen de combustible para pilotar a mano (más generoso en los niveles fáciles)
+  if (vi) vi.vehicle = withPilotMargin(vi.vehicle, app.data.flight.calibration.pilotMargin?.[inputs().difficulty] ?? 1);
   app.vehicleInfo = vi;
   app.opts = missionOptions();
   app.plan = planFlightEvents(e, app.data, inputs(), { seed: app.seed, eventsEnabled: app.eventsEnabled, stageCount: vi ? vi.vehicle.stages.length : 2 });
@@ -32,17 +34,27 @@ export async function prepareLaunch() {
   if (!vi) return;
   const grid = programGrid(app.data.flight.calibration.searchGrid);
   const transfer = ['GTO', 'TLI', 'ESCAPE'].includes(app.opts.destId);
-  const list = [vi.program, ...grid].map((p) => (transfer ? { ...p, waitWindow: true } : p));
+  // cada programa se prueba de dos formas
+  // (apagar y redondear arriba, o inserción directa), siempre con la quemada final que sostiene la altura (hold)
+  const list = [vi.program, ...grid].flatMap((p) => [{ ...p, hold: true }, { ...p, hold: true, coastDv: COAST_DV }]).map((p) => (transfer ? { ...p, waitWindow: true } : p));
   let best = null;
   for (let i = 0; i < list.length; i += 10) {
     for (const program of list.slice(i, i + 10)) {
       const sim = runAutopilot(vi.vehicle, { ...app.opts, events: [] }, program);
-      const score = programScore(sim, app.opts);
+      const score = flightPlanScore(sim, app.opts);
       if (!best || score > best.score) best = { program, score, sim };
     }
     await new Promise((r) => setTimeout(r, 0));
   }
   app.reference = { program: best.program, fuelLeftPct: best.sim.fuelLeftPct, reachedOrbit: best.sim.elements.periAlt >= PHYS.PERI_OK };
+}
+
+/** Puntaje de un plan de vuelo: primero llegar y quedar cerca de la órbita pedida; a igualdad, el que gasta menos. */
+export function flightPlanScore(sim, opts) {
+  const base = programScore(sim, opts);
+  const transfer = ['GTO', 'TLI', 'ESCAPE'].includes(opts.destId);
+  // órbitas: 1 % de combustible ≈ 2 km de error de órbita. Transferencias: sólo desempata entre planes que llegan igual.
+  return base + (transfer ? Math.min(sim.fuelLeftPct, 50) * 0.001 : sim.fuelLeftPct * 2000);
 }
 
 export function createSim() {

@@ -71,6 +71,12 @@
     "ESCAPE": {
       "parkingAltKm": 250
     },
+    "pilotMargin": {
+      "_about": "Margen de combustible para el vuelo pilotado a mano: los motores rinden k veces más (mismo empuje, el combustible dura k veces más). La calibración contra el catálogo se hace sin este margen.",
+      "facil": 1.4,
+      "normal": 1.25,
+      "dificil": 1.12
+    },
     "searchGrid": {
       "_about": "Programas que prueba el piloto automático para elegir el que deja la órbita más cerca de la pedida (modo fácil, pistas y puntaje de referencia).",
       "h1": [
