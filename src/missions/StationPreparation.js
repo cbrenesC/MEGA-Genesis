@@ -8,7 +8,7 @@ import { newFlightPlan, PAYLOAD_FIELDS, reviewFlightPlan } from './flightPlan.js
 import { renderLaunchStation, rocketControlsSummary } from './launchStationUI.js';
 import { renderRoverStation, ROVER_GROUPS } from './roverStationUI.js';
 import './stationUI.css';
-import { MISSION_EXIT, missionUrl, PREPARATION_KEY, ROVER_SAVE_KEY } from './missionTransfer.js';
+import { MISSION_COMPLETE, MISSION_EXIT, missionUrl, PREPARATION_KEY, ROVER_SAVE_KEY } from './missionTransfer.js';
 
 const el = (tag, value = '', className = '') => {
   const node = document.createElement(tag);
@@ -24,17 +24,61 @@ export class StationPreparation {
     try { if (hasStorageConsent()) saved = JSON.parse(localStorage.getItem(PREPARATION_KEY)); } catch { /* optional storage */ }
     this.launch = saved?.launch;
     this.rover = { ...emptyBuild(), ...saved?.rover };
+    this.guideProgress = Array.isArray(saved?.guideProgress) ? saved.guideProgress : [];
+    this.guideConversations = Array.isArray(saved?.guideConversations) ? saved.guideConversations : [];
     this.onMessage = event => {
-      if (this.frame && event.origin === location.origin && event.source === this.frame.contentWindow && event.data?.type === MISSION_EXIT) {
-        this.closeSimulation();
+      if (!this.frame || event.origin !== location.origin || event.source !== this.frame.contentWindow) return;
+      if (event.data?.type === MISSION_COMPLETE && ['launch', 'rover'].includes(event.data.mission)) {
+        this.scene.onMissionCompleted(event.data.mission);
       }
+      if (event.data?.type === MISSION_EXIT) this.closeSimulation();
     };
     window.addEventListener('message', this.onMessage);
   }
 
   save() {
     if (!hasStorageConsent()) return;
-    try { localStorage.setItem(PREPARATION_KEY, JSON.stringify({ launch: this.launch, rover: this.rover })); } catch { /* still available within this visit */ }
+    try { localStorage.setItem(PREPARATION_KEY, JSON.stringify({ launch: this.launch, rover: this.rover, guideProgress: this.guideProgress, guideConversations: this.guideConversations })); } catch { /* still available within this visit */ }
+  }
+
+  hasGuideConversation(key) { return this.guideConversations.includes(key); }
+
+  markGuideConversation(key) {
+    if (!this.guideConversations.includes(key)) {
+      this.guideConversations.push(key);
+      this.save();
+    }
+  }
+
+  completeGuideStep(id) {
+    if (!this.guideProgress.includes(id)) {
+      this.guideProgress.push(id);
+      this.save();
+    }
+  }
+
+  resetGuide() {
+    this.guideProgress = [];
+    this.guideConversations = [];
+    this.save();
+  }
+
+  guideStationReady(step) {
+    if (!step) return false;
+    if (step.kind.startsWith('launch-')) {
+      if (!this.data || !this.launch) return false;
+      const view = reviewFlightPlan(this.data, this.launch);
+      if (step.kind === 'launch-mission') return Boolean(this.launch.scenarioId);
+      if (step.kind === 'launch-rocket') return Boolean(view.selected?.compatible);
+      if (step.kind === 'launch-payload') return view.reason !== 'payload';
+      if (step.kind === 'launch-review') return view.ready;
+      return false;
+    }
+    if (step.kind === 'rover-group') {
+      return (ROVER_GROUPS[step.part] ?? []).every(id =>
+        COMPONENTS[id].some(option => option.id === this.rover[id]));
+    }
+    return false;
   }
 
   destroy() {
@@ -86,6 +130,7 @@ export class StationPreparation {
   changeLaunch(patch) {
     Object.assign(this.launch, { acks: {} }, patch, { approved: false });
     this.save();
+    this.scene.onStationConfigurationChanged(this.item);
     this.renderAgain();
   }
 
@@ -197,7 +242,9 @@ export class StationPreparation {
       approve.type = 'button';
       approve.disabled = !!view.reason || view.ready;
       approve.onclick = () => {
-        this.launch.approved = true; this.save(); this.renderAgain();
+        this.launch.approved = true; this.save();
+        this.scene.onStationConfigurationChanged(this.item);
+        this.renderAgain();
         requestAnimationFrame(() => root.querySelector('[data-station-fields] p[tabindex]')?.focus());
       };
       fields.append(approve);
@@ -244,6 +291,7 @@ export class StationPreparation {
         const { component, option } = button.dataset;
         this.rover = selectComponent(this.rover, component, option);
         this.save();
+        this.scene.onStationConfigurationChanged(this.item);
         this.renderAgain();
       };
     }
@@ -253,6 +301,7 @@ export class StationPreparation {
           this.rover[id] = button.dataset.roverAction === 'recommend' ? RECOMMENDED_BUILD[id] : null;
         }
         this.save();
+        this.scene.onStationConfigurationChanged(this.item);
         this.renderAgain();
       };
     }
