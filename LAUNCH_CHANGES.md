@@ -637,3 +637,10 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - `MapScene.js` se dibuja ahora en el mismo lienzo pequeño que el vuelo (`PixelView`): Tierra de `earth.js` (continentes, hielo, nubes) orientada igual que en el vuelo, atmósfera, círculos a trazos, trayectoria, marcas y cohete en píxeles; etiquetas con la letra monoespaciada del HUD.
 - Nuevas primitivas en `render.js`: `drawGlobe`, `clipDisc`, `ring` (recortadas a la pantalla, sirven con cualquier zoom).
 - Revisado con una página de prueba (Phaser simulado); no probado dentro del juego (requiere Vite/Node).
+
+## V3.5 · Mapa: Luna, Sistema Solar y zonas de influencia (módulo LAUNCH)
+
+- En el mapa se puede alejar hasta ver todo el Sistema Solar (`MAP_ZOOM`, de 40× a 0,000003×; el zoom del mapa avanza al doble de paso). Al alejar mucho, el centro pasa suavemente de la Tierra al Sol.
+- Se dibujan: órbita de la Luna y la Luna (donde llega la transferencia del juego), zona de influencia de la Tierra (924.000 km) y de la Luna, órbita de la Tierra, Sol, y los 7 planetas restantes con su órbita y su zona de influencia. Barra de escala (km / millones de km / UA).
+- **Sólo es dibujo**: la física del juego sigue usando únicamente la gravedad de la Tierra; la Luna y los planetas no atraen al cohete. Las posiciones de los planetas son aproximadas (año 2000) y fijas.
+- Revisado con una página de prueba (Phaser simulado); no probado dentro del juego (requiere Vite/Node).
