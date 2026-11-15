@@ -13,20 +13,23 @@ export function showCredits() {
     dialog.setAttribute('aria-labelledby', 'credits-heading');
     dialog.innerHTML = `
       <header class="credits-dialog__header">
-        <h2 id="credits-heading">CRÉDITOS</h2>
+        <h2 id="credits-heading">CREDITS</h2>
       </header>
       <div class="credits-dialog__body">
         <h3>SPACE MISSION · MEGA GENESIS</h3>
-        <p class="credits-dialog__subtitle">Desarrollado por el equipo MEGA Genesis</p>
+        <p class="credits-dialog__subtitle">Developed by the MEGA Genesis Team</p>
         <p><strong>Andrés Castro · Camila Brenes · Matías Cubero · Kendall Valencia</strong></p>
-        <h3>AGRADECIMIENTOS ESPECIALES</h3>
-        <p>Gracias a todas las personas que nos ayudaron a hacer posible este proyecto, especialmente a nuestros mentores por su orientación y apoyo.</p>
-        <p>A la NASA, por poner a disposición recursos y datos que contribuyeron al desarrollo de esta experiencia.</p>
-        <p>A SVGator, por su plantilla de loader animado, disponible para uso libre conforme a su licencia.</p>
-        <p>Y un agradecimiento muy especial a Claude, GPT, Gemini y Manus AI por su increíble ayuda durante el desarrollo de este proyecto.</p>
-        <p>¡Gracias por hacerlo posible!</p>
+        <h3>SPECIAL THANKS</h3>
+        <p>Our sincere thanks to everyone who helped make this project possible, especially our mentors for their guidance and support.</p>
+        <p>To NASA, for providing valuable resources and data that supported the development of this experience.</p>
+        <p>To SVGator, for its animated loader template, used under its applicable free-use license.</p>
+        <p>Special thanks to Claude, GPT, Gemini, and Manus AI for their incredible assistance throughout this project.</p>
+        <h3>AI-GENERATED CONTENT</h3>
+        <p>All videos, SVG animations, images, and audio assets were created using artificial intelligence tools exclusively for the MEGA Genesis project.</p>
+        <p>AI-Generated Content — This asset was created using artificial intelligence tools for the MEGA Genesis project.</p>
+        <p>Thank you for making this possible!</p>
         <form method="dialog">
-          <button type="submit" class="space-title__button space-title__button--primary" autofocus>VOLVER</button>
+          <button type="submit" class="space-title__button space-title__button--primary" autofocus>BACK</button>
         </form>
       </div>
     `;
