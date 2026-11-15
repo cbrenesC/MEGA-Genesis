@@ -8,10 +8,7 @@ import { fmtKg, massLike } from '../plain.js';
 import { PixelView, FlightRenderer } from './render.js';
 import { ParticleSystem } from '../particles.js';
 import { CAMERA } from '../world.js';
-import { loadSiteWeather, describeWeather, windEastMs, weatherFromConditions } from '../weather.js';
-import { siteLocal } from '../launchWeather.js';
-import { t } from '../../../../src/i18n/index.js';
-import { PHYS, vehicleFor, fuelSummary } from '../flight.js';
+import { PHYS, vehicleFor } from '../flight.js';
 
 // Cohete genérico para dibujar la plataforma cuando el par cohete/destino no tiene simulador.
 const GENERIC = { id: 'generic', diameterM: 3, stackKg: 60000, fairingKg: 400, stages: [{ dryKg: 3500, propKg: 38000 }, { dryKg: 700, propKg: 9000 }] };
@@ -39,18 +36,6 @@ export class PadScene extends Phaser.Scene {
     this.overlay.hidden = false;
     app.nav.chrome('PadScene');
     this.renderOverlay();
-    // clima real del sitio en este momento (si no hay conexión: día/noche real y clima típico del mes)
-    app.weather = null;
-    const site = current().site;
-    const lw = app.launchWindow;
-    // con una ventana elegida en el planificador, se dibuja el clima previsto para ESA fecha y hora
-    if (lw) app.weather = weatherFromConditions(lw.conditions, site?.id, new Date(lw.time), lw.source === 'meteomatics' ? 'pronóstico de Meteomatics para la ventana elegida' : 'MODO SIMULACIÓN (no son datos reales)');
-    else loadSiteWeather(site?.id, { seed: app.seed }).then((w) => {
-      if (!this.scene.isActive() || this.state === 'go') return;
-      app.weather = w;
-      const el = document.getElementById('pad-weather');
-      if (el) el.textContent = describeWeather(w, site?.name ?? 'el sitio');
-    });
     const preparation = {};
     this.preparation = preparation;
     prepareLaunch().then(() => {
@@ -88,28 +73,11 @@ export class PadScene extends Phaser.Scene {
     const S = {
       time: this.t, reduced, alt: 0, mpp: CAMERA.mpp0, baseY: view.viewH * 0.8 + view.margin, groundS: 0, starShift: 0,
       stage: 0, fairing: true, throttle: spool, engineOn: ignite, betaShown: 0, flicker: Math.random(), airFade: 1, hideRocket: false,
-      weather: app.weather, windE: app.weather ? windEastMs(app.weather) * this.t : 0,
       debris: [], particles: this.particles, rx: 0, ry: PHYS.RE, flowX: 0, flowY: 0, flowPhaseX: 0, flowPhaseY: 0, streakAlpha: 0, prograde: null, recommend: null,
     };
     this.renderer.draw(view.ctx, view.W, view.H, S);
     const a = ignite && !reduced ? Math.round(this.go * 1.5) : 0;
     view.present(a ? Math.round((Math.random() * 2 - 1) * a) : 0, a ? Math.round((Math.random() * 2 - 1) * a) : 0);
-  }
-
-  /** Ventana de lanzamiento elegida en el planificador de clima (fecha y hora del sitio, semáforo y puntuación). */
-  windowLine() {
-    const lw = app.launchWindow;
-    const l = siteLocal(lw.time, current().site?.id);
-    return t('pad.window', { when: `${l.date} ${l.clock}`, status: lw.status, score: lw.score, source: t(lw.source === 'meteomatics' ? 'pad.window.real' : 'pad.window.sim') });
-  }
-
-  /** Peso real del cohete y combustible cargado (en toneladas). */
-  fuelLine() {
-    const info = app.vehicleInfo ?? vehicleFor(current().launcherId, inputs().orbit.type, app.data);
-    if (!info) return ` Combustible inicial del cohete: <b>${app.rocketFuelPct} %</b>.`;
-    const f = fuelSummary(info.vehicle, current().launchMassKg, app.rocketFuelPct / 100);
-    const tons = (kg) => (Math.round(kg / 100) / 10).toLocaleString('es');
-    return `<br>El cohete completo pesa <b>${tons(f.liftoffKg)} toneladas</b> al despegar, con <b>${tons(f.propKg)} t</b> de combustible (${app.rocketFuelPct} % del tanque).`;
   }
 
   renderOverlay() {
@@ -122,12 +90,10 @@ export class PadScene extends Phaser.Scene {
       <div class="pad-card">
         <span class="kicker">PLATAFORMA DE LANZAMIENTO · ${esc(e.site.name)}</span>
         <h2>${esc(e.launcher.name)} con ${esc(inp.spacecraft.name ?? 'tu nave')}</h2>
-        <p>Tu nave pesa ${massLike(e.launchMassKg)} (${fmtKg(e.launchMassKg)}) y va hacia <b>${esc(e.orbitDef.short ?? e.orbitDef.name)}</b>.${this.fuelLine()}
+        <p>Tu nave pesa ${massLike(e.launchMassKg)} (${fmtKg(e.launchMassKg)}) y va hacia <b>${esc(e.orbitDef.short ?? e.orbitDef.name)}</b>. Combustible inicial del cohete: <b>${app.rocketFuelPct} %</b>.
         ${this.state === 'prep' ? '<br><span class="muted">Revisando el cohete y el clima…</span>' : ''}</p>
         ${this.state === 'ready' && pre.length ? `<ul class="log">${pre.map((p) => `<li class="${p.severity}"><b>${esc(p.label)}</b> — ${esc(p.consequence)}</li>`).join('')}</ul>` : ''}
         ${noSim && this.state === 'ready' ? '<p class="muted">Para este cohete y este destino todavía no hay simulador de vuelo: el resultado se calcula automáticamente.</p>' : ''}
-        ${app.launchWindow ? `<p><b>${esc(this.windowLine())}</b></p>` : ''}
-        <p class="muted" id="pad-weather">${app.weather ? esc(describeWeather(app.weather, e.site.name)) : 'Consultando el clima real del sitio…'}</p>
         <div class="countdown" id="countdown" aria-live="assertive">${this.cdText ?? ''}</div>
         ${this.state === 'error' ? '<p role="alert">No se pudo preparar el vuelo. Vuelve al centro de control.</p>' : ''}
         <div class="actions"><button type="button" id="pad-exit">← Volver al centro de control</button></div>

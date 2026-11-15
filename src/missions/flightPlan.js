@@ -8,7 +8,7 @@ export const PAYLOAD_FIELDS = {
 };
 export const newFlightPlan = (data) => ({
   scenarioId: data.mocks.defaultScenario, difficulty: 'normal', payload: {}, budgetMUSD: null,
-  targetMonths: null, launcherId: null, siteId: null, offloadKg: 0, rocketFuelPct: 100, launchWindow: null, events: null, teamMode: false, acks: {}, notes: '', approved: false,
+  targetMonths: null, launcherId: null, siteId: null, offloadKg: 0, rocketFuelPct: 100, events: null, teamMode: false, acks: {}, notes: '', approved: false,
 });
 const inRange = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
@@ -48,11 +48,6 @@ export function reviewFlightPlan(data, plan = {}) {
     : [];
   const reason = !validPayload ? 'payload' : !selected ? 'launcher' : !selected.compatible ? 'compatibility' : !simulated ? 'simulation' : requiredRoles.some(role => plan.acks?.[role] !== true) ? 'team' : null;
   const rocketFuelPct = inRange(plan.rocketFuelPct, 75, 100) ? plan.rocketFuelPct : 100;
-  // ventana de lanzamiento elegida en el planificador de clima: sólo vale para el sitio con el que se evaluó
-  const lw = plan.launchWindow;
-  const launchWindow = selected && lw && typeof lw === 'object' && lw.siteId === selected.siteId && typeof lw.time === 'string'
-    && !Number.isNaN(Date.parse(lw.time)) && ['GO', 'CAUTION', 'NO-GO'].includes(lw.status) && lw.conditions && typeof lw.conditions === 'object'
-    && ['meteomatics', 'simulation'].includes(lw.source) ? lw : null;
-  return { resolved, evaluations, options, selected, difficulty, rules, events, rocketFuelPct, launchWindow, requiredRoles, reason,
+  return { resolved, evaluations, options, selected, difficulty, rules, events, rocketFuelPct, requiredRoles, reason,
     ready: reason === null && plan.approved === true };
 }

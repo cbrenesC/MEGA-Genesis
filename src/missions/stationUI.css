@@ -206,19 +206,3 @@ input[type=range] { width: 100%; accent-color: var(--cyan); }
 .station-ui--launch .acks { display: grid; gap: 6px; margin-top: 8px; }
 .station-ui--launch .team textarea { box-sizing: border-box; }
 .station-ui--launch .card :is(b, small, label), .station-ui--rover .opt { overflow-wrap: anywhere; }
-
-/* Planificador de clima del lanzamiento (pixel art: bordes rectos, sombra dura) */
-.wx-planner { margin-top: 14px; padding: 12px 14px; border: 2px solid #3d6a86; background: rgba(6, 13, 26, .55); box-shadow: 3px 3px 0 rgba(0, 0, 0, .4); }
-.wx-planner h3 { margin-top: 0; }
-.wx-source { font-size: .85rem; color: var(--green); }
-.wx-source.wx-sim { color: var(--yellow); border: 2px dashed var(--yellow); padding: 6px 8px; font-weight: 700; }
-.wx-chip { display: inline-block; font: 700 .68rem/1.5 monospace; letter-spacing: .06em; padding: 0 6px; border: 2px solid currentColor; }
-.wx-chip.wx-go { color: var(--green); } .wx-chip.wx-caution { color: var(--yellow); } .wx-chip.wx-nogo { color: var(--red); }
-.wx-best { border-left: 4px solid var(--cyan, #73ddcf); padding-left: 10px; margin: 8px 0; }
-.wx-factors { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 6px 0 10px; font-size: .88rem; }
-.wx-factors dt { color: var(--muted, #9db6c4); } .wx-factors dd { margin: 0; font-family: monospace; }
-.wx-windows { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; margin: 6px 0; }
-.wx-window { display: grid; gap: 2px; justify-items: start; text-align: left; padding: 6px 8px; border-radius: 0; border: 2px solid #52758a; background: rgba(12, 28, 46, .9); box-shadow: 2px 2px 0 rgba(0, 0, 0, .4); font-size: .82rem; min-height: 0; }
-.wx-window small { color: var(--muted, #9db6c4); font-family: monospace; }
-.wx-window.is-selected { border-color: var(--green); background: #134a32; }
-.wx-all { max-height: 260px; overflow-y: auto; }

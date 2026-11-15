@@ -1106,3 +1106,20 @@ html.sms-reduced-animations #boot .boot-consent {
 
 .preparation-grid .preparation-ack { grid-template-columns: auto 1fr; align-items: center; }
 .preparation-ack input { width: 20px; height: 20px; accent-color: #6bd4c5; }
+
+
+
+.mission-terminal [data-description][aria-hidden="true"] { white-space: pre-line; }
+.crew-dialogue__accessible:not([hidden]) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.mission-terminal__actions [data-crew-advance] {
+  min-width: 155px;
+  background: #70d8bf;
+  color: #092a2c;
+  border-color: #a8fff0;
+}

@@ -23,7 +23,6 @@ export class BootScene extends Phaser.Scene {
       app.selectedId = review.selected.launcherId;
       app.eventsEnabled = review.events;
       app.rocketFuelPct = review.rocketFuelPct;
-      app.launchWindow = review.launchWindow;
       app.confirmed = true;
       document.getElementById('boot').hidden = true;
       this.scene.start('PadScene');

@@ -7,5 +7,5 @@ export const CREW = [
   { id: 'rios', name: 'Josué', texture: 'top-npc-engineer', route: [[1159, 548], [1159, 612], [1121, 612]], accent: '#ffc996', source: handbook },
   { id: 'vega', name: 'Luis Eduardo', texture: 'top-npc-director', route: [[475, 694], [536, 694], [536, 726]], accent: '#a9cdff', source: handbook },
   { id: 'sol', name: 'Johana', texture: 'top-npc-scientist', route: [[805, 694], [744, 694], [744, 726]], accent: '#f3d6f0',
-    source: 'https://www.nasa.gov/reference/environmental-control-and-life-support-systems-eclss/' },
+    source: handbook },
 ];

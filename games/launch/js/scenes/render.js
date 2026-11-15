@@ -138,18 +138,13 @@ export function drawGlobe(ctx, W, H, cx, cy, rpx, rot, lon0) {
 // ---------------------------------------------------------------------------
 
 const skyCache = { key: '', canvas: null };
-/** @param night 0 día · 1 noche   @param gray 0 despejado · 1 cubierto (según el clima real del sitio) */
-function skyCanvas(W, H, prog, night = 0, gray = 0) {
+function skyCanvas(W, H, prog) {
   const step = Math.round(prog * 60);
-  const gStep = Math.round(gray * 4);
-  const key = `${W}x${H}|${step}|${night ? 1 : 0}|${gStep}`;
+  const key = `${W}x${H}|${step}`;
   if (skyCache.key === key) return skyCache.canvas;
-  const p = step / 60; const g = gStep / 4;
-  // color del cielo a ras del suelo: día o noche, despejado o cubierto
-  const top0 = lerpColor(night ? 0x040816 : 0x3d8de0, night ? 0x0b0f17 : 0x7d8da1, g);
-  const bot0 = lerpColor(night ? 0x16254a : 0xaedcff, night ? 0x1b212d : 0xc5ced8, g);
-  const top = lerpColor(top0, 0x01030a, clamp(p * 1.12, 0, 1));
-  const bot = lerpColor(bot0, 0x060d1c, clamp(p * 1.02, 0, 1));
+  const p = step / 60;
+  const top = lerpColor(0x3d8de0, 0x01030a, clamp(p * 1.12, 0, 1));
+  const bot = lerpColor(0xaedcff, 0x060d1c, clamp(p * 1.02, 0, 1));
   const c = skyCache.canvas && skyCache.canvas.width === W && skyCache.canvas.height === H ? skyCache.canvas : Object.assign(document.createElement('canvas'), { width: W, height: H });
   const ctx = c.getContext('2d');
   const img = ctx.createImageData(W, H);
@@ -181,9 +176,6 @@ const SITE_LOOK = {
   kwaj: { coastE: 90, land: 0xcdbb7a, grass: '#e6d79a', trees: 0.8, landmark: 'control', hills: 0 }, // atolón: arena y mar
   default: { coastE: 190, land: 0x3c8a46, grass: '#79d36b', trees: 0.35, landmark: 'control', hills: 0.4 },
 };
-const CLOUD_DECK = { gray: ['#c9d0d8', '#a3adb8', '#7c8794'], storm: ['#8a929e', '#666f7c', '#474f5c'], night: ['#56617a', '#3c465c', '#2a3246'], day: ['#ffffff', '#d7e4f4', '#aebfd8'] };
-/** Inclinación de la lluvia según el viento real (−1…1; positivo = hacia la derecha/este). */
-const windSlant = (wx) => clamp((-Math.sin(((wx.windDirDeg ?? 0) * Math.PI) / 180) * (wx.windKmh ?? 0)) / 40, -1.2, 1.2);
 const SEA = 0x2368b0; const BEACH = 0xd9c98a;
 const GLOBE_COLORS = { [OCEAN]: 0x1f5fae, [GREEN]: 0x3f8f4a, [SAND]: 0xc2a465, [ICE]: 0xeef4fa };
 
@@ -204,7 +196,6 @@ export class FlightRenderer {
       return { e: (hash(i, 12) - 0.35) * 160000, h: kind === 2 ? 8000 + hash(i, 13) * 3500 : 900 + hash(i, 14) * 5200, w: (kind === 2 ? 2600 : 900) + hash(i, 15) * 2400, kind };
     });
     this.streaks = Array.from({ length: 22 }, (_, i) => ({ x: hash(i, 20), y: hash(i, 21), l: 0.6 + hash(i, 22) }));
-    this.drops = Array.from({ length: 150 }, (_, i) => ({ x: hash(i, 40), y: hash(i, 41), s: hash(i, 42) }));
     this.flameFrame = 0;
   }
 
@@ -216,23 +207,16 @@ export class FlightRenderer {
     const mpp = S.mpp;
     const alt = Math.max(0, S.alt);
     const sky = skyProgress(alt);
-    // clima real del sitio (si se conoce): noche, cielo cubierto, lluvia…
-    const wx = S.weather ?? null;
-    const night = wx && !wx.isDay ? 1 : 0;
-    const wet = wx ? wx.rainMmH > 0 || wx.snow || wx.thunder : false;
-    const gray = wx ? clamp((wx.cloud - 0.45) * 2, 0, 1) * (wet ? 1 : 0.75) : 0;
-    const env = { wx, night, gray, wet, tone: !wx ? 'day' : night ? 'night' : wx.thunder ? 'storm' : gray > 0.5 ? 'gray' : 'day', low: 1 - smooth(2500, 6000, alt) };
     // 1 · cielo y estrellas
-    ctx.drawImage(skyCanvas(W, H, sky, night, gray), 0, 0);
-    this.drawStars(ctx, W, H, S, alt, night * (1 - gray) * 0.85);
-    this.drawSun(ctx, W, H, sky, env);
+    ctx.drawImage(skyCanvas(W, H, sky), 0, 0);
+    this.drawStars(ctx, W, H, S, alt);
+    this.drawSun(ctx, W, H, sky);
     // 2 · nubes, planeta y suelo
-    this.drawClouds(ctx, W, H, cx, baseY, S, alt, mpp, true, env);
+    this.drawClouds(ctx, W, H, cx, baseY, S, alt, mpp, true);
     this.drawPlanet(ctx, W, H, cx, baseY, S, alt, mpp);
-    this.drawClouds(ctx, W, H, cx, baseY, S, alt, mpp, false, env);
+    this.drawClouds(ctx, W, H, cx, baseY, S, alt, mpp, false);
     // 3 · plataforma
     this.drawPad(ctx, cx, baseY, S, alt, mpp);
-    if (wx) this.drawWeatherBack(ctx, W, H, cx, baseY, S, alt, mpp, env, sky);
     // 4 · humo (detrás del cohete)
     this.drawParticles(ctx, S, cx, baseY, mpp, alt, false);
     // 5 · velocidad
@@ -242,83 +226,14 @@ export class FlightRenderer {
     if (!S.hideRocket) this.drawRocket(ctx, cx, baseY, S, mpp, alt);
     // 7 · fuego y chispas (delante)
     this.drawParticles(ctx, S, cx, baseY, mpp, alt, true);
-    if (wx) this.drawWeatherFront(ctx, W, H, S, alt, env);
     // 8 · marcadores de guía
     if (!S.hideRocket) this.drawMarkers(ctx, cx, baseY, S);
   }
 
-  /** Detrás del cohete: capa de nubes cuando está cubierto, niebla, y la oscuridad de la noche sobre el paisaje. */
-  drawWeatherBack(ctx, W, H, cx, baseY, S, alt, mpp, env, sky) {
-    const { wx, night, gray } = env;
-    // techo de nubes continuo (cielo cubierto): el cohete lo atraviesa hacia los 2 km
-    if (gray > 0.6 && alt < 9000) {
-      const yTop = baseY - (2600 - alt) / mpp; const yBot = baseY - (1700 - alt) / mpp;
-      const col = CLOUD_DECK[env.tone] ?? CLOUD_DECK.gray;
-      for (let x = 0; x < W; x += 2) {
-        const e = S.groundS + (x - cx) * mpp + (S.windE ?? 0);
-        const bump = (Math.sin(e / 260) + Math.sin(e / 97 + 1.3)) * 120 / mpp;
-        const y0 = Math.round(yTop + bump); const y1 = Math.round(yBot + bump * 0.4);
-        if (y1 < 0 || y0 > H) continue;
-        ctx.fillStyle = col[1]; ctx.fillRect(x, y0, 2, Math.max(1, y1 - y0));
-        ctx.fillStyle = col[0]; ctx.fillRect(x, y0, 2, Math.max(1, Math.round((y1 - y0) * 0.35)));
-        ctx.fillStyle = col[2]; ctx.fillRect(x, y1 - Math.max(1, Math.round((y1 - y0) * 0.2)), 2, Math.max(1, Math.round((y1 - y0) * 0.2)));
-      }
-    }
-    // niebla a ras del suelo
-    if (wx.fog && alt < 600) {
-      const gy = baseY + alt / mpp;
-      for (let i = 0; i < 5; i++) { ctx.fillStyle = `rgba(215,222,230,${(0.34 - i * 0.06).toFixed(2)})`; ctx.fillRect(0, Math.round(gy - (i + 1) * 9 / (mpp / CAMERA.mpp0)), W, Math.ceil(9 / (mpp / CAMERA.mpp0)) + 1); }
-    }
-    // de noche el paisaje queda en penumbra (el cohete sigue iluminado por los reflectores y su propia llama)
-    if (night) {
-      const a = 0.52 * (1 - sky);
-      if (a > 0.02) { ctx.fillStyle = `rgba(5,9,28,${a.toFixed(2)})`; ctx.fillRect(0, 0, W, H); }
-      // reflectores de la plataforma
-      const k = CAMERA.mpp0 / mpp;
-      if (k > 0.25 && alt < 400) {
-        const gy = Math.round(baseY + alt / mpp); const px = Math.round(cx - S.groundS / mpp);
-        ctx.fillStyle = 'rgba(255,243,168,0.16)';
-        for (let i = 0; i < 4; i++) ctx.fillRect(px - Math.round((14 + i * 9) * k), gy - Math.round((60 - i * 14) * k), Math.round((28 + i * 18) * k), Math.round(14 * k) + 1);
-      }
-    }
-  }
+  // ---- fondo ----
 
-  /** Delante de todo: lluvia o nieve (sólo bajo las nubes) y el destello de los relámpagos. */
-  drawWeatherFront(ctx, W, H, S, alt, env) {
-    const { wx } = env;
-    const low = 1 - smooth(1800, 2600, alt); // por encima del techo de nubes ya no llueve
-    if (low > 0.02 && (wx.rainMmH > 0 || wx.snow)) {
-      const wind = windSlant(wx);
-      const t = S.reduced ? 0 : S.time;
-      if (wx.snow) {
-        ctx.fillStyle = `rgba(255,255,255,${(0.85 * low).toFixed(2)})`;
-        for (let i = 0; i < 70; i++) {
-          const d = this.drops[i];
-          const y = ((d.y + t * (0.09 + d.s * 0.05)) % 1) * H;
-          const x = (((d.x + Math.sin(t * 0.8 + d.s * 9) * 0.01 + t * wind * 0.03) % 1) + 1) % 1 * W;
-          ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
-        }
-      } else {
-        const n = Math.round(clamp(24 + wx.rainMmH * 26, 24, this.drops.length));
-        const len = wx.rainMmH >= 4 ? 5 : wx.rainMmH >= 0.8 ? 4 : 3;
-        ctx.fillStyle = `rgba(190,215,255,${(0.6 * low).toFixed(2)})`;
-        for (let i = 0; i < n; i++) {
-          const d = this.drops[i];
-          const y = ((d.y + t * (1.1 + d.s * 0.5)) % 1) * (H + len) - len;
-          const x = (((d.x + t * wind * 0.35) % 1) + 1) % 1 * W;
-          for (let k = 0; k < len; k++) ctx.fillRect(Math.round(x + k * wind * 0.5), Math.round(y + k), 1, 1);
-        }
-      }
-    }
-    // relámpago: destello breve y poco frecuente (se omite con "reducir movimiento")
-    if (wx.thunder && !S.reduced && alt < 6000) {
-      const slot = Math.floor(S.time / 0.9);
-      if (hash(slot, 911) > 0.9 && S.time / 0.9 - slot < 0.12) { ctx.fillStyle = 'rgba(235,240,255,0.55)'; ctx.fillRect(0, 0, W, H); }
-    }
-  }
-
-  drawStars(ctx, W, H, S, alt, nightVis = 0) {
-    const vis = Math.max(starVisibility(alt), nightVis);
+  drawStars(ctx, W, H, S, alt) {
+    const vis = starVisibility(alt);
     if (vis < 0.02) return;
     const shift = Math.round(S.starShift ?? 0);
     for (const s of this.stars) {
@@ -332,40 +247,24 @@ export class FlightRenderer {
     }
   }
 
-  drawSun(ctx, W, H, sky, env = {}) {
+  drawSun(ctx, W, H, sky) {
     const x = Math.round(W * 0.8); const y = Math.round(H * 0.17);
-    const veil = 1 - (env.gray ?? 0) * 0.85 * (1 - sky); // las nubes tapan el Sol o la Luna cerca del suelo
-    if (veil < 0.1) return;
-    if (env.night && sky < 0.9) {
-      // la Luna: disco pálido con cráteres
-      ctx.globalAlpha = 0.16 * veil; disc(ctx, x, y, 8, '#cfd8e6');
-      ctx.globalAlpha = veil; disc(ctx, x, y, 4, '#e8eef5');
-      ctx.fillStyle = '#b9c4d2'; ctx.fillRect(x - 2, y - 1, 2, 1); ctx.fillRect(x + 1, y + 1, 1, 2); ctx.fillRect(x, y - 3, 1, 1);
-      ctx.globalAlpha = 1;
-      return;
-    }
-    ctx.globalAlpha = 0.18 * (1 - sky * 0.5) * veil; disc(ctx, x, y, 10, '#fff6c8');
-    ctx.globalAlpha = 0.3 * (1 - sky * 0.4) * veil; disc(ctx, x, y, 7, '#fff6c8');
-    ctx.globalAlpha = veil; disc(ctx, x, y, 4, '#fffdf0');
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.18 * (1 - sky * 0.5); disc(ctx, x, y, 10, '#fff6c8');
+    ctx.globalAlpha = 0.3 * (1 - sky * 0.4); disc(ctx, x, y, 7, '#fff6c8');
+    ctx.globalAlpha = 1; disc(ctx, x, y, 4, '#fffdf0');
   }
 
-  drawClouds(ctx, W, H, cx, baseY, S, alt, mpp, behind, env = {}) {
+  drawClouds(ctx, W, H, cx, baseY, S, alt, mpp, behind) {
     if (alt > 42000) return;
     const fade = 1 - smooth(18000, 42000, alt);
-    // cuántas nubes hay depende de la nubosidad real (sin dato: un cielo con algunas nubes)
-    const cover = env.wx ? Math.max(0.06, env.wx.cloud * 1.15) : 0.55;
-    const drift = S.windE ?? 0;
-    for (let i = 0; i < this.clouds.length; i++) {
-      const c = this.clouds[i];
+    for (const c of this.clouds) {
       // las nubes altas (cirros) van detrás de la curva del planeta; las bajas, delante
       if ((c.kind === 2) !== behind) continue;
-      if (hash(i, 99) > cover) continue;
-      const sprite = cloudSprite(c.kind, env.tone ?? 'day');
+      const sprite = cloudSprite(c.kind);
       const wpx = Math.round(c.w / mpp);
       if (wpx < 3 || wpx > 280) continue;
       const hpx = Math.max(2, Math.round((sprite.h / sprite.w) * wpx));
-      const x = Math.round(cx + (c.e + drift - S.groundS) / mpp - wpx / 2);
+      const x = Math.round(cx + (c.e - S.groundS) / mpp - wpx / 2);
       const y = Math.round(baseY - (c.h - alt) / mpp - hpx);
       if (x > W || x + wpx < 0 || y > H || y + hpx < 0) continue;
       ctx.globalAlpha = (c.kind === 2 ? 0.7 : 0.95) * fade;

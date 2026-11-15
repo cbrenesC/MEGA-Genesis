@@ -16,7 +16,6 @@ export const app = {
   confirmed: false,
   eventsEnabled: true,
   rocketFuelPct: 100,
-  launchWindow: null, // ventana elegida en el planificador de clima: { siteId, time, source, status, score, conditions }
   seed: randomSeed(),
   plan: null, // imprevistos programados (outcome.planFlightEvents)
   flight: null, // resultado del vuelo (outcome.resolveFlight)

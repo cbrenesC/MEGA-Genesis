@@ -96,7 +96,6 @@ function renderCatalog({ data, view, onlyCompatible }, fields) {
       <div class="lv ${e.launcherId === view.selected?.launcherId ? 'is-selected' : ''} ${e.compatible ? '' : 'is-locked'}">
         <h3>${esc(l.name)}</h3>
         <div class="provider">${esc(l.provider)}</div>
-        ${l.liftoffMassKg ? `<div class="provider" title="${esc(l.sources?.liftoffMassKg ?? '')}">⚖ Pesa ${Math.round(l.liftoffMassKg / 1000).toLocaleString('es')} toneladas al despegar</div>` : ''}
         <div class="tags"><span class="tag class">${esc(l.class)}</span>${l.fictional ? '<span class="tag fict" title="Configuración parcialmente inventada">en parte inventado</span>' : ''}${e.compatible ? tagFor(e.launcherId) : ''}</div>
         <p>${esc(l.summary)}</p>
         <div class="capbar" role="img" aria-label="${esc(capText)}"><i class="${st.cls}" style="width:${usage}%"></i></div>
