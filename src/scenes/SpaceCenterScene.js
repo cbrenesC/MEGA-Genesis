@@ -91,12 +91,14 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.createTerminalDialog();
     this.preparation = new StationPreparation(this);
     this.completedGuideSteps = new Set(this.preparation.guideProgress);
+    this.guideBeacon = this.add.graphics().setDepth(1300);
+    this.updateGuideBeacon();
     this.input.keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'E', 'ESC']);
     if (this.inputsBlocked()) this.input.keyboard.disableGlobalCapture();
     const removeLanguageListener = onLanguageChange(() => {
       this.findInteractionTarget();
       if (this.terminalOpen && !this.terminalDialog.hidden) this.preparation.renderAgain();
-      this.renderCrewGuide();
+      this.updateGuideBeacon();
       this.updateZoneDisplay(true);
       if (this.activeNotice) this.doorNotice.textContent = t(this.activeNotice.key, this.activeNotice.params);
     });
@@ -112,7 +114,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       this.prompt?.classList.remove('visible');
       this.preparation?.destroy();
       this.terminalDialog?.remove();
-      this.guidePanel?.remove();
+      this.guideBeacon?.destroy();
       this.scale.off('resize', resizeCamera);
       this.events.off('pause', hideSignal);
     });
@@ -125,6 +127,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     const animate = !blocked && getPreferences().animations && !this.reducedMotion.matches;
     if (animate) this.motionClock += delta;
     this.crew.update(delta, animate, this.player, this.motionClock);
+    this.drawGuideBeacon(animate);
     if (blocked) {
       this.interactionSignal.hide();
       this.prompt.classList.remove('visible');
@@ -271,7 +274,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     if (!step || step.id !== id || !this.preparation.hasGuideConversation(step.talkKey)) return false;
     this.completedGuideSteps.add(id);
     this.preparation.completeGuideStep(id);
-    this.renderCrewGuide();
+    this.updateGuideBeacon();
     return true;
   }
 
@@ -286,61 +289,29 @@ export class SpaceCenterScene extends Phaser.Scene {
     if (step?.mission === mission && this.preparation.hasGuideConversation(step.talkKey)) this.completeGuideStep(step.id);
   }
 
-  createCrewGuide() {
-    const panel = document.createElement('aside');
-    panel.id = 'crew-guide';
-    panel.className = 'crew-guide';
-    panel.setAttribute('role', 'status');
-    panel.setAttribute('aria-live', 'polite');
-    panel.dataset.i18nAria = 'guide.title';
-    panel.innerHTML = `<div class="crew-guide__top"><span data-i18n="guide.title">Crew guide</span><span data-count></span></div>
-      <h2 data-name></h2><p data-task></p><p class="crew-guide__hint" data-hint></p>
-      <button type="button" data-guide-action data-i18n="guide.skip">Skip this step</button>`;
-    document.getElementById('app').append(panel);
-    localizeDOM(panel);
-    panel.querySelector('[data-guide-action]').addEventListener('click', () => {
-      const step = this.currentGuideStep();
-      if (step) {
-        this.completedGuideSteps.add(step.id);
-        this.preparation.completeGuideStep(step.id);
-        this.renderCrewGuide();
-      } else {
-        this.preparation.resetGuide();
-        this.completedGuideSteps.clear();
-        this.renderCrewGuide();
-      }
-    });
-    this.guidePanel = panel;
-    this.renderCrewGuide();
+  // Contextual wayfinding replaces the former Crew Guide HUD panel.
+  // The next crew member glows until spoken to; then the relevant station
+  // receives a pulsing outline and a marker directly in the game world.
+  updateGuideBeacon() {
+    const step = this.currentGuideStep();
+    const talked = step && this.preparation.hasGuideConversation(step.talkKey);
+    this.crew?.setGuideTarget(step && !talked ? step.crewId : null);
+    this.guideStation = talked ? STATIONS.find(station => station.id === step.stationId) : null;
+    this.guideBeacon?.clear();
   }
 
-  renderCrewGuide() {
-    if (!this.guidePanel) return;
-    const step = this.currentGuideStep();
-    const name = this.guidePanel.querySelector('[data-name]');
-    const task = this.guidePanel.querySelector('[data-task]');
-    const hint = this.guidePanel.querySelector('[data-hint]');
-    const count = this.guidePanel.querySelector('[data-count]');
-    const action = this.guidePanel.querySelector('[data-guide-action]');
-    if (step) {
-      const member = CREW.find(person => person.id === step.crewId);
-      count.textContent = t('guide.counter', { current: this.completedGuideSteps.size + 1, total: CREW_GUIDE.length });
-      name.textContent = member?.name ?? '';
-      task.textContent = t(step.taskKey);
-      const talked = this.preparation.hasGuideConversation(step.talkKey);
-      hint.textContent = talked
-        ? t('guide.openConsole', { console: t(step.stationNameKey) })
-        : t('guide.talkFirst', { name: member?.name ?? '' });
-      action.textContent = t('guide.skip');
-      this.crew?.setGuideTarget(step.crewId);
-    } else {
-      count.textContent = t('guide.complete.counter');
-      name.textContent = t('guide.complete.title');
-      task.textContent = t('guide.complete.task');
-      hint.textContent = t('guide.complete.hint');
-      action.textContent = t('guide.restart');
-      this.crew?.setGuideTarget(null);
-    }
+  drawGuideBeacon(animate) {
+    const station = this.guideStation;
+    if (!this.guideBeacon || !station) return;
+    const pulse = animate ? (Math.sin(this.motionClock / 240) + 1) / 2 : .7;
+    const graphics = this.guideBeacon;
+    graphics.clear();
+    graphics.lineStyle(3, 0xffdf79, .6 + pulse * .4);
+    graphics.strokeRoundedRect(station.x - 77, station.y - 35, 154, 98, 12);
+    graphics.lineStyle(2, 0xffffff, .3 + pulse * .5);
+    graphics.strokeRoundedRect(station.x - 82, station.y - 40, 164, 108, 14);
+    graphics.fillStyle(0xffdf79, .65 + pulse * .35);
+    graphics.fillTriangle(station.x - 9, station.y - 60, station.x + 9, station.y - 60, station.x, station.y - 47);
   }
 
   createTerminalDialog() {
@@ -427,7 +398,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     dialog.hidden=false;
     dialog.querySelector('.mission-terminal__panel').scrollTop = 0;
     void this.preparation.render(item);
-    this.renderCrewGuide();
+    this.updateGuideBeacon();
     dialog.querySelector('[data-close]').focus({ preventScroll: true });
   }
   closeTerminal() {
