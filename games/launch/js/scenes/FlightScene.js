@@ -104,6 +104,7 @@ export class FlightScene extends Phaser.Scene {
       separate: () => this.doSeparate(),
       fairing: () => this.doFairing(),
       map: () => this.toggleMap(),
+      zoom: (dir) => this.zoom(dir),
       pause: () => this.togglePause(),
       finish: () => this.finish(),
       jumpApo: () => this.doJump(),
@@ -120,6 +121,30 @@ export class FlightScene extends Phaser.Scene {
     this.hud.setPhase('pad');
     this.onEsc = (ev) => { if (ev.key === 'Escape') this.togglePause(); };
     window.addEventListener('keydown', this.onEsc);
+    // zoom con la rueda del mouse y con dos dedos (pellizco), en la vista de vuelo y en el mapa
+    app.mapZoom = 1;
+    this.onWheel = (ev) => {
+      if (ev.target.closest?.('.more, .overlay, .ui, .popover')) return;
+      ev.preventDefault();
+      this.zoomBy(Math.exp(clamp(ev.deltaY, -120, 120) * 0.0025));
+    };
+    window.addEventListener('wheel', this.onWheel, { passive: false });
+    this.touches = new Map(); this.pinchDist = 0;
+    const gameEl = document.getElementById('game');
+    const dist = () => { const [a, b] = [...this.touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    this.onPtrDown = (ev) => { if (ev.pointerType !== 'touch') return; this.touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); if (this.touches.size === 2) this.pinchDist = dist(); };
+    this.onPtrMove = (ev) => {
+      if (!this.touches.has(ev.pointerId)) return;
+      this.touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (this.touches.size === 2 && this.pinchDist > 0) { const d = dist(); if (d > 0) { this.zoomBy(this.pinchDist / d); this.pinchDist = d; } }
+    };
+    this.onPtrUp = (ev) => { this.touches.delete(ev.pointerId); this.pinchDist = 0; };
+    this.gameEl = gameEl;
+    gameEl.style.touchAction = 'none';
+    gameEl.addEventListener('pointerdown', this.onPtrDown);
+    window.addEventListener('pointermove', this.onPtrMove);
+    window.addEventListener('pointerup', this.onPtrUp);
+    window.addEventListener('pointercancel', this.onPtrUp);
     this.events.once('shutdown', () => this.cleanup());
 
     this.begin();
@@ -129,6 +154,11 @@ export class FlightScene extends Phaser.Scene {
 
   cleanup() {
     window.removeEventListener('keydown', this.onEsc);
+    window.removeEventListener('wheel', this.onWheel);
+    this.gameEl?.removeEventListener('pointerdown', this.onPtrDown);
+    window.removeEventListener('pointermove', this.onPtrMove);
+    window.removeEventListener('pointerup', this.onPtrUp);
+    window.removeEventListener('pointercancel', this.onPtrUp);
     this.scale.off('resize', this.onResize);
     this.hud?.destroy();
     this.view?.destroy();
@@ -162,6 +192,18 @@ export class FlightScene extends Phaser.Scene {
       document.getElementById('p-resume').onclick = () => this.togglePause();
       document.getElementById('p-exit').onclick = () => { this.paused = false; ov.hidden = true; app.sim = null; app.nav.exit(); };
     } else { ov.hidden = true; ov.innerHTML = ''; }
+  }
+
+  /** Zoom por pasos (botones y teclas + / −; 0 vuelve a la vista normal). */
+  zoom(dir) {
+    if (dir === 0) { if (this.mapOpen) app.mapZoom = 1; else this.cam.resetZoom(); return; }
+    this.zoomBy(dir > 0 ? 1 / CAMERA.zoomStep : CAMERA.zoomStep);
+  }
+
+  /** Zoom continuo: f > 1 aleja, f < 1 acerca. Actúa sobre el mapa si está abierto; si no, sobre la cámara del vuelo. */
+  zoomBy(f) {
+    if (this.mapOpen) app.mapZoom = clamp((app.mapZoom ?? 1) / f, 0.25, 40);
+    else this.cam.zoomFactor(f);
   }
 
   toggleMap() {
@@ -532,7 +574,7 @@ export class FlightScene extends Phaser.Scene {
       stage: Math.min(sim.stage, this.vehicle.stages.length), fairing: sim.fairing,
       throttle, engineOn: Boolean(this.ignition) || (sim.status === 'flying' && !sim.engineOut),
       betaShown, flicker: Math.random(), airFade: pressureRatio(alt),
-      hideRocket: this.exploded, focus: this.cam.focusT < Infinity,
+      hideRocket: this.exploded, focus: this.cam.focusT < Infinity, zoomOut: this.cam.zoomOut,
       debris: this.debris, particles: this.particles, rx: sim.x, ry: sim.y,
       flowX, flowY, flowPhaseX: this.flow.px, flowPhaseY: this.flow.py,
       streakAlpha: clamp(q / 2500, 0, 1) * smooth(20, 90, Math.hypot(flowX, flowY)),

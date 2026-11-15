@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { PHYS, FlightSim, vehicleFor, runAutopilot, orbitElements, circularSpeed, withPilotMargin, orbitGoalMet, COAST_DV } from '../js/flight.js';
 import {
   phaseOf, cameraScale, anchorFraction, FlightCamera, skyProgress, makeDebris, stepDebris, cullReason,
-  angleFromVertical, toCameraFrame, groundDistance, thrustAccelG, focusEnvelope,
+  angleFromVertical, toCameraFrame, groundDistance, thrustAccelG, focusEnvelope, CAMERA,
 } from '../js/world.js';
 
 const load = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../data/${name}.json`, import.meta.url)), 'utf8'));
@@ -81,14 +81,12 @@ test('4 · el suelo se aleja de forma continua (la escala de la cámara nunca sa
   let last = 0;
   for (let h = 1; h < 3000; h *= 1.1) { assert.ok(D(h) >= last - 1e-9, 'el suelo solo se aleja'); last = D(h); }
   assert.ok(D(100) > 40 && D(400) > 0.9 * 72, 'a los 400 m el suelo ya está lejos');
-  assert.ok(D(20000) > 60 && D(1e6) < D(20000) && D(1e6) > 25, 'el suelo queda a una distancia razonable en el espacio');
   // la plataforma se achica: escala relativa 1/mpp
   assert.ok(cameraScale(0) / cameraScale(500) < 0.25);
-  // el radio del planeta en pantalla se achica con la altura (la Tierra "se aleja") y la curva se cierra
-  const rPx = (h) => PHYS.RE / cameraScale(h);
-  assert.ok(rPx(100000) > rPx(200000) && rPx(200000) > rPx(1000000) && rPx(1000000) > rPx(20000000));
-  assert.ok(rPx(400000) < 900 && rPx(400000) > 300 && rPx(100000) > 1500 && rPx(1e6) < 450, 'la curva del planeta se ve y se cierra');
-  assert.ok(rPx(384400000) < 30, 'a la distancia de la Luna la Tierra es chica');
+  // en el espacio la escala queda fija y la Tierra sale de la pantalla (queda muy por debajo del cohete)
+  assert.equal(cameraScale(200000), cameraScale(CAMERA.freezeAlt));
+  assert.ok(D(30000) < 80, 'en la atmósfera todavía se ve el suelo');
+  assert.ok(D(100000) > 140 && D(250000) > 350, 'en el espacio la Tierra ya no está en pantalla');
   assert.ok(anchorFraction(0) > anchorFraction(3000));
 });
 
@@ -293,4 +291,24 @@ test('21 · órbita lista: también vale una órbita redonda un poco más baja (
   assert.equal(orbitGoalMet(el(232, 238), 250000), true, 'redonda, un poco más abajo');
   assert.equal(orbitGoalMet(el(160, 238), 250000), false, 'todavía ovalada');
   assert.equal(orbitGoalMet(el(120, 125), 250000), false, 'redonda pero dentro de la atmósfera');
+});
+
+test('22 · zoom del jugador: suave, con límites, y permite volver a ver la Tierra entera desde el espacio', () => {
+  const cam = new FlightCamera(72);
+  cam.reset(250000);
+  const base = cam.mpp;
+  let prev = cam.mpp;
+  for (let i = 0; i < 40; i++) { // alejar todo lo que se pueda, un paso cada 0,2 s
+    cam.zoom(-1);
+    for (let k = 0; k < 12; k++) { cam.update(250000, 0, 1 / 60); assert.ok(cam.mpp / prev < 1.08 && cam.mpp >= prev - 1e-9, 'sin saltos'); prev = cam.mpp; }
+  }
+  for (let i = 0; i < 300; i++) cam.update(250000, 0, 1 / 60);
+  assert.ok(Math.abs(cam.mpp - CAMERA.maxMpp) / CAMERA.maxMpp < 1e-3, 'tope: la Tierra entera cabe en pantalla');
+  assert.ok(PHYS.RE / cam.mpp < 40 && cam.zoomOut > 100);
+  for (let i = 0; i < 80; i++) cam.zoom(1); // acercar todo
+  for (let i = 0; i < 300; i++) cam.update(250000, 0, 1 / 60);
+  assert.ok(Math.abs(cam.mpp - CAMERA.mpp0) < 1e-3, 'tope: el cohete de cerca');
+  cam.resetZoom();
+  for (let i = 0; i < 300; i++) cam.update(250000, 0, 1 / 60);
+  assert.ok(Math.abs(cam.mpp - base) / base < 1e-3, 'vuelve a la vista normal');
 });

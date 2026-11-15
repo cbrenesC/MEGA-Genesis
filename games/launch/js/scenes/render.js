@@ -207,13 +207,16 @@ export class FlightRenderer {
     const R = PHYS.RE;
     const drop = (Rr, s) => { const q = Rr * Rr - s * s; return q <= 0 ? Infinity : (s * s) / (Rr + Math.sqrt(q)); };
     const yAt = (x, hs) => { const s = (x - cx) * mpp; const d = drop(R + hs, s); return d === Infinity ? Infinity : baseY + (alt - hs + d) / mpp; };
+    // borde de abajo del planeta en esa columna (sólo importa con la cámara muy alejada: la Tierra se ve como un disco)
+    const yEnd = (x, hs, top) => { const s = (x - cx) * mpp; const q = (R + hs) * (R + hs) - s * s; return q <= 0 ? top : Math.min(H, top + (2 * Math.sqrt(q)) / mpp); };
     const sky = skyProgress(alt);
     // atmósfera: dos velos azules sobre el horizonte, sólo cuando se ve el planeta desde arriba
     if (alt > 5000) {
-      const a = 1 - smooth(80000, 4e6, alt) * 0.5;
+      // desde el espacio, con la vista normal, la atmósfera ya no se dibuja; vuelve al alejar la cámara
+      const a = Math.max(1 - smooth(60000, 95000, alt), smooth(1.3, 4, S.zoomOut ?? 1));
       for (const [hs, col, al] of [[90000, '#4f9bff', 0.16], [38000, '#8fd0ff', 0.2]]) {
         ctx.fillStyle = col; ctx.globalAlpha = al * a;
-        for (let x = 0; x < W; x++) { const y = yAt(x, hs); if (y < H) ctx.fillRect(x, Math.max(0, Math.floor(y)), 1, H); }
+        if (a > 0.01) for (let x = 0; x < W; x++) { const y = yAt(x, hs); if (y < H) { const y0 = Math.max(0, Math.floor(y)); ctx.fillRect(x, y0, 1, Math.max(0, Math.ceil(yEnd(x, hs, y)) - y0)); } }
       }
       ctx.globalAlpha = 1;
     }
@@ -239,7 +242,8 @@ export class FlightRenderer {
       const dry = Math.sin(u * 9 + 4) > 0.35;
       const base = land ? (dry ? lerpColor(0x8a7a48, 0x6e6a52, sky) : lerpColor(0x3c8a46, 0x36704a, sky)) : lerpColor(0x2368b0, 0x1d5496, sky);
       ctx.fillStyle = css(base);
-      ctx.fillRect(x, yi, 1, H - yi);
+      const yb = Math.ceil(yEnd(x, 0, y)); if (yb <= 0) continue;
+      ctx.fillRect(x, yi, 1, Math.max(1, yb - yi));
       // borde: hierba o neblina de la atmósfera
       const rim = alt > 12000 ? '#bfe3ff' : land ? '#79d36b' : '#8fd0ff';
       ctx.fillStyle = rim; ctx.fillRect(x, yi, 1, 1);
@@ -257,7 +261,9 @@ export class FlightRenderer {
     const cell = 4;
     for (let x = 0; x < W; x += cell) {
       const y0 = yAt(x + 1, 0); if (y0 >= H) continue;
-      for (let dy = 2; dy < depthPx; dy += cell) {
+      const s0 = (x + 1 - cx) * mpp; const q0 = PHYS.RE * PHYS.RE - s0 * s0;
+      const maxDy = q0 <= 0 ? 0 : (2 * Math.sqrt(q0)) / mpp - cell;
+      for (let dy = 2; dy < depthPx && dy < maxDy; dy += cell) {
         const yy = Math.floor(y0) + dy; if (yy >= H) break;
         // coordenadas del suelo (marco que gira con la Tierra) para que el dibujo se mueva con el suelo
         const e = Math.floor((S.groundS + (x - cx) * mpp) / (cell * mpp * 3));
@@ -364,7 +370,18 @@ export class FlightRenderer {
     const spr = rocketSprite(this.vehicle, S.stage, S.fairing);
     const centerY = Math.round(baseY - (spr.base - spr.cy));
     const ang = S.betaShown;
+    // con la cámara muy alejada el cohete se achica y termina siendo una marca (si no, taparía la Tierra)
+    const zo = S.zoomOut ?? 1;
+    const f = zo <= 2.5 ? 1 : Math.max(0.2, 1 / Math.sqrt(zo / 2.5));
+    if (f < 0.32) {
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 1, baseY - 2, 3, 3);
+      ctx.fillStyle = '#73ddcf';
+      for (const [dx, dy] of [[-4, -1], [-4, 0], [-4, 1], [4, -1], [4, 0], [4, 1], [-1, -4], [0, -4], [1, -4], [-1, 4], [0, 4], [1, 4]]) ctx.fillRect(cx + dx, baseY - 1 + dy, 1, 1);
+      if (S.engineOn && S.throttle > 0.03) { ctx.fillStyle = '#ffd24a'; ctx.fillRect(cx - Math.round(Math.sin(ang) * 3), baseY - 1 + Math.round(Math.cos(ang) * 3), 1, 1); }
+      return;
+    }
     ctx.save();
+    if (f < 1) { ctx.translate(cx, baseY); ctx.scale(f, f); ctx.translate(-cx, -baseY); }
     ctx.translate(cx, centerY);
     if (Math.abs(ang) > 0.004) ctx.rotate(ang);
     // llama (detrás del cohete): sale de la tobera de la etapa que está encendida

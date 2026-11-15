@@ -617,3 +617,10 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - **Guiado**: quemada final `hold` (casi horizontal, levanta la punta lo justo para no caer) e inserción directa (`coastDv`) cuando el ascenso quedó empinado. El juego prueba ambas por misión (`flow.js`); la calibración usa la forma clásica y no cambió.
 - **Margen de pilotaje** (`data/flight.json → calibration.pilotMargin`): fácil 1,4 · normal 1,25 · difícil 1,12. Las etapas superiores rinden k veces más con el mismo empuje; la primera etapa no cambia.
 - **Pruebas**: `tests/world.test.mjs` 18–21. Corridas con JavaScriptCore (sin Node). No probado dentro del juego: la página ahora necesita Vite.
+
+## V3.2 · Cámara tipo Space Flight Simulator: Tierra fuera de vista en el espacio y zoom (módulo LAUNCH)
+
+- **Escala**: la cámara se aleja con la altura sólo hasta 45 km (`CAMERA.freezeAlt`); después la escala queda fija y la Tierra sale de la pantalla. En el espacio, con la vista normal, sólo se ven el cohete y las estrellas.
+- **Zoom en el vuelo**: rueda del mouse, pellizco con dos dedos, botones − / + del HUD y teclas − / + (0 = vista normal). Desde "cohete de cerca" hasta "la Tierra entera" (se dibuja como disco completo; el cohete pasa a ser una marca).
+- **Zoom en el mapa**: los mismos controles; al acercar, el mapa se centra en el cohete (0,25× a 40×).
+- **Pruebas**: `tests/world.test.mjs` 4 y 22. No probado dentro del juego (requiere Vite/Node).
