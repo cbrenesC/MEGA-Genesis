@@ -83,6 +83,7 @@ export class Hud {
           <button data-warp="1" class="is-on" title="Tiempo normal (1)">1×</button><button data-warp="2" title="Doble de rápido (2)">2×</button><button data-warp="5" title="Cinco veces más rápido (3)">5×</button>
           <button id="b-jump" title="Saltar hasta el punto más alto de tu órbita (J)" hidden>⏩ Saltar</button>
         </div>
+        <div class="zoom" role="group" aria-label="Zoom de la cámara"><button id="b-zoom-out" title="Alejar la cámara (−)">−</button><button id="b-zoom-in" title="Acercar la cámara (+)">+</button></div>
         <button id="b-map" class="tool" title="Ver tu órbita desde arriba (M)">🌍 <span>Mapa</span></button>
         ${difficulty === 'facil' ? '<button id="b-auto" class="tool" aria-pressed="false" title="Que el piloto automático vuele por ti (P)">🤖 <span class="tl">Piloto automático:</span> <b class="auto-state">no</b></button>' : ''}
         <button id="b-pause" class="tool" title="Pausa (Esc)">⏸</button>
@@ -132,6 +133,8 @@ export class Hud {
     $('#b-sep', root).addEventListener('click', () => this.h.separate());
     $('#b-fairing', root).addEventListener('click', () => this.h.fairing());
     $('#b-map', root).addEventListener('click', () => this.h.map());
+    $('#b-zoom-in', root).addEventListener('click', () => this.h.zoom?.(1));
+    $('#b-zoom-out', root).addEventListener('click', () => this.h.zoom?.(-1));
     $('#b-pause', root).addEventListener('click', () => this.h.pause());
     $('#b-finish', root).addEventListener('click', () => this.h.finish());
     $('#b-jump', root).addEventListener('click', () => this.h.jumpApo());
@@ -168,6 +171,9 @@ export class Hud {
       else if (k === ' ') { this.h.separate(); ev.preventDefault(); }
       else if (k === 'f' || k === 'F') this.h.fairing();
       else if (k === 'm' || k === 'M') this.h.map();
+      else if (k === '+' || k === '=') this.h.zoom?.(1);
+      else if (k === '-' || k === '_') this.h.zoom?.(-1);
+      else if (k === '0') this.h.zoom?.(0);
       else if (k === 'z' || k === 'Z') this.setThrottle(1);
       else if (k === 'x' || k === 'X') this.setThrottle(0);
       else if (k === 'r' || k === 'R') this.togglePrograde();

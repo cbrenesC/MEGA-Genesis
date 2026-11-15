@@ -41,30 +41,24 @@ export function phaseOf(alt, { grounded = false, prev = null } = {}) {
 // Cámara: escala (m por píxel de pantalla) en función de la altura
 // ---------------------------------------------------------------------------
 
-// La distancia en pantalla entre el cohete y el suelo es D(h):
-//   · al despegar crece rápido (el suelo se aleja de verdad y la plataforma se achica): DMAX·(1 − e^(−h/h0));
-//   · a partir de ~30 km baja hasta casi la mitad: la cámara se acerca al planeta, su curva se cierra y se ve el borde;
-//   · mucho más lejos (Luna, escape) vuelve a subir despacio y la Tierra queda como una esfera chica y distante.
-// De ahí sale la escala (metros por píxel) = h / D(h): continua y estrictamente creciente.
-export const CAMERA = { mpp0: 1.4, dMaxFrac: 0.36 };
+// Como en Space Flight Simulator: la cámara sigue al cohete y la Tierra se ve sólo mientras está cerca.
+//   · al despegar el suelo se aleja de verdad y la plataforma se achica: D(h) = DMAX·(1 − e^(−h/h0)) píxeles bajo el cohete;
+//   · la cámara se va alejando con la altura hasta SCALE_FREEZE_ALT; de ahí en adelante la escala queda fija,
+//     así que la Tierra sigue bajando y sale de la pantalla: en el espacio sólo se ven el cohete y las estrellas;
+//   · para volver a ver el planeta (entero, como una esfera) el jugador aleja la cámara con el zoom.
+// Escala (metros por píxel) = h / D(h): continua y nunca decrece.
+export const CAMERA = { mpp0: 1.4, dMaxFrac: 0.36, freezeAlt: 45000, maxMpp: PHYS.RE / 60, zoomStep: 1.35 };
 
-const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-
-/** Píxeles (del lienzo pequeño) entre la base del cohete y el suelo según la altura. `dMax` = máximo al subir por la atmósfera. */
-export function groundGapPx(alt, dMax = 72, mpp0 = CAMERA.mpp0) {
-  const h = Math.max(0, alt);
-  const h0 = mpp0 * dMax;
-  const base = dMax * (1 - Math.exp(-h / h0));
-  const orbit = 1 - 0.55 * smoothstep(30000, 150000, h);
-  const far = 1 + 0.5 * smoothstep(3e5, 8e6, h);
-  return base * orbit * far;
+/** Metros por píxel del lienzo pequeño a esa altura (sin el zoom del jugador). */
+export function cameraScale(alt, dMax = 72, mpp0 = CAMERA.mpp0) {
+  const h = Math.min(Math.max(0, alt), CAMERA.freezeAlt);
+  if (h < 1e-3) return mpp0;
+  return h / (dMax * (1 - Math.exp(-h / (mpp0 * dMax))));
 }
 
-/** Metros por píxel del lienzo pequeño a esa altura. */
-export function cameraScale(alt, dMax = 72, mpp0 = CAMERA.mpp0) {
-  const h = Math.max(0, alt);
-  if (h < 1e-3) return mpp0;
-  return h / groundGapPx(h, dMax, mpp0);
+/** Píxeles (del lienzo pequeño) entre la base del cohete y el suelo según la altura, sin zoom del jugador. */
+export function groundGapPx(alt, dMax = 72, mpp0 = CAMERA.mpp0) {
+  return Math.max(0, alt) / cameraScale(alt, dMax, mpp0);
 }
 
 /** Dónde está el cohete en la pantalla (fracción de la altura): al despegar abajo; luego sube un poco. */
@@ -72,6 +66,18 @@ export function anchorFraction(alt) {
   const t = clamp(alt / 1500, 0, 1);
   const s = t * t * (3 - 2 * t);
   return 0.8 - 0.26 * s;
+}
+
+/**
+ * Altura en pantalla (px) de la base del cohete. Normalmente depende sólo de la altura de vuelo; cuando la cámara
+ * está tan alejada que la Tierra cabe entera, el encuadre pasa suavemente a centrar el planeta.
+ */
+export function anchorY(alt, mpp, viewH) {
+  const normal = viewH * anchorFraction(alt);
+  const rPx = PHYS.RE / mpp;
+  const t = clamp((viewH * 2.5 - rPx) / (viewH * 2.0), 0, 1);
+  const k = t * t * (3 - 2 * t);
+  return normal + (viewH / 2 - (PHYS.RE + Math.max(0, alt)) / mpp - normal) * k;
 }
 
 const FOCUS_IN = 0.7; const FOCUS_HOLD = 1.6; const FOCUS_OUT = 2.4; const FOCUS_TOTAL = FOCUS_IN + FOCUS_HOLD + FOCUS_OUT;
@@ -89,13 +95,27 @@ export function focusEnvelope(t) {
  * y guarda una pequeña "inercia" vertical (el cohete se adelanta un poco al acelerar fuerte).
  */
 export class FlightCamera {
-  constructor(dMax = 72) { this.dMax = dMax; this.logMpp = Math.log(cameraScale(0, dMax)); this.lag = 0; this.shake = 0; this.focusT = Infinity; this.focusK = 1; }
+  constructor(dMax = 72) { this.dMax = dMax; this.logMpp = Math.log(cameraScale(0, dMax)); this.lag = 0; this.shake = 0; this.focusT = Infinity; this.focusK = 1; this.userLog = 0; this.userLogTarget = 0; }
 
   /** Salta a una altura sin suavizar (al reiniciar). */
   reset(alt = 0) { this.logMpp = Math.log(cameraScale(alt, this.dMax)); this.lag = 0; this.shake = 0; this.focusT = Infinity; }
 
   /** Metros por píxel que se dibujan: la escala por altura, con un acercamiento suave al soltar una pieza. */
-  get mpp() { return Math.max(CAMERA.mpp0, Math.exp(this.logMpp - Math.log(this.focusK) * focusEnvelope(this.focusT))); }
+  get mpp() { return Math.max(CAMERA.mpp0, Math.exp(this.logMpp + this.userLog - Math.log(this.focusK) * focusEnvelope(this.focusT))); }
+
+  /** Zoom del jugador: dir > 0 acerca, dir < 0 aleja (pasos), o un factor exacto con zoomFactor(). Siempre suave. */
+  zoom(dir) { this.zoomFactor(dir > 0 ? 1 / CAMERA.zoomStep : CAMERA.zoomStep); }
+
+  /** Multiplica la escala por `f` (f > 1 aleja). Se limita entre "cohete de cerca" y "la Tierra entera en pantalla". */
+  zoomFactor(f) {
+    const lo = Math.log(CAMERA.mpp0) - this.logMpp; const hi = Math.log(CAMERA.maxMpp) - this.logMpp;
+    this.userLogTarget = clamp(this.userLogTarget + Math.log(f), Math.min(lo, 0), Math.max(hi, 0));
+  }
+
+  resetZoom() { this.userLogTarget = 0; }
+
+  /** Cuánto alejó la cámara el jugador (1 = sin zoom, > 1 alejado). */
+  get zoomOut() { return Math.exp(this.userLog); }
 
   /** Acerca la cámara (factor k, p. ej. 6×) para que se vea cómo la pieza se aleja; vuelve sola, sin saltos. */
   kickFocus(k = 6) { this.focusT = 0; this.focusK = Math.max(1, k); }
@@ -108,6 +128,7 @@ export class FlightCamera {
     const lagTarget = clamp(accelG, 0, 4) * 0.9; // píxeles de pantalla que se queda atrás el cohete
     this.lag += (lagTarget - this.lag) * (1 - Math.exp(-dt * 3));
     this.shake = Math.max(0, this.shake - dt * 1.6);
+    this.userLog += (this.userLogTarget - this.userLog) * (1 - Math.exp(-dt * 10));
     if (this.focusT < FOCUS_TOTAL) this.focusT += dt; else this.focusT = Infinity;
   }
 
@@ -154,11 +175,13 @@ export const DEBRIS_BALLISTIC = { stage: 2600, fairing: 90 };
 export function makeDebris(sep, opts = {}) {
   const [ax, ay] = sep.axis;
   let vx = sep.vx; let vy = sep.vy;
-  if (sep.kind === 'fairing' && opts.side) {
-    // las mitades se abren hacia los lados (perpendicular al eje) con un poco de empuje hacia atrás
+  if (opts.side) {
+    // las mitades de la cofia y los propulsores laterales se abren hacia los lados (perpendicular al eje)
     const px = ay; const py = -ax; // "derecha" del eje
-    vx += opts.side * PHYS.FAIRING_SPEED * px - 0.35 * ax;
-    vy += opts.side * PHYS.FAIRING_SPEED * py - 0.35 * ay;
+    const lat = sep.kind === 'fairing' ? PHYS.FAIRING_SPEED : PHYS.SEP_SPEED;
+    const back = sep.kind === 'fairing' ? 0.35 : 0;
+    vx += opts.side * lat * px - back * ax;
+    vy += opts.side * lat * py - back * ay;
   }
   return {
     id: opts.id ?? 0,

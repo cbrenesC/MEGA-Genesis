@@ -35,19 +35,26 @@ export class MapScene extends Phaser.Scene {
     const tAlt = sim.targetAltKm * 1000;
     const farthest = Math.max(el.hyper || el.ra > 8e7 ? R * 4 : el.ra, R + tAlt, sim.r, R * 1.4);
     const cx = W * 0.5; const cy = H * 0.54;
-    const scale = (Math.min(W * 0.46, H * 0.4)) / Math.min(farthest * 1.08, R * 6.5);
-    const P = (x, y) => [cx + x * scale, cy - y * scale];
+    // zoom del jugador (rueda, pellizco o botones): al acercar, el mapa se centra en el cohete
+    const z = app.mapZoom ?? 1;
+    this.zoomShown = (this.zoomShown ?? z) + (z - (this.zoomShown ?? z)) * 0.25;
+    const zs = this.zoomShown;
+    const scale = ((Math.min(W * 0.46, H * 0.4)) / Math.min(farthest * 1.08, R * 6.5)) * zs;
+    const ft = Math.min(1, Math.max(0, (zs - 1.15) / 1.6)); const follow = ft * ft * (3 - 2 * ft);
+    const ox = sim.x * follow; const oy = sim.y * follow;
+    const P = (x, y) => [cx + (x - ox) * scale, cy - (y - oy) * scale];
+    const [ex, ey] = P(0, 0); // centro de la Tierra en pantalla
 
     // Tierra y atmósfera
-    for (let i = 4; i >= 0; i--) { g.fillStyle(0x4aa8ff, 0.05 * (5 - i)); g.fillCircle(cx, cy, (R + 100000 + i * 40000) * scale); }
-    g.fillStyle(0x1d5da8, 1); g.fillCircle(cx, cy, R * scale);
-    g.fillStyle(0x2f7a46, 0.9); g.fillEllipse(cx - R * scale * 0.25, cy - R * scale * 0.2, R * scale * 0.55, R * scale * 0.35);
-    g.fillEllipse(cx + R * scale * 0.3, cy + R * scale * 0.3, R * scale * 0.4, R * scale * 0.3);
-    g.lineStyle(2, 0x9fdcff, 0.9); g.strokeCircle(cx, cy, R * scale);
+    for (let i = 4; i >= 0; i--) { g.fillStyle(0x4aa8ff, 0.05 * (5 - i)); g.fillCircle(ex, ey, (R + 100000 + i * 40000) * scale); }
+    g.fillStyle(0x1d5da8, 1); g.fillCircle(ex, ey, R * scale);
+    g.fillStyle(0x2f7a46, 0.9); g.fillEllipse(ex - R * scale * 0.25, ey - R * scale * 0.2, R * scale * 0.55, R * scale * 0.35);
+    g.fillEllipse(ex + R * scale * 0.3, ey + R * scale * 0.3, R * scale * 0.4, R * scale * 0.3);
+    g.lineStyle(2, 0x9fdcff, 0.9); g.strokeCircle(ex, ey, R * scale);
     // límite del aire (150 km)
-    g.lineStyle(1, 0xffd24a, 0.6); this.dashed(g, cx, cy, (R + PHYS.PERI_OK) * scale);
+    g.lineStyle(1, 0xffd24a, 0.6); this.dashed(g, ex, ey, (R + PHYS.PERI_OK) * scale);
     // órbita objetivo
-    g.lineStyle(2, 0x73ddcf, 0.8); this.dashed(g, cx, cy, (R + tAlt) * scale);
+    g.lineStyle(2, 0x73ddcf, 0.8); this.dashed(g, ex, ey, (R + tAlt) * scale);
     const [tx, ty] = P(-(R + tAlt) * Math.SQRT1_2, -(R + tAlt) * Math.SQRT1_2);
     this.setLabel('target', tx - 10, ty + 24, `Órbita pedida: ${Math.round(tAlt / 1000)} km`);
 

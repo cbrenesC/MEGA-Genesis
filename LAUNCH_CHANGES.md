@@ -617,3 +617,17 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - **Guiado**: quemada final `hold` (casi horizontal, levanta la punta lo justo para no caer) e inserción directa (`coastDv`) cuando el ascenso quedó empinado. El juego prueba ambas por misión (`flow.js`); la calibración usa la forma clásica y no cambió.
 - **Margen de pilotaje** (`data/flight.json → calibration.pilotMargin`): fácil 1,4 · normal 1,25 · difícil 1,12. Las etapas superiores rinden k veces más con el mismo empuje; la primera etapa no cambia.
 - **Pruebas**: `tests/world.test.mjs` 18–21. Corridas con JavaScriptCore (sin Node). No probado dentro del juego: la página ahora necesita Vite.
+
+## V3.2 · Cámara tipo Space Flight Simulator: Tierra fuera de vista en el espacio y zoom (módulo LAUNCH)
+
+- **Escala**: la cámara se aleja con la altura sólo hasta 45 km (`CAMERA.freezeAlt`); después la escala queda fija y la Tierra sale de la pantalla. En el espacio, con la vista normal, sólo se ven el cohete y las estrellas.
+- **Zoom en el vuelo**: rueda del mouse, pellizco con dos dedos, botones − / + del HUD y teclas − / + (0 = vista normal). Desde "cohete de cerca" hasta "la Tierra entera" (se dibuja como disco completo; el cohete pasa a ser una marca).
+- **Zoom en el mapa**: los mismos controles; al acercar, el mapa se centra en el cohete (0,25× a 40×).
+- **Pruebas**: `tests/world.test.mjs` 4 y 22. No probado dentro del juego (requiere Vite/Node).
+
+## V3.3 · Cohetes reconocibles, Tierra real y complejo de lanzamiento (módulo LAUNCH)
+
+- **Cada cohete es distinto** (`rocketArt.js → STYLES`): Falcon 9 (inter-etapa negra, patas, aletas de rejilla), Falcon Heavy (tres núcleos), Electron (negro), Alpha (carbono + cofia blanca), Pegasus (ala delta), PSLV (franjas granate y propulsores pequeños), Vega C (cofia ancha), Ariane 6 (propulsores sólidos), SLS (núcleo naranja, propulsores blancos, torre de escape). En Falcon Heavy, Ariane 6 y SLS la «etapa 0» se dibuja como propulsores laterales y al separarse salen dos piezas, una por lado.
+- **Tierra real** (`scenes/earth.js`): mapa del mundo aproximado (franjas de 5°) con continentes, desiertos, hielo y nubes. El globo se orienta para que el sitio de lanzamiento real quede bajo la plataforma y gira con el suelo. Con la cámara al máximo, el encuadre centra el planeta (`anchorY`).
+- **Sitio de lanzamiento**: losa y foso de llamas, torre de servicio con brazos, cuatro torres pararrayos con cables, torre de agua, tanques, hangar; mar y playa al este; paisaje por sitio (Florida llana con el edificio de ensamblaje, Vandenberg seco con cerros, Kourou selva, Kwajalein arena).
+- **Pruebas**: `tests/world.test.mjs` 23 (mapa y orientación). Arte revisado con una página de prueba temporal en el navegador; no probado dentro del juego (requiere Vite/Node).

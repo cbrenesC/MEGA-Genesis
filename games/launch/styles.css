@@ -266,6 +266,8 @@ pre.json { max-height: 320px; overflow: auto; background: #061020; border: 1px s
 .more-body .fuel { grid-column: 1 / -1; }
 .hud-tools { display: flex; gap: 6px; flex-wrap: wrap; align-content: flex-start; justify-content: flex-end; }
 .warp { display: inline-flex; gap: 4px; padding: 3px; background: var(--hp); border: 2px solid #28445a; }
+.zoom { display: inline-flex; gap: 4px; padding: 3px; background: var(--hp); border: 2px solid #28445a; }
+.zoom button { min-height: 40px; min-width: 40px; padding: 4px 8px; font-size: 1.2rem; font-weight: 800; line-height: 1; background: var(--hp); border: 2px solid #28445a; }
 .warp button, .tool { min-height: 40px; padding: 4px 10px; background: var(--hp); border: 2px solid #28445a; }
 .warp button.is-on, .tool.is-on { background: var(--cyan); color: #092029; border-color: var(--cyan); font-weight: 800; }
 .hud-event { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); padding: 5px 18px; font-size: 1rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; background: rgba(6, 13, 26, .92); border: 2px solid var(--cyan); color: var(--cyan-2); box-shadow: 4px 4px 0 rgba(0,0,0,.45); pointer-events: none; opacity: 0; }

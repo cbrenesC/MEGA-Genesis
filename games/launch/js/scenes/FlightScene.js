@@ -13,17 +13,17 @@ import Phaser from 'phaser';
 import {
   PHYS, DEG, DEST, applyAutopilot, autopilotStep, orbitGoalMet, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
 } from '../flight.js';
-import { app, inputs, reducedMotion } from '../store.js';
+import { app, inputs, current, reducedMotion } from '../store.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
 import { toast } from '../ui.js';
 import {
-  phaseOf, PHASE_LABEL, FlightCamera, anchorFraction, CAMERA, makeDebris, stepDebris, cullReason, groundDistance, thrustAccelG,
+  phaseOf, PHASE_LABEL, FlightCamera, anchorY, CAMERA, makeDebris, stepDebris, cullReason, groundDistance, thrustAccelG,
 } from '../world.js';
 import { ParticleSystem } from '../particles.js';
 import { PixelView, FlightRenderer } from './render.js';
-import { stageSprite, fairingSprite, rocketDims } from './rocketArt.js';
+import { stageDebris, fairingSprite, rocketDims } from './rocketArt.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -92,7 +92,7 @@ export class FlightScene extends Phaser.Scene {
     // lienzo pixel art + dibujo + cámara
     this.view = new PixelView(this, 'flightView');
     this.view.fit(this.scale.width, this.scale.height);
-    this.renderer = new FlightRenderer(this.vehicle);
+    this.renderer = new FlightRenderer(this.vehicle, { id: current().site?.id, latDeg: current().site?.latitudeDeg });
     this.cam = new FlightCamera(this.dMax());
     this.onResize = () => { this.view.fit(this.scale.width, this.scale.height); this.cam.dMax = this.dMax(); this.cam.reset(Math.max(0, this.sim.altitude)); };
     this.scale.on('resize', this.onResize);
@@ -104,6 +104,7 @@ export class FlightScene extends Phaser.Scene {
       separate: () => this.doSeparate(),
       fairing: () => this.doFairing(),
       map: () => this.toggleMap(),
+      zoom: (dir) => this.zoom(dir),
       pause: () => this.togglePause(),
       finish: () => this.finish(),
       jumpApo: () => this.doJump(),
@@ -120,6 +121,30 @@ export class FlightScene extends Phaser.Scene {
     this.hud.setPhase('pad');
     this.onEsc = (ev) => { if (ev.key === 'Escape') this.togglePause(); };
     window.addEventListener('keydown', this.onEsc);
+    // zoom con la rueda del mouse y con dos dedos (pellizco), en la vista de vuelo y en el mapa
+    app.mapZoom = 1;
+    this.onWheel = (ev) => {
+      if (ev.target.closest?.('.more, .overlay, .ui, .popover')) return;
+      ev.preventDefault();
+      this.zoomBy(Math.exp(clamp(ev.deltaY, -120, 120) * 0.0025));
+    };
+    window.addEventListener('wheel', this.onWheel, { passive: false });
+    this.touches = new Map(); this.pinchDist = 0;
+    const gameEl = document.getElementById('game');
+    const dist = () => { const [a, b] = [...this.touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    this.onPtrDown = (ev) => { if (ev.pointerType !== 'touch') return; this.touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); if (this.touches.size === 2) this.pinchDist = dist(); };
+    this.onPtrMove = (ev) => {
+      if (!this.touches.has(ev.pointerId)) return;
+      this.touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (this.touches.size === 2 && this.pinchDist > 0) { const d = dist(); if (d > 0) { this.zoomBy(this.pinchDist / d); this.pinchDist = d; } }
+    };
+    this.onPtrUp = (ev) => { this.touches.delete(ev.pointerId); this.pinchDist = 0; };
+    this.gameEl = gameEl;
+    gameEl.style.touchAction = 'none';
+    gameEl.addEventListener('pointerdown', this.onPtrDown);
+    window.addEventListener('pointermove', this.onPtrMove);
+    window.addEventListener('pointerup', this.onPtrUp);
+    window.addEventListener('pointercancel', this.onPtrUp);
     this.events.once('shutdown', () => this.cleanup());
 
     this.begin();
@@ -129,6 +154,11 @@ export class FlightScene extends Phaser.Scene {
 
   cleanup() {
     window.removeEventListener('keydown', this.onEsc);
+    window.removeEventListener('wheel', this.onWheel);
+    this.gameEl?.removeEventListener('pointerdown', this.onPtrDown);
+    window.removeEventListener('pointermove', this.onPtrMove);
+    window.removeEventListener('pointerup', this.onPtrUp);
+    window.removeEventListener('pointercancel', this.onPtrUp);
     this.scale.off('resize', this.onResize);
     this.hud?.destroy();
     this.view?.destroy();
@@ -164,6 +194,18 @@ export class FlightScene extends Phaser.Scene {
     } else { ov.hidden = true; ov.innerHTML = ''; }
   }
 
+  /** Zoom por pasos (botones y teclas + / −; 0 vuelve a la vista normal). */
+  zoom(dir) {
+    if (dir === 0) { if (this.mapOpen) app.mapZoom = 1; else this.cam.resetZoom(); return; }
+    this.zoomBy(dir > 0 ? 1 / CAMERA.zoomStep : CAMERA.zoomStep);
+  }
+
+  /** Zoom continuo: f > 1 aleja, f < 1 acerca. Actúa sobre el mapa si está abierto; si no, sobre la cámara del vuelo. */
+  zoomBy(f) {
+    if (this.mapOpen) app.mapZoom = clamp((app.mapZoom ?? 1) / f, 0.25, 40);
+    else this.cam.zoomFactor(f);
+  }
+
   toggleMap() {
     this.mapOpen = !this.mapOpen;
     if (this.mapOpen) { this.scene.launch('MapScene'); this.scene.bringToTop('MapScene'); } else this.scene.stop('MapScene');
@@ -197,7 +239,8 @@ export class FlightScene extends Phaser.Scene {
       return makeDebris({ ...sep, x: sep.x + ax * along - ay * (extra.lateral ?? 0) * mpp, y: sep.y + ay * along + ax * (extra.lateral ?? 0) * mpp }, { side: extra.side ?? 0, index: sep.index });
     };
     if (sep.kind === 'stage') {
-      this.debris.push(make(stageSprite(this.vehicle, sep.index), {}));
+      // una etapa entera, o los dos propulsores laterales (cada uno se abre hacia su lado)
+      for (const piece of stageDebris(this.vehicle, sep.index)) this.debris.push(make(piece, { side: piece.side, lateral: piece.lateral }));
       this.cam.kick(0.5);
       if (this.sim.altitude > 1500) this.cam.kickFocus(6);
       this.hud.event(`ETAPA ${sep.index + 1} SEPARADA`, 'ok');
@@ -527,12 +570,12 @@ export class FlightScene extends Phaser.Scene {
     const S = {
       time: performance.now() / 1000,
       reduced: this.reduced,
-      alt, mpp, baseY: H * anchorFraction(alt) - this.cam.lag, groundS,
+      alt, mpp, baseY: anchorY(alt, mpp, H) - this.cam.lag, groundS,
       starShift: (Math.PI / 2 - sim.angle) * 600,
       stage: Math.min(sim.stage, this.vehicle.stages.length), fairing: sim.fairing,
       throttle, engineOn: Boolean(this.ignition) || (sim.status === 'flying' && !sim.engineOut),
       betaShown, flicker: Math.random(), airFade: pressureRatio(alt),
-      hideRocket: this.exploded, focus: this.cam.focusT < Infinity,
+      hideRocket: this.exploded, focus: this.cam.focusT < Infinity, zoomOut: this.cam.zoomOut,
       debris: this.debris, particles: this.particles, rx: sim.x, ry: sim.y,
       flowX, flowY, flowPhaseX: this.flow.px, flowPhaseY: this.flow.py,
       streakAlpha: clamp(q / 2500, 0, 1) * smooth(20, 90, Math.hypot(flowX, flowY)),
