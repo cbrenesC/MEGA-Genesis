@@ -22,6 +22,7 @@ import {
   phaseOf, PHASE_LABEL, FlightCamera, anchorY, CAMERA, makeDebris, stepDebris, cullReason, groundDistance, thrustAccelG,
 } from '../world.js';
 import { ParticleSystem } from '../particles.js';
+import { MAP_ZOOM } from './MapScene.js';
 import { PixelView, FlightRenderer } from './render.js';
 import { stageDebris, fairingSprite, rocketDims } from './rocketArt.js';
 
@@ -202,7 +203,7 @@ export class FlightScene extends Phaser.Scene {
 
   /** Zoom continuo: f > 1 aleja, f < 1 acerca. Actúa sobre el mapa si está abierto; si no, sobre la cámara del vuelo. */
   zoomBy(f) {
-    if (this.mapOpen) app.mapZoom = clamp((app.mapZoom ?? 1) / f, 0.25, 40);
+    if (this.mapOpen) app.mapZoom = clamp((app.mapZoom ?? 1) / (f > 1 ? f * f : f < 1 ? f * f : 1), MAP_ZOOM.min, MAP_ZOOM.max); // en el mapa el zoom va al doble de paso: hay mucho que recorrer
     else this.cam.zoomFactor(f);
   }
 
