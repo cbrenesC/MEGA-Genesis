@@ -1108,44 +1108,18 @@ html.sms-reduced-animations #boot .boot-consent {
 .preparation-ack input { width: 20px; height: 20px; accent-color: #6bd4c5; }
 
 
-/* The crew guide stays visible without covering movement controls. */
-.crew-guide {
+
+.mission-terminal [data-description][aria-hidden="true"] { white-space: pre-line; }
+.crew-dialogue__accessible:not([hidden]) {
   position: absolute;
-  z-index: 6;
-  right: 270px;
-  bottom: 100px;
-  width: min(294px, calc(100vw - 32px));
-  padding: 12px 14px;
-  color: #e8f4f3;
-  background: rgba(5, 15, 24, .94);
-  border: 1px solid rgba(255, 223, 157, .72);
-  box-shadow: 0 0 22px rgba(255, 193, 105, .16), 0 10px 32px rgba(0, 0, 0, .35);
-  text-shadow: 0 1px 2px #061018;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
-.crew-guide__top { display: flex; justify-content: space-between; gap: 8px; color: #ffdf9d; font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
-.crew-guide h2 { margin: 8px 0 5px; color: #fff2b2; font-size: 14px; letter-spacing: .02em; }
-.crew-guide p { margin: 0; color: #c4d8db; font-size: 10px; line-height: 1.5; }
-.crew-guide .crew-guide__hint { margin-top: 7px; color: #ffdf9d; }
-.crew-guide button { min-height: 32px; margin-top: 8px; padding: 4px 8px; color: #fff2d5; font-size: 9px; background: #1c2a31; border: 1px solid rgba(255, 223, 157, .55); cursor: pointer; }
-.crew-guide button:hover, .crew-guide button:focus-visible { outline: 2px solid #fff2b2; outline-offset: 2px; }
-@media (max-width: 760px) {
-  .crew-guide { left: 12px; right: 12px; bottom: 102px; width: auto; max-height: 168px; overflow-y: auto; }
-  .crew-guide h2 { margin-top: 5px; }
-  .crew-guide button { min-height: 28px; margin-top: 5px; }
+.mission-terminal__actions [data-crew-advance] {
+  min-width: 155px;
+  background: #70d8bf;
+  color: #092a2c;
+  border-color: #a8fff0;
 }
-
-
-/* Highlight the active console instruction in crew conversations. */
-.mission-terminal__guide {
-  margin: 12px 0 16px;
-  padding: 10px 12px;
-  color: #fff2c2;
-  background: linear-gradient(110deg, #3c2b12, #142638 75%);
-  border: 1px solid #ffd166;
-  border-left: 4px solid #ffd166;
-  box-shadow: 0 0 16px #ffd16633;
-}
-.mission-terminal__guide[hidden] { display: none; }
-.mission-terminal__guide strong { display: block; margin-bottom: 5px; color: #ffd166; font: 700 9px/1.5 'Press Start 2P', monospace; }
-.mission-terminal__guide p { margin: 0; color: #edf7f9; font: 20px/1.3 'VT323', monospace; }
-.mission-terminal__guide:focus-within { outline: 2px solid #fff2b2; outline-offset: 2px; }

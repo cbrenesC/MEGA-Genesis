@@ -6,7 +6,7 @@ import { InteractionSignal } from '../map/InteractionSignal.js';
 import { getPreferences } from '../welcome/core/consent.js';
 import { Player } from '../player/Player.js';
 import { placeCrew } from '../crew/placeCrew.js';
-import { CREW } from '../crew/roster.js';
+import { createDialogueReveal } from '../crew/dialogueReveal.js';
 import { CREW_GUIDE } from '../crew/guideFlow.js';
 import { StationPreparation } from '../missions/StationPreparation.js';
 import { localizeDOM, onLanguageChange, t } from '../i18n/index.js';
@@ -98,7 +98,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     const removeLanguageListener = onLanguageChange(() => {
       this.findInteractionTarget();
       if (this.terminalOpen && !this.terminalDialog.hidden) this.preparation.renderAgain();
-      this.updateGuideBeacon();
+      if (this.crewDialogueItem) this.presentCrewDialogue(this.crewDialogueItem, false);
       this.updateZoneDisplay(true);
       if (this.activeNotice) this.doorNotice.textContent = t(this.activeNotice.key, this.activeNotice.params);
     });
@@ -113,6 +113,8 @@ export class SpaceCenterScene extends Phaser.Scene {
       window.removeEventListener('sms-settings-toggled', stopWhenSettingsOpen);
       this.prompt?.classList.remove('visible');
       this.preparation?.destroy();
+      this.crewDialogue?.abort();
+      this.crewDialogueItem = null;
       this.terminalDialog?.remove();
       this.guideBeacon?.destroy();
       this.scale.off('resize', resizeCamera);
@@ -326,16 +328,21 @@ export class SpaceCenterScene extends Phaser.Scene {
         <div><h2 id="mission-terminal-title" data-title></h2><p data-role class="mission-terminal__role" hidden></p></div>
       </div>
       <p data-description></p>
-      <section class="mission-terminal__guide" data-guide-next hidden>
-        <strong data-i18n="guide.dialogLabel">YOUR NEXT STEP</strong><p data-guide-instruction></p>
-      </section>
+      <p id="crew-dialogue-transcript" class="crew-dialogue__accessible" data-crew-transcript hidden></p>
       <div data-preparation></div>
-      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><button type="button" data-launch hidden data-i18n="terminal.launch">Start mission ▶</button><button type="button" data-close data-i18n="common.close">Close</button></div>
+      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><button type="button" data-launch hidden data-i18n="terminal.launch">Start mission ▶</button><button type="button" data-close data-terminal-close data-i18n="common.close">Close</button><button type="button" data-crew-advance hidden></button></div>
     </div>`;
     document.getElementById('app').append(dialog);
     dialog.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>this.closeTerminal()));
     this.terminalDialog=dialog;
+    dialog.querySelector('[data-crew-advance]').addEventListener('click', () => this.crewDialogue?.advance());
     dialog.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && this.crewDialogue && !event.target.matches('[data-close]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!event.repeat) this.crewDialogue.advance();
+        return;
+      }
       if (event.key === 'Escape') { event.stopPropagation(); this.closeTerminal(); }
       if (event.key === 'Tab') {
         const items = [...dialog.querySelectorAll('button:not(:disabled), a[href], input, select, textarea, summary')]
@@ -377,20 +384,22 @@ export class SpaceCenterScene extends Phaser.Scene {
       delete role.dataset.i18n;
       portrait.removeAttribute('src');
     }
-    const topic = isCrew ? 'crew' : 'lesson';
-    dialog.querySelector('[data-description]').dataset.i18n = `${topic}.${item.id}.text`;
-    const nextGuide = dialog.querySelector('[data-guide-next]');
-    const instruction = dialog.querySelector('[data-guide-instruction]');
-    const step = this.currentGuideStep();
-    const isActiveGuide = isCrew && step?.crewId === item.id;
-    nextGuide.hidden = !isActiveGuide;
-    if (isActiveGuide) {
-      this.preparation.markGuideConversation(step.talkKey);
-      instruction.textContent = t('guide.dialogInstruction', {
-        console: t(step.stationNameKey),
-        task: t(step.taskKey),
-      });
-    } else instruction.textContent = '';
+    const description = dialog.querySelector('[data-description]');
+    const transcript = dialog.querySelector('[data-crew-transcript]');
+    const panel = dialog.querySelector('.mission-terminal__panel');
+    if (isCrew) panel.setAttribute('aria-describedby', transcript.id);
+    else panel.removeAttribute('aria-describedby');
+    dialog.querySelector('[data-crew-advance]').hidden = !isCrew;
+    dialog.querySelector('[data-terminal-close]').hidden = isCrew;
+    transcript.hidden = !isCrew;
+    if (isCrew) {
+      delete description.dataset.i18n;
+      description.setAttribute('aria-hidden', 'true');
+    } else {
+      description.dataset.i18n = `lesson.${item.id}.text`;
+      description.removeAttribute('aria-hidden');
+      transcript.textContent = '';
+    }
     const link=dialog.querySelector('[data-source]');
     link.hidden=!item.source;
     if(item.source)link.href=item.source;
@@ -398,10 +407,47 @@ export class SpaceCenterScene extends Phaser.Scene {
     dialog.hidden=false;
     dialog.querySelector('.mission-terminal__panel').scrollTop = 0;
     void this.preparation.render(item);
-    this.updateGuideBeacon();
-    dialog.querySelector('[data-close]').focus({ preventScroll: true });
+    if (isCrew) {
+      this.crewDialogueItem = item;
+      this.presentCrewDialogue(item, getPreferences().animations && !this.reducedMotion.matches);
+    }
+    dialog.querySelector(isCrew ? '[data-crew-advance]' : '[data-close]').focus({ preventScroll: true });
   }
+
+  presentCrewDialogue(item, animate) {
+    this.crewDialogue?.abort();
+    const dialog = this.terminalDialog;
+    const description = dialog.querySelector('[data-description]');
+    const button = dialog.querySelector('[data-crew-advance]');
+    const intro = t(`crew.${item.id}.text`);
+    const step = this.currentGuideStep();
+    const guideStep = step?.crewId === item.id ? step : null;
+    const instruction = guideStep ? t('guide.dialogInstruction', {
+      console: t(guideStep.stationNameKey),
+      task: t(guideStep.taskKey),
+    }) : '';
+    const text = [intro, instruction].filter(Boolean).join('\n\n');
+    dialog.querySelector('[data-crew-transcript]').textContent = text;
+    button.textContent = t('crew.showFullDialogue');
+    this.crewDialogue = createDialogueReveal(text, {
+      animate,
+      onText: visible => { description.textContent = visible; },
+      onReady: () => { button.textContent = `${t('common.continue')} · Enter ↵`; },
+      onConfirm: () => {
+        if (guideStep && guideStep.id === this.currentGuideStep()?.id) {
+          this.preparation.markGuideConversation(guideStep.talkKey);
+        }
+        this.closeTerminal();
+        this.updateGuideBeacon();
+      },
+    });
+  }
+
   closeTerminal() {
+    this.crewDialogue?.abort();
+    this.crewDialogue = null;
+    this.crewDialogueItem = null;
+    if (this.preparation.item?.setup) this.onStationConfigurationChanged(this.preparation.item);
     this.terminalOpen=false;
     this.terminalDialog.hidden=true;
     this.preparation.item = null;
