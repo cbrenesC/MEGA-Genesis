@@ -1035,3 +1035,46 @@ html.sms-reduced-animations #boot .boot-consent {
 @media (max-width: 600px) and (orientation: portrait) {
   #game-container .mobile-controls { bottom: max(22px, env(safe-area-inset-bottom)); }
 }
+
+
+/* Unified top-left controls: settings and fullscreen stay aligned at every viewport size. */
+.corner-controls {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.corner-controls #settings-toggle,
+.corner-controls #fullscreen-button {
+  position: static;
+  inset: auto;
+  margin: 0;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #35e0d0aa;
+  border-radius: 6px;
+  background: #070d1add;
+  color: #35e0d0;
+  cursor: pointer;
+  line-height: 1;
+  pointer-events: auto;
+}
+.corner-controls #settings-toggle:hover,
+.corner-controls #fullscreen-button:hover { background: #16314d; }
+.corner-controls :is(#settings-toggle, #fullscreen-button):focus-visible {
+  outline: 2px solid #80e1e4;
+  outline-offset: 3px;
+}
+.hud-top { padding-left: 120px; }
+@media (max-width: 600px) {
+  .corner-controls { top: max(8px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); gap: 6px; }
+  .corner-controls #settings-toggle,
+  .corner-controls #fullscreen-button { width: 36px; height: 36px; flex-basis: 36px; }
+  .hud-top { padding-left: 98px; }
+}
