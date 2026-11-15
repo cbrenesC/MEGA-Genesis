@@ -1,13 +1,15 @@
 import Phaser from 'phaser';
-import { createSpaceTextures, createOpenDoorTextures } from '../assets/sprites.js';
+import { createControlRoomArt } from '../map/controlRoomArt.js';
+import { createAstronautAnimations, createCrewTextures } from '../crew/textures.js';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
 
   create() {
     this.cameras.main.setBackgroundColor('#07111d');
-    createSpaceTextures(this);
-    createOpenDoorTextures(this);
+    createCrewTextures(this);
+    createControlRoomArt(this);
+    createAstronautAnimations(this);
     this.scene.start('SpaceCenterScene');
   }
 }

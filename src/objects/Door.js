@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js';
+
 export class Door {
   constructor(scene, collisionManager, { x, y, orientation = 'horizontal', label, open = true }) {
     this.scene = scene;
@@ -14,7 +16,7 @@ export class Door {
     if (open) this.blocker.body.enable = false;
     this.scene.interactables.push({
       type: 'door', x, y, radius: 74,
-      label: open ? `E · CERRAR ${label}` : `E · ABRIR ${label}`,
+      label: () => t(this.open ? 'door.closePrompt' : 'door.openPrompt', { door: t(this.label) }),
       interact: () => this.toggle(),
     });
   }
@@ -26,20 +28,18 @@ export class Door {
       body.enable = false;
       this.visual.setTexture(`door-${this.orientation === 'horizontal' ? 'h' : 'v'}-open`);
       this.scene.tweens.add({ targets: this.visual, alpha: 0.42, duration: 180, yoyo: true, repeat: 1 });
-      this.scene.showNotice(`ACCESO ABIERTO · ${this.label.toUpperCase()}`);
+      this.scene.showNotice('door.opened', { door: t(this.label) });
     } else {
       const player = this.scene.player;
       const tooClose = player && Math.hypot(player.x - this.x, player.y - this.y) < 56;
       if (tooClose) {
         this.open = true;
-        this.scene.showNotice('ALÉJATE DEL UMBRAL ANTES DE CERRAR');
+        this.scene.showNotice('door.stepBack');
         return;
       }
       body.enable = true;
       this.visual.setTexture(`door-${this.orientation === 'horizontal' ? 'h' : 'v'}`);
-      this.scene.showNotice(`COMPuERTA CERRADA · ${this.label.toUpperCase()}`.toUpperCase());
+      this.scene.showNotice('door.closed', { door: t(this.label) });
     }
-    const target = this.scene.interactables.find((item) => item.type === 'door' && item.x === this.x && item.y === this.y);
-    if (target) target.label = this.open ? `E · CERRAR ${this.label}` : `E · ABRIR ${this.label}`;
   }
 }

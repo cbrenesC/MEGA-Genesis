@@ -1,25 +1,36 @@
-# Space Mission — Mapa Explorable
+# Space Mission · MEGA Genesis
 
-Mapa top-down en Pixel Art del complejo espacial del Nivel 1. Construido con Phaser 3, JavaScript y Vite; todo el arte base se dibuja como texturas pixeladas locales, sin assets remotos obligatorios.
+Juego web en pixel art con un centro de control explorable hecho en Phaser 3. Ocho consolas explican el diseño de misiones espaciales y enlazan a recursos de la NASA. Las dos consolas principales abren las misiones de lanzamiento y rover lunar.
 
-## Ejecutar
+## Ejecutar localmente
 
-```bash
-npm install
+```sh
+npm ci
 npm run dev
 ```
 
-Para la compilación de distribución: `npm run build`. Vite genera el sitio estático en `dist/`, listo para Netlify.
+Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para Netlify. Puedes revisarlo con `npm run preview`.
 
-## Controles
+## Cómo jugar
 
-- **WASD** o **flechas:** caminar en cuatro direcciones.
-- **E:** abrir o cerrar una compuerta cercana; en el control central, abre los controles de la pantalla.
-- **ESC:** pausar o reanudar.
-- Usa el botón de la esquina superior derecha para pantalla completa. En móviles aparece un pad táctil.
+- **WASD o flechas** para caminar. En móviles, usa el pad táctil.
+- **E** cerca de un personaje para hablar o cerca de una consola para abrirla. En móviles, usá **Usar**. Seleccioná **Start Mission** en una consola de misión.
+- **Esc** para cerrar un diálogo o pausar y reanudar el recorrido.
+- La introducción del comandante se puede saltar y no aparece si desactivas **Animaciones y video**.
+- El menú **Juegos** ofrece acceso directo a ambas misiones.
 
-## Pantalla multimedia
+Las misiones de lanzamiento y rover están en `games/launch/` y `games/rover/`, respectivamente.
 
-Acércate a la gran pantalla del Launch Control Center y pulsa **E**. Desde el panel contextual puedes iniciar/pausar la reproducción o seleccionar un PNG, JPG, WebP, MP4 o WebM. Para precargar un medio desde la configuración, añade el archivo bajo `public/media/` y define `media.src`/`media.type` en `src/config.js`; los videos comienzan solo cuando el usuario pulsa **Iniciar**, según las políticas del navegador. Sin contenido configurado se muestra el monitor espacial Pixel Art integrado.
+El botón ⛶ abre el centro de control en pantalla completa. En ventanas anchas se encuadra toda la sala. En pantallas compactas, la cámara sigue al astronauta para conservar la legibilidad.
 
-El juego es únicamente un mapa explorable: no incluye misiones, inventario, gestión funcional de recursos, reparaciones ni despegue.
+## Pantalla de anuncios
+
+Acercate al escritorio central debajo de la pantalla y presioná **E** o **Usar**. Podés publicar un texto de hasta 180 caracteres, mostrar una imagen (PNG, JPG, WebP) o cargar y reproducir un video (MP4, WebM) sin sonido. **Restaurar vista orbital** recupera la ilustración Tierra–Luna. Los anuncios y archivos elegidos se muestran solo en el dispositivo durante la visita. Para configurar un archivo inicial para todos los jugadores, configurá `GAME.media.src` en `src/config.js` o asigná una clave bilingüe a `GAME.media.announcementKey` para mostrar un anuncio de texto inicial.
+
+El astronauta y los cuatro tripulantes del centro de control (Durman, Josué, Luis Eduardo y Johana) usan los sprites cenitales de `demogame`. Cada tripulante recorre una ruta corta y se detiene al acercarte. La señal sobre el personaje o la consola más próxima indica que podés interactuar con **E**, **Usar** o tocando la señal. Cada tripulante ofrece tres consejos sobre su área y un recurso de la NASA. La opción **Animaciones y video** desactiva los recorridos, destellos y el movimiento de las señales, sin bloquear la interacción.
+
+## Idiomas
+
+El juego incluye inglés (predeterminado) y español. Podés cambiar el idioma durante la bienvenida, en Configuración o en cualquiera de las dos misiones. Los enlaces conservan el idioma mediante `?lang=en` o `?lang=es`, incluso si decidís jugar sin guardar. Con tu permiso, el navegador también recuerda la selección para próximas visitas.
+
+Los textos de interfaz, del canvas y los subtítulos viven en `src/i18n/en.json` y `src/i18n/es.json`. Cada texto nuevo debe tener la misma clave en ambos catálogos. Usá `data-i18n` para texto estático, `data-i18n-aria` para etiquetas accesibles y `t()` para mensajes dinámicos. El video del comandante conserva su audio original y usa subtítulos sincronizados en ambos idiomas.
