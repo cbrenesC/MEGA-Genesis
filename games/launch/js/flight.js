@@ -38,6 +38,11 @@ export const PHYS = {
 };
 
 export const DEG = Math.PI / 180;
+// Dos formas de llegar a la órbita (parámetro `coastDv` del programa de ascenso):
+//   · clásica (coastDv = ∞, la de la calibración): apagar cuando el punto más alto llega a la altura, esperar y redondear arriba;
+//   · inserción directa (coastDv = COAST_DV): si para redondear falta más que eso, NO se apaga: se sigue empujando casi
+//     horizontal sosteniendo la altura. Gasta menos cuando el ascenso quedó muy empinado.
+export const COAST_DV = 350; // m/s
 const CIRC_ACCEL = 12; // m/s²: aceleración máxima de la quemada de circularización del piloto automático
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const wrap = (a) => { let x = a; while (x > Math.PI) x -= 2 * Math.PI; while (x < -Math.PI) x += 2 * Math.PI; return x; };
@@ -105,9 +110,17 @@ export const DEST = {
   ESCAPE: { kind: 'transfer', apoKm: Infinity, okApoKm: Infinity, windowTolDeg: 35, windowDeg: 300, label: 'la salida de la Tierra' },
 };
 
-/** ¿La órbita ya es (casi) circular a la altura pedida? El punto más bajo llegó a la altura objetivo. */
+export const ROUND_GAP = 15000; // m: diferencia máxima entre el punto más alto y el más bajo para decir "órbita redonda"
+
+/**
+ * ¿La órbita ya está lista? Vale cuando el punto más bajo llegó a la altura pedida, o cuando la órbita ya quedó
+ * redonda sobre la atmósfera aunque sea un poco más abajo: seguir empujando ahí ya no la redondea más,
+ * sólo estira el otro lado y quema el combustible que queda.
+ */
 export function orbitGoalMet(el, tAltM) {
-  return !el.hyper && el.periAlt >= Math.max(PHYS.PERI_OK, tAltM - 6000);
+  if (el.hyper) return false;
+  if (el.periAlt >= Math.max(PHYS.PERI_OK, tAltM - 6000)) return true;
+  return el.periAlt >= PHYS.PERI_OK && el.apoAlt - el.periAlt <= ROUND_GAP;
 }
 
 export function transferReached(destId, el) {
@@ -345,6 +358,19 @@ export class FlightSim {
     } else if (controls.steer && this.mode === 'manual') {
       this.beta = wrap(this.beta + clamp(controls.steer, -1, 1) * PHYS.TURN_RATE * dt);
     }
+    // Sin empuje y con aire, el cohete se comporta como una flecha: la punta se alinea sola con el viento
+    // (estabilidad aerodinámica). Mientras más presión del aire, más rápido se endereza.
+    if (this.mode === 'manual' && this.engineOut && !this.grounded && !controls.steer && controls.betaTarget == null) {
+      const [rx, ry] = this.relVelocity();
+      const v = Math.hypot(rx, ry);
+      const q = 0.5 * airDensity(this.altitude) * v * v;
+      if (v > 30 && q > 150) {
+        const r = this.r; const ux = this.x / r; const uy = this.y / r;
+        const betaAir = Math.atan2(rx * uy - ry * ux, rx * ux + ry * uy);
+        const rate = PHYS.TURN_RATE * Math.min(3, q / 1500);
+        this.beta = wrap(this.beta + clamp(wrap(betaAir - this.beta), -rate * dt, rate * dt));
+      }
+    }
     if (controls.throttle != null) {
       const target = clamp(controls.throttle, 0, 1);
       this.throttle += clamp(target - this.throttle, -PHYS.THROTTLE_RATE * dt, PHYS.THROTTLE_RATE * dt);
@@ -390,9 +416,9 @@ export class FlightSim {
         const [rx, ry] = this.relVelocity(x, y, vx, vy);
         const v = Math.hypot(rx, ry);
         if (v > 0.5 && rho > 0) {
-          const [dx, dy] = this.attitude(x, y, vx, vy);
-          const sinA = Math.sqrt(Math.max(0, 1 - clamp((dx * rx + dy * ry) / v, -1, 1) ** 2));
-          const k = 0.5 * rho * v * this.vehicle.cdA * (1 + 6 * sinA * sinA) / massMid;
+          // La resistencia NO depende de hacia dónde mira la punta: así la caída es pareja y predecible.
+          // (Ir de costado con mucho aire sigue siendo peligroso: lo castiga el límite de presión × ángulo.)
+          const k = 0.5 * rho * v * this.vehicle.cdA / massMid;
           ax -= k * rx; ay -= k * ry;
         }
       }
@@ -594,14 +620,28 @@ export function autopilotStep(sim, ap) {
       const r = sim.r;
       const gEff = PHYS.MU / (r * r) - (vt * vt) / r;
       const a = stage && !sim.engineOut ? (stage.mdot * stage.ispVac * PHYS.G0 * (sim.thrustMult[sim.stage] ?? 1)) / sim.mass : 1;
-      const vrDes = clamp(Math.min(Math.sqrt(2 * ap.decel * Math.max(0, tAlt - alt)), ap.slope * Math.max(vt, 1000)), -50, 4000);
+      // velocidad vertical deseada: sube frenando para llegar "plano" a la altura pedida (y baja suave si se pasó)
+      const vrDes = alt <= tAlt
+        ? clamp(Math.min(Math.sqrt(2 * ap.decel * (tAlt - alt)), ap.slope * Math.max(vt, 1000)), 0, 4000)
+        : -Math.min(50, Math.sqrt(2 * ap.decel * (alt - tAlt)));
       const sinPhi = clamp(gEff / a + (vrDes - vr) / (a * 5), -0.3, 1);
       out.betaTarget = Math.PI / 2 - Math.asin(sinPhi);
       out.throttle = clamp(30 / Math.max(a, 1e-3), 0.25, 1); // con poca carga sobra fuerza: se baja el acelerador para apagar con precisión
       const apoReady = !el.hyper && el.apoAlt >= tAlt - (ap.apoLead ?? 12000);
       if (apoReady) {
-        out.throttle = 0; out.hint = 'cut';
-        ap.phase = 'coast';
+        // ¿Cuánta velocidad faltaría en el punto más alto para redondear la órbita?
+        const dvCirc = Math.max(0, circularSpeed(el.ra) - Math.sqrt(PHYS.MU * (2 / el.ra - 1 / el.a)));
+        if (orbitGoalMet(el, tAlt) || (el.periAlt >= PHYS.PERI_OK && vt >= circularSpeed(r))) {
+          // inserción directa terminada: ya hay órbita
+          out.throttle = 0; out.hint = 'cut';
+          ap.phase = 'circ'; ap.circStart = sim.t; ap.direct = true;
+        } else if (dvCirc <= (ap.coastDv ?? Infinity)) {
+          // falta poco: se apaga, se espera al punto más alto y se redondea con un empujón corto
+          out.throttle = 0; out.hint = 'cut';
+          ap.phase = 'coast';
+        }
+        // Si falta mucho NO se apaga: apagar y caer desde el punto más alto gasta el combustible peleando con la
+        // gravedad. Se sigue empujando casi horizontal, sosteniendo la altura, hasta tener velocidad de órbita.
       }
     }
   }
@@ -615,11 +655,27 @@ export function autopilotStep(sim, ap) {
     if (eta <= burnS / 2 + 1 || sim.radialSpeed < 0) { ap.phase = 'circ'; ap.circStart = sim.t; }
   }
   if (ap.phase === 'circ') {
-    // quemada de circularización: empuja hacia adelante hasta que el punto más bajo alcanza la altura pedida
-    out.mode = 'prograde';
+    // Quemada para redondear la órbita. Con `hold` (el juego) no se empuja "a ciegas" hacia adelante: el cohete apunta
+    // casi horizontal y levanta la punta lo justo para NO caer mientras gana velocidad de lado. Así, aunque el ascenso
+    // haya quedado empinado o se llegue tarde, el combustible se convierte en velocidad de órbita y no en estirar el otro lado.
+    const vr = sim.radialSpeed; const vt = sim.tangentSpeed; const r = sim.r;
     const aNow = stage && !sim.engineOut ? (stage.mdot * stage.ispVac * PHYS.G0 * (sim.thrustMult[sim.stage] ?? 1)) / sim.mass : 1;
-    out.throttle = clamp(CIRC_ACCEL / Math.max(aNow, 1e-3), 0.1, 1);
-    if (orbitGoalMet(sim.elements, tAlt) || (sim.engineOut && sim.stage >= sim.stageCount - 1) || sim.t - ap.circStart > 900) {
+    const gEff = PHYS.MU / (r * r) - (vt * vt) / r;
+    const vrDes = clamp((tAlt - alt) / 60, -40, 40); // se acerca despacio a la altura pedida
+    const missing = circularSpeed(r) - vt; // velocidad de lado que falta
+    if (ap.hold) {
+      out.throttle = missing > 250 ? clamp(30 / Math.max(aNow, 1e-3), 0.25, 1) : clamp(CIRC_ACCEL / Math.max(aNow, 1e-3), 0.1, 1);
+      const sinPhi = clamp(gEff / (aNow * Math.max(out.throttle, 0.1)) + (vrDes - vr) / (aNow * 8), -0.35, 0.8);
+      out.mode = 'manual';
+      out.betaTarget = Math.PI / 2 - Math.asin(sinPhi);
+    } else {
+      // forma clásica (la de la calibración): empujar exactamente hacia adelante. Es la más barata si se llega
+      // justo al punto más alto y falta poco; con un ascenso imperfecto conviene `hold`.
+      out.mode = 'prograde';
+      out.throttle = clamp(CIRC_ACCEL / Math.max(aNow, 1e-3), 0.1, 1);
+    }
+    const orbiting = el.periAlt >= PHYS.PERI_OK && missing <= 0;
+    if (ap.direct || orbitGoalMet(el, tAlt) || orbiting || (sim.engineOut && sim.stage >= sim.stageCount - 1) || sim.t - ap.circStart > 900) {
       out.throttle = 0; out.hint = 'cut';
       if (sim.destId in { GTO: 1, TLI: 1, ESCAPE: 1 }) { ap.phase = ap.waitWindow ? 'window' : 'transfer'; out.transfer = !ap.waitWindow; } else out.done = true;
     }
@@ -854,6 +910,18 @@ export function vehicleFor(launcherId, destId, data) {
   return { vehicle, entry, program: entry.program, capacityKg: entry.capacityKg };
 }
 
+/**
+ * Margen de pilotaje: una persona gasta más combustible que el piloto automático con el que se calibró el cohete.
+ * A las etapas superiores se les da motores más eficientes (Isp × k) con el MISMO empuje (gasto ÷ k): el cohete pesa y
+ * empuja igual, pero ese combustible dura k veces más. k sale de data/flight.json → calibration.pilotMargin[dificultad].
+ */
+export function withPilotMargin(vehicle, k = 1) {
+  if (!(k > 1)) return vehicle;
+  // La primera etapa queda igual (el paso por el aire y el Max-Q no cambian); el margen va en las etapas de arriba.
+  const from = vehicle.stages.length > 1 ? 1 : 0;
+  return { ...vehicle, pilotMargin: k, stages: vehicle.stages.map((s, i) => (i < from ? s : { ...s, ispVac: s.ispVac * k, ispSl: s.ispSl * k, mdot: s.mdot / k })) };
+}
+
 /** Opciones de FlightSim para una misión real (sitio, inclinación y órbita pedidas). */
 export function simOptionsForMission({ payloadKg, destId, targetAltKm, latDeg, incDeg, events }) {
   return { payloadKg, destId, targetAltKm, latDeg, incDeg: incDeg ?? latDeg, events: events ?? [] };
@@ -909,7 +977,7 @@ export function pilotHint(sim, ap) {
  */
 export function programGrid(spec) {
   const out = [];
-  for (const h1 of spec.h1) for (const p of spec.p) for (const decel of spec.decel) for (const slope of spec.slope) out.push({ h1, p, decel, slope });
+  for (const h1 of spec.h1) for (const p of spec.p) for (const decel of spec.decel) for (const slope of spec.slope) for (const apoLead of spec.apoLead ?? [12000]) out.push(apoLead === 12000 ? { h1, p, decel, slope } : { h1, p, decel, slope, apoLead });
   return out;
 }
 

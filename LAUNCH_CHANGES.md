@@ -292,7 +292,7 @@ node public/games/launch/tests/calibrate.mjs   # solo si cambias la física o lo
 ## V2.14 Pendientes, limitaciones e ideas
 
 - **No se probó en un celular físico**, solo con emulación de 390 px en el navegador integrado y con toques simulados por eventos. El deslizador y los botones usan eventos de puntero y `touch-action: none`.
-- **El piloto automático no circulariza perfecto en todos los casos**, sobre todo en destinos de transferencia con poca carga (la órbita de espera queda alargada, por ejemplo 244 × 13.000 km); las pruebas verifican que llega a la órbita y que cumple la transferencia, no que sea redonda. El puntaje de referencia usa lo que logra.
+- **Circularización del piloto automático (pulida):** además del programa de ascenso, ahora prueba tres puntos de apagado (`apoLead` 12, 0 y 30 km) y se queda con el que deja la órbita más redonda. Con 30 %, 60 % y 90 % de la carga máxima, las órbitas bajas (LEO y SSO) de los 11 cohetes quedan a menos de 40 km de lo pedido y con menos de 40 km de diferencia entre el punto más bajo y el más alto; antes, Ariane 6 en LEO con 90 % quedaba en 176 × 1.433 km. Se probó una guía que mantiene la altura durante quemadas largas y se descartó porque empeoraba otros casos. En destinos de transferencia la órbita de espera queda en 235–255 km de punto más bajo. Lo comprueba una prueba nueva (64 pruebas en total).
 - `PSLV-XL → GTO` no tiene vuelo interactivo (ver V2.7 §5).
 - Los motores no tienen límite de reencendidos ni de empuje mínimo; los propulsores laterales se tratan como una etapa; el vuelo es 2D.
 - Cuando el panel del navegador está oculto, Phaser pausa el juego (comportamiento normal de `requestAnimationFrame`).
@@ -609,3 +609,11 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - **HUD** compacto por fase (altura, velocidad, combustible, empuje; datos extra en «Más datos»).
 - **Pruebas**: `tests/world.test.mjs` (15). Sin Node en el equipo se corrieron con JavaScriptCore.
 - **Pendiente de verificación manual**: pantallas pequeñas/táctiles, fase de espacio con el planeta cerca de la órbita, modo reducido de movimiento.
+
+## V3.1 · Física: órbita alcanzable y caída pareja (módulo LAUNCH)
+
+- **Caída**: la resistencia del aire ya no depende de hacia dónde mira la punta (antes era hasta 7× mayor de costado). Sin empuje y con aire, la punta se alinea sola con el viento (estabilidad de flecha).
+- **Órbita lista** (`orbitGoalMet`): también vale una órbita redonda (≤ 15 km entre punto más alto y más bajo) sobre la atmósfera aunque quede un poco más abajo de la pedida. Antes se seguía empujando hasta gastar todo y estirar el otro lado.
+- **Guiado**: quemada final `hold` (casi horizontal, levanta la punta lo justo para no caer) e inserción directa (`coastDv`) cuando el ascenso quedó empinado. El juego prueba ambas por misión (`flow.js`); la calibración usa la forma clásica y no cambió.
+- **Margen de pilotaje** (`data/flight.json → calibration.pilotMargin`): fácil 1,4 · normal 1,25 · difícil 1,12. Las etapas superiores rinden k veces más con el mismo empuje; la primera etapa no cambia.
+- **Pruebas**: `tests/world.test.mjs` 18–21. Corridas con JavaScriptCore (sin Node). No probado dentro del juego: la página ahora necesita Vite.

@@ -11,7 +11,7 @@ import Phaser from 'phaser';
 // se curva y se hace chica. Nada depende de temporizadores ni hay saltos de posición.
 
 import {
-  PHYS, DEG, DEST, applyAutopilot, autopilotStep, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
+  PHYS, DEG, DEST, applyAutopilot, autopilotStep, orbitGoalMet, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
 } from '../flight.js';
 import { app, inputs, reducedMotion } from '../store.js';
 import { createSim, finishFlight } from '../flow.js';
@@ -441,7 +441,7 @@ export class FlightScene extends Phaser.Scene {
     ctx.canTransfer = transfer && sim.orbitReached && !tr && sim.status === 'flying';
     const el = sim.elements;
     const tAlt = sim.targetAltKm * 1000;
-    const circular = !el.hyper && el.periAlt >= Math.max(PHYS.PERI_OK, tAlt - 6000);
+    const circular = orbitGoalMet(el, tAlt);
     const phase = this.shadow.phase;
     let msg = null; let kind = 'hint';
     const warnings = [];
@@ -478,7 +478,7 @@ export class FlightScene extends Phaser.Scene {
       } else if (ctx.canFinish && transfer && tr && !tr.active) msg = '¡Transferencia lista! Pulsa «Terminar vuelo».';
       else if (phase === 'coast' && sim.throttle > 0.02) msg = `¡Apaga el motor (X)! Tu punto más alto ya llegó a ${Math.round(tAlt / 1000)} km.`;
       else if (phase === 'coast') msg = 'Deja que suba solo hasta el punto más alto. Pulsa ⏩ Saltar para ir más rápido.';
-      else if (phase === 'circ' && !circular) msg = sim.mode === 'prograde' ? `¡Ahora empuja${out.throttle < 0.98 ? ` con ${Math.round(out.throttle * 100)} % de fuerza (la marca «sugerido»)` : ' al 100 %'}! Hasta que tu punto más bajo llegue a ${Math.round(tAlt / 1000)} km.` : '¡Ahora! Pulsa 🧭 Mirar adelante (R) y empuja con la fuerza sugerida.';
+      else if (phase === 'circ' && !circular) msg = sim.mode === 'prograde' ? 'Pulsa 🧭 (R) para soltar «Mirar adelante» y sigue la flecha amarilla.' : `¡Ahora empuja${out.throttle < 0.98 ? ` con ${Math.round(out.throttle * 100)} % de fuerza (la marca «sugerido»)` : ' al 100 %'} siguiendo la flecha amarilla! Yo te aviso cuando la órbita quede redonda.`;
       else if (circular && sim.throttle > 0.02) msg = '¡Órbita redonda! Apaga el motor (X) y pulsa «Terminar vuelo».';
       else if (circular) msg = '¡Órbita lograda! Pulsa «Terminar vuelo».';
       else if (phase === 'ascent' && ctx.recommendBetaDeg != null) {
