@@ -84,3 +84,44 @@ test('Station plans cross the map-to-simulation boundary without browser storage
   assert.equal(readMissionPlan('#%5B%5D'), null);
   assert.throws(() => missionUrl('unknown', 'en', {}), /Unknown mission/);
 });
+
+test('Launch stations restore briefing cards, rocket comparisons, fairing and checks without starting a flight', async () => {
+  const { renderLaunchStation } = await import('../src/missions/launchStationUI.js');
+  const plan = { ...newFlightPlan(data), launcherId: 'electron', teamMode: true };
+  const context = { data, plan, view: reviewFlightPlan(data, plan), translate: key => es[key] };
+  const html = Object.fromEntries(['mission','payload','vehicle','review'].map(part =>
+    [part, renderLaunchStation(part, context, '<div data-fields></div>')]));
+  assert.match(html.mission, /class="screen-grid"/);
+  assert.equal((html.mission.match(/name="difficulty"/g) ?? []).length, 3);
+  assert.match(html.mission, /Cámara infrarroja/);
+  assert.match(html.payload, /15 kg/);
+  assert.match(html.vehicle, /class="catalog"/);
+  assert.match(html.vehicle, /class="capbar"/);
+  assert.match(html.vehicle, /<table>/);
+  assert.match(html.vehicle, /data-select="electron"[^>]*aria-pressed="true"/);
+  assert.match(html.review, /class="fairing-svg"/);
+  assert.match(html.review, /¿Por qué importa\?/);
+  assert.match(html.review, /data-ack="mission"/);
+  for (const station of Object.values(html)) assert.doesNotMatch(station, /data-go="(?:pad|flight)"|data-launch/);
+  const waiting = renderLaunchStation('review', { data, plan, view: reviewFlightPlan(data) }, '<div data-fields></div>');
+  assert.match(waiting, /Elegí un cohete/);
+});
+
+test('Rover stations restore component cards, tradeoffs and live resource totals with the active rules', async () => {
+  const { renderRoverStation } = await import('../src/missions/roverStationUI.js');
+  const translate = (key, params = {}) => (en[key] ?? key).replace(/\{(\w+)\}/g, (_, param) => params[param]);
+  const render = (part, build) => renderRoverStation(part, build, { translate, number: (n, digits) => n.toFixed(digits) });
+  const full = render('mobility', RECOMMENDED_BUILD);
+  assert.match(full, /Light chassis/);
+  assert.match(full, /Fast and efficient/);
+  assert.match(full, /data-component="chassis" data-option="ligero"[^>]*aria-pressed="true"/);
+  assert.match(full, /class="reason ok"/);
+  assert.match(full, /106 \/ 145 kg/);
+  assert.match(full, /820 \/ 850 cr/);
+  assert.match(full, /data-rover-preview/);
+  assert.doesNotMatch(full, /data-component="solar"|data-launch/);
+  const incomplete = render('power', {});
+  assert.match(incomplete, /Recharge \+1.2 u\/s while stopped/);
+  assert.match(incomplete, /class="reason bad"/);
+  assert.doesNotMatch(incomplete, /station\.trade\./);
+});

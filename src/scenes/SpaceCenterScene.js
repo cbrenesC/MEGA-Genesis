@@ -278,8 +278,8 @@ export class SpaceCenterScene extends Phaser.Scene {
     dialog.addEventListener('keydown', event => {
       if (event.key === 'Escape') { event.stopPropagation(); this.closeTerminal(); }
       if (event.key === 'Tab') {
-        const items = [...dialog.querySelectorAll('button:not(:disabled), a[href], input, select, textarea')]
-          .filter(node => !node.closest('[hidden]'));
+        const items = [...dialog.querySelectorAll('button:not(:disabled), a[href], input, select, textarea, summary')]
+          .filter(node => !node.closest('[hidden]') && (!node.closest('details:not([open])') || node.matches('summary')));
         const target = event.shiftKey ? items.at(-1) : items[0];
         const edge = event.shiftKey ? items[0] : items.at(-1);
         if (target && (document.activeElement === edge || !items.includes(document.activeElement))) {

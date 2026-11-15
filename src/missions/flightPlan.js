@@ -12,6 +12,8 @@ export const newFlightPlan = (data) => ({
 });
 const inRange = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
 
+export const hasFlight = (launcherId, orbit, data) => Boolean(vehicleFor(launcherId, orbit, data));
+
 export function reviewFlightPlan(data, plan = {}) {
   const defaults = newFlightPlan(data);
   const scenario = data.mocks.scenarios.find(s => s.id === plan.scenarioId)
@@ -40,7 +42,7 @@ export function reviewFlightPlan(data, plan = {}) {
     ? { [plan.launcherId]: { siteId: plan.siteId, propellantOffloadKg: offloadKg } } : {};
   const evaluations = evaluateAll(data, resolved.inputs, options);
   const selected = evaluations.find(e => e.launcherId === plan.launcherId) ?? null;
-  const simulated = selected && Boolean(vehicleFor(selected.launcherId, scenario.orbit.type, data));
+  const simulated = selected && hasFlight(selected.launcherId, scenario.orbit.type, data);
   const requiredRoles = selected && plan.teamMode === true
     ? [...new Set(['spacecraft', 'mission', ...buildRequests(selected, resolved.inputs).map(r => r.toRole)])]
     : [];
