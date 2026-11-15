@@ -908,7 +908,7 @@ export function pilotHint(sim, ap) {
  */
 export function programGrid(spec) {
   const out = [];
-  for (const h1 of spec.h1) for (const p of spec.p) for (const decel of spec.decel) for (const slope of spec.slope) out.push({ h1, p, decel, slope });
+  for (const h1 of spec.h1) for (const p of spec.p) for (const decel of spec.decel) for (const slope of spec.slope) for (const apoLead of spec.apoLead ?? [12000]) out.push(apoLead === 12000 ? { h1, p, decel, slope } : { h1, p, decel, slope, apoLead });
   return out;
 }
 

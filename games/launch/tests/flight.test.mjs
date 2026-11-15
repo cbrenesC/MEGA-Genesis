@@ -225,3 +225,14 @@ test('referencia: con poca carga se puede ahorrar combustible; con la carga máx
   assert.ok(light.reachedOrbit && heavy.reachedOrbit);
   assert.ok(light.fuelLeftPct > heavy.fuelLeftPct);
 });
+
+test('piloto automático: elige cuándo apagar para dejar la órbita casi redonda (también con cohetes de 3 etapas)', () => {
+  const grid = programGrid(data.flight.calibration.searchGrid);
+  for (const [id, dest, frac, tAlt] of [['ariane64', 'LEO', 0.9, 250], ['ariane64', 'LEO', 0.6, 250], ['falcon9', 'LEO', 0.6, 250], ['alpha', 'LEO', 0.9, 250], ['ariane64', 'SSO', 0.3, 500]]) {
+    const vi = vehicleFor(id, dest, data);
+    const opts = missionOpts(dest, vi.capacityKg * frac, tAlt);
+    const el = bestProgram(vi, opts, grid).sim.elements;
+    assert.ok(el.periAlt >= tAlt * 1000 - 40000, `${id} ${dest} ${frac}: punto más bajo ${Math.round(el.periAlt / 1000)} km`);
+    assert.ok(el.apoAlt - el.periAlt < 40000, `${id} ${dest} ${frac}: órbita ovalada ${Math.round(el.periAlt / 1000)}×${Math.round(el.apoAlt / 1000)} km`);
+  }
+});
