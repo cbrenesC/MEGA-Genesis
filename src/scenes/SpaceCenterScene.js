@@ -91,7 +91,6 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.createTerminalDialog();
     this.preparation = new StationPreparation(this);
     this.completedGuideSteps = new Set(this.preparation.guideProgress);
-    this.createCrewGuide();
     this.input.keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'E', 'ESC']);
     if (this.inputsBlocked()) this.input.keyboard.disableGlobalCapture();
     const removeLanguageListener = onLanguageChange(() => {
