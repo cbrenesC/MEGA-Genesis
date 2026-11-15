@@ -1,0 +1,35 @@
+.credits-dialog {
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  overflow: auto;
+  border: 2px solid var(--cyan, #67e4ee);
+  background: #081422;
+  color: #e6f3f2;
+  box-shadow: 4px 4px 0 #1b3a50, 0 18px 60px #000a;
+  text-align: center;
+}
+.credits-dialog::backdrop { background: #02060cc0; }
+.credits-dialog__header {
+  padding: .95rem 1rem;
+  border-bottom: 1px solid #3c758f;
+  background: #10283b;
+}
+.credits-dialog__header h2,
+.credits-dialog__body h3 {
+  margin: 0;
+  color: var(--cyan, #67e4ee);
+  font: clamp(.75rem, 2.8vw, 1rem)/1.65 'Press Start 2P', monospace;
+  overflow-wrap: anywhere;
+}
+.credits-dialog__body {
+  padding: clamp(1rem, 4vw, 1.75rem);
+  font: 1.35rem/1.2 'VT323', monospace;
+}
+.credits-dialog__body p { margin: .7rem 0; }
+.credits-dialog__subtitle { color: #ffa365; }
+.credits-dialog__technology { color: #aac4d8; font-size: 1.05rem; }
+.credits-dialog__body form { margin-top: 1.25rem; }
+.credits-dialog__body button { min-height: 44px; }
+.credits-dialog__body button:focus-visible { outline: 2px solid white; outline-offset: 4px; }

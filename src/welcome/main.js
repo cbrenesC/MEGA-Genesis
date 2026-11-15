@@ -1,5 +1,6 @@
 
 import { mountTitleOverlay } from './ui/titleOverlay.js';
+import { showCredits } from './ui/creditsDialog.js';
 import { audio } from './core/audio.js';
 
 import { installSettingsDialog } from './ui/settingsDialog.js';
@@ -282,11 +283,11 @@ window.addEventListener('sms-intro-complete', () => {
     newGame() { window.__MEGA_ENTER_MAP__?.(); },
     continueGame() { window.__MEGA_ENTER_MAP__?.(); },
     openInfo(type) {
-      const messages = {
-        controls:'WASD o flechas: mover. E: interactuar. ESC: pausa.',
-        credits:'SPACE MISSION · MEGA GENESIS'
-      };
-      window.alert(messages[type] || type);
+      if (type === 'credits') {
+        showCredits();
+      } else if (type === 'controls') {
+        window.alert('WASD o flechas: mover. E: interactuar. ESC: pausa.');
+      }
     }
   };
   mountTitleOverlay(adapter);
