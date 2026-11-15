@@ -13,7 +13,7 @@ import Phaser from 'phaser';
 import {
   PHYS, DEG, DEST, applyAutopilot, autopilotStep, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
 } from '../flight.js';
-import { app, inputs, reducedMotion, remember } from '../store.js';
+import { app, inputs, reducedMotion } from '../store.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
@@ -34,13 +34,6 @@ const MAX_STEPS = 4; // máximo de pasos por cuadro para no "espiralizar" si el 
 const IGNITION_S = 2.6; // s reales de encendido en la plataforma antes de soltar los anclajes
 const SPOOL_END = 0.7; // acelerador con el que termina el encendido (la física decide cuándo despega)
 const MAX_DEBRIS = 10;
-
-const TUTORIAL = [
-  { title: '1 · Empuje', text: 'La barra de la izquierda (o las teclas Shift y Ctrl, o ↑ y ↓) controla qué tan fuerte empujan los motores. Empieza al 100 %. El cohete despega cuando el empuje supera su peso.' },
-  { title: '2 · Inclina de a poquito', text: 'Con ◀ ▶ (o A y D) giras el cohete. Primero sube derecho; después inclínalo hacia la derecha poco a poco. Para quedarte en órbita necesitas ir muy rápido de lado, no solo subir.' },
-  { title: '3 · Separa las etapas', text: 'Cuando una etapa se queda sin combustible, pulsa «Separar etapa» (barra espaciadora). Cuando ya casi no haya aire, suelta la cofia con el botón 📦.' },
-  { title: '4 · Mira tu órbita', text: 'El botón 🌍 Mapa te muestra tu órbita desde arriba y te dice si «cierra» o si vas a caer. Con ⏩ puedes acelerar el tiempo en las partes largas.' },
-];
 
 const EVENT_TEXT = {
   liftoff: ['¡DESPEGUE!', 'ok'],
@@ -129,8 +122,7 @@ export class FlightScene extends Phaser.Scene {
     window.addEventListener('keydown', this.onEsc);
     this.events.once('shutdown', () => this.cleanup());
 
-    if (!remember.get('tutorial')) this.showTutorial(0);
-    else this.begin();
+    this.begin();
   }
 
   dMax() { return CAMERA.dMaxFrac * this.view.viewH; }
@@ -159,17 +151,6 @@ export class FlightScene extends Phaser.Scene {
     this.hud.event('ENCENDIDO', 'info');
   }
 
-  showTutorial(i) {
-    const ov = document.getElementById('overlay');
-    ov.hidden = false;
-    const step = TUTORIAL[i];
-    ov.innerHTML = `<div class="tutorial" role="dialog" aria-label="Tutorial"><span class="kicker">TUTORIAL · ${i + 1} DE ${TUTORIAL.length}</span><h2>${esc(step.title)}</h2><p>${esc(step.text)}</p>
-      <div class="actions"><button id="tut-skip">Saltar</button><button class="primary big" id="tut-next">${i === TUTORIAL.length - 1 ? '¡A volar! 🚀' : 'Siguiente →'}</button></div></div>`;
-    const done = () => { remember.set('tutorial', '1'); ov.hidden = true; ov.innerHTML = ''; this.begin(); };
-    document.getElementById('tut-skip').onclick = done;
-    document.getElementById('tut-next').onclick = () => (i === TUTORIAL.length - 1 ? done() : this.showTutorial(i + 1));
-  }
-
   togglePause() {
     if (this.ended || (this.sim.status === 'pad' && !this.ignition)) return;
     this.paused = !this.paused;
@@ -177,9 +158,9 @@ export class FlightScene extends Phaser.Scene {
     if (this.paused) {
       ov.hidden = false;
       ov.innerHTML = `<div class="tutorial" role="dialog" aria-label="Pausa"><span class="kicker">PAUSA</span><h2>Vuelo en pausa</h2><p>Tu cohete espera. Los motores y el tiempo están congelados.</p>
-        <div class="actions"><button id="p-exit">Salir al hangar</button><button class="primary big" id="p-resume">▶ Seguir volando</button></div></div>`;
+        <div class="actions"><button id="p-exit">Volver al centro de control</button><button class="primary big" id="p-resume">▶ Seguir volando</button></div></div>`;
       document.getElementById('p-resume').onclick = () => this.togglePause();
-      document.getElementById('p-exit').onclick = () => { this.paused = false; ov.hidden = true; app.sim = null; app.nav.go('check'); };
+      document.getElementById('p-exit').onclick = () => { this.paused = false; ov.hidden = true; app.sim = null; app.nav.exit(); };
     } else { ov.hidden = true; ov.innerHTML = ''; }
   }
 

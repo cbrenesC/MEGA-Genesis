@@ -2,25 +2,27 @@
 //   Briefing → Construcción → Exploración (recoger → analizar → transmitir) → Resultados
 // Toda la lógica vive en rules.js; aquí solo se lee el estado y se dibuja.
 import {
-  LIMITS, WORLD, RULES, CATEGORIES, COMPONENTS, RECOMMENDED_BUILD, SAMPLE_DEFS,
-  emptyBuild, selectComponent, computeBuild, validateBuild, createMission, step, startAction, availability,
+  WORLD, RULES, SAMPLE_DEFS,
+  emptyBuild, validateBuild, createMission, step, startAction, availability,
   progress, evaluate, snapshot, restoreMission, fmt,
 } from './rules.js';
 import { roverCanvas, terrainCanvas, sampleCanvas } from './art.js';
 import Phaser from 'phaser';
 import '@fontsource/press-start-2p/latin-400.css';
-import { localizeDOM } from '../../../src/i18n/index.js';
+import { getLanguage, localizeDOM, t } from '../../../src/i18n/index.js';
+import { hasStorageConsent } from '../../../src/welcome/core/consent.js';
+import { readMissionPlan, returnToControl, ROVER_SAVE_KEY as SAVE_KEY } from '../../../src/missions/missionTransfer.js';
 
 const $ = (id) => document.getElementById(id);
-const SAVE_KEY = 'megaGenesis.rover.save.v1', BUILD_KEY = 'megaGenesis.rover.build.v1';
+const exitMission = () => returnToControl(getLanguage());
 const store = {
-  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sin almacenamiento */ } },
-  del(k) { try { localStorage.removeItem(k); } catch { /* sin almacenamiento */ } },
+  get(k) { try { return hasStorageConsent() ? JSON.parse(localStorage.getItem(k)) : null; } catch { return null; } },
+  set(k, v) { try { if (hasStorageConsent()) localStorage.setItem(k, JSON.stringify(v)); } catch { /* sin almacenamiento */ } },
+  del(k) { try { if (hasStorageConsent()) localStorage.removeItem(k); } catch { /* sin almacenamiento */ } },
 };
 const TINTS = { S1: '#6ce2cf', S2: '#ffd166', S3: '#9eb8ff', S4: '#ff97c8' };
 
-export const app = { screen: 'briefing', build: emptyBuild(), mission: null, result: null, paused: false, game: null, keys: new Set(), virt: new Set() };
+export const app = { screen: 'waiting', build: emptyBuild(), mission: null, result: null, paused: false, game: null, keys: new Set(), virt: new Set() };
 const sceneOf = () => app.game && app.game.scene.getScene('ExploreScene');
 
 // ---------- Avisos ----------
@@ -32,7 +34,7 @@ function flash(msg, kind = 'ok') {
 }
 
 // ---------- Navegación ----------
-const STEPS = [['briefing', 'Misión'], ['build', 'Construcción'], ['explore', 'Exploración'], ['results', 'Resultados']];
+const STEPS = [['explore', 'Exploración'], ['results', 'Resultados']];
 export function go(name) {
   app.screen = name; document.body.dataset.screen = name;
   document.querySelectorAll('[data-screen-id]').forEach((el) => { el.hidden = el.dataset.screenId !== name; });
@@ -42,8 +44,6 @@ export function go(name) {
   const sm = app.game?.scene;
   if (name === 'explore') { sm.stop('BackdropScene'); sm.stop('ExploreScene'); sm.start('ExploreScene'); }
   else if (app.game?.isBooted) { sm.stop('ExploreScene'); if (!sm.isActive('BackdropScene')) sm.start('BackdropScene'); }
-  if (name === 'briefing') renderBriefing();
-  if (name === 'build') renderBuild();
   if (name === 'results') renderResults();
   if (name !== 'explore') { const s = document.querySelector(`[data-screen-id="${name}"]`); if (s) s.scrollTop = 0; }
 }
@@ -52,18 +52,13 @@ export function go(name) {
 function beginMission() {
   const v = validateBuild(app.build);
   if (!v.ok) { flash(v.reasons[0], 'bad'); return false; } // se revalida: no depende solo del botón
-  app.mission = createMission(app.build); app.result = null; store.del(SAVE_KEY); go('explore'); return true;
-}
-function continueSaved() {
-  const m = restoreMission(store.get(SAVE_KEY));
-  if (!m) { store.del(SAVE_KEY); flash('El guardado no es válido y se descartó.', 'warn'); renderBriefing(); return; }
-  app.build = m.build; app.mission = m; app.result = null; go('explore'); setPaused(true);
+  app.mission = createMission(app.build); app.result = null; go('explore'); saveNow(); return true;
 }
 function saveNow() { const m = app.mission; if (m && (m.phase === 'explore' || m.phase === 'landing')) store.set(SAVE_KEY, snapshot(m)); }
 function setPaused(p) {
   if (app.screen !== 'explore' || !app.mission || app.mission.phase === 'success' || app.mission.phase === 'failed') return;
   app.paused = p; $('pause').hidden = !p; directions.clear(); app.virt.clear(); app.keys.clear();
-  const sc = sceneOf(); if (sc && sc.tweens) p ? sc.tweens.pauseAll() : sc.tweens.resumeAll();
+  const sc = sceneOf(); if (sc?.sys.isActive()) p ? sc.tweens.pauseAll() : sc.tweens.resumeAll();
   if (p) saveNow();
 }
 function finishMission() { app.result = evaluate(app.mission); store.del(SAVE_KEY); go('results'); }
@@ -129,7 +124,7 @@ $('pause').addEventListener('click', (e) => {
   const c = e.target.closest('[data-cmd]'); if (!c) return;
   if (c.dataset.cmd === 'resume') setPaused(false);
   else if (c.dataset.cmd === 'restart') { app.mission = createMission(app.build); store.del(SAVE_KEY); go('explore'); }
-  else if (c.dataset.cmd === 'rebuild') { store.del(SAVE_KEY); app.mission = null; go('build'); }
+  else if (c.dataset.cmd === 'exit') { saveNow(); exitMission(); }
 });
 
 // ---------- HUD ----------
@@ -194,7 +189,7 @@ class ExploreScene extends Phaser.Scene {
   constructor() { super('ExploreScene'); }
   create() {
     const m = app.mission;
-    if (!m) { go('build'); return; }
+    if (!m) { go('waiting'); return; }
     this.m = m; this.finished = false; this.lastSave = 0; this.sprites = new Map();
     const T = this.textures;
     if (!T.exists('terrain')) T.addCanvas('terrain', terrainCanvas());
@@ -226,6 +221,7 @@ class ExploreScene extends Phaser.Scene {
     this.layout(); this.scale.on('resize', this.layout); window.addEventListener('resize', this.layout);
     this.ro = new ResizeObserver(this.layout); this.ro.observe($('hud-top')); this.ro.observe($('hud-bottom'));
     this.events.once('shutdown', () => { this.scale.off('resize', this.layout); window.removeEventListener('resize', this.layout); this.ro.disconnect(); });
+    if (app.paused) this.tweens.pauseAll();
     this.syncVisuals(); refreshHud();
   }
   syncVisuals() {
@@ -259,97 +255,8 @@ class ExploreScene extends Phaser.Scene {
 }
 
 // ---------- Pantallas HTML ----------
-function renderBriefing() {
-  const saved = store.get(SAVE_KEY), canContinue = !!restoreMission(saved);
-  $('screen-briefing').innerHTML = `<div class="wrap">
-    <section class="panel hero"><span class="kicker">MISIÓN 02 · SUPERFICIE LUNAR</span>
-      <h1>Envío de rover a la Luna</h1>
-      <p class="lead">Diseña un rover dentro de un límite de <b>${LIMITS.mass} kg</b> y <b>${LIMITS.credits} créditos</b>, aterriza y conduce hasta las muestras. Recoge, analiza y transmite los datos de <b>${RULES.sampleGoal} muestras distintas</b> antes de que se acabe la energía o el tiempo.</p>
-      <div class="row" style="margin-top:14px"><button class="primary" data-cmd="build">Construir rover</button>${canContinue ? '<button data-cmd="continue">Continuar misión guardada</button>' : ''}</div>
-    </section>
-    <div class="grid2">
-      <section class="panel"><h2>Objetivos</h2><ul class="list">
-        <li><b>Recoger:</b> acércate a una muestra (menos de ${RULES.collectRange} px) y mantén el rover quieto ${RULES.collectTime} s.</li>
-        <li><b>Analizar:</b> el instrumento estudia una muestra recogida (consume energía y tiempo).</li>
-        <li><b>Transmitir:</b> envía los datos analizados. Solo las muestras transmitidas completan la misión.</li>
-        <li>Evita cráteres y rocas; la batería nunca baja de cero ni supera su capacidad.</li></ul></section>
-      <section class="panel"><h2>Reglas de energía</h2><ul class="list">
-        <li>Moverse consume energía según chasis y ruedas.</li>
-        <li>El panel solar recarga <b>solo con el rover detenido</b>.</li>
-        <li>Sin energía suficiente, la acción se bloquea y se te explica por qué.</li>
-        <li>Tiempo máximo de exploración: ${RULES.timeLimit / 60} minutos.</li></ul></section>
-    </div>
-    <section class="panel"><h2>Controles</h2><div class="row"><span><kbd>WASD</kbd> / <kbd>←↑↓→</kbd> mover</span><span><kbd>E</kbd> recoger</span><span><kbd>F</kbd> analizar</span><span><kbd>T</kbd> transmitir</span><span><kbd>P</kbd> pausa</span><span class="muted">En móvil: cruceta y botones en pantalla.</span></div></section></div>`;
-}
-$('screen-briefing').addEventListener('click', (e) => { const c = e.target.closest('[data-cmd]'); if (!c) return; if (c.dataset.cmd === 'build') go('build'); else if (c.dataset.cmd === 'continue') continueSaved(); });
-
-const factsFor = {
-  chassis: (c) => `Velocidad ${c.speed} px/s · consumo al moverse ${fmt(c.moveDraw)} u/s`,
-  wheels: (c) => `Velocidad ×${c.speedMul} · consumo ×${c.drawMul} · daño por choques ×${c.bumpMul}`,
-  battery: (c) => `Capacidad ${c.capacity} u`,
-  solar: (c) => `Recarga +${fmt(c.gen)} u/s con el rover detenido`,
-  instrument: (c) => `${c.analysisTime} s · ${c.analysisEnergy} u por análisis · valor científico ×${c.quality}`,
-  camera: (c) => `Consumo ${fmt(c.draw, 2)} u/s · valor de datos ×${c.dataMul}`,
-  comms: (c) => `${c.txTime} s · ${c.txEnergy} u por transmisión`,
-};
-function renderBuild() {
-  const cats = CATEGORIES.map((cat) => `<section class="panel" aria-labelledby="h-${cat.id}"><h3 id="h-${cat.id}">${cat.label}</h3>
-    <div class="opts" role="radiogroup" aria-labelledby="h-${cat.id}" data-cat="${cat.id}">${COMPONENTS[cat.id].map((c) => `
-      <button type="button" class="opt" role="radio" aria-checked="false" data-cat="${cat.id}" data-id="${c.id}">
-        <span class="tag">✓ ELEGIDO</span><b class="name">${c.name}</b>
-        <span class="nums"><span class="chip">${c.mass} kg</span><span class="chip">${c.cost} cr</span></span>
-        <span class="facts">${factsFor[cat.id](c)}</span><span class="trade">${c.trade}</span></button>`).join('')}</div></section>`).join('');
-  $('screen-build').innerHTML = `<div class="wrap"><div class="build"><div class="cats">${cats}</div>
-    <aside class="side"><section class="panel"><h3>Vista previa</h3><div class="preview"><canvas id="preview" width="204" height="156" aria-label="Vista previa del rover"></canvas></div></section>
-    <section class="panel"><h3>Recursos</h3><div id="resources"></div><div id="reason" class="reason" role="status"></div>
-      <div class="stack" style="margin-top:12px"><button type="button" id="start" class="primary start-btn" data-cmd="start">Iniciar misión</button>
-      <div class="row"><button type="button" data-cmd="recommended">Usar configuración recomendada</button><button type="button" data-cmd="clear">Vaciar</button></div>
-      <button type="button" class="ghost" data-cmd="back">← Volver al briefing</button></div></section></aside></div></div>`;
-  updateBuild();
-}
-function setBuild(b) { app.build = b; store.set(BUILD_KEY, b); updateBuild(); }
-function updateBuild() {
-  const v = validateBuild(app.build), st = v.stats;
-  document.querySelectorAll('#screen-build .opts').forEach((grp) => {
-    const sel = app.build[grp.dataset.cat]; let first = true;
-    grp.querySelectorAll('.opt').forEach((o) => {
-      const on = o.dataset.id === sel; o.classList.toggle('is-selected', on); o.setAttribute('aria-checked', String(on));
-      o.tabIndex = on || (!sel && first) ? 0 : -1; first = false;
-    });
-  });
-  const meter = (label, val, max, unit) => { const r = val / max, c = r > 1 ? 'bad' : r > .9 ? 'warn' : ''; return `<div class="meter"><div class="top"><span>${label}</span><b class="${c}">${fmt(val)} / ${max} ${unit}</b></div><div class="bar ${c}"><i style="width:${Math.min(100, r * 100)}%"></i></div></div>`; };
-  const dash = (x, f) => (x ? f(x) : '—');
-  $('resources').innerHTML = meter('Masa', st.mass, LIMITS.mass, 'kg') + meter('Presupuesto', st.cost, LIMITS.credits, 'cr') + `<div class="stats">
-    <span>Batería</span><b>${dash(st.capacity, (x) => x + ' u')}</b>
-    <span>Generación solar</span><b>${dash(st.solar, (x) => '+' + fmt(x) + ' u/s')}</b>
-    <span>Consumo al moverse</span><b>${dash(st.moveDraw, (x) => fmt(x + st.idleDraw, 2) + ' u/s')}</b>
-    <span>Velocidad</span><b>${dash(st.speed, (x) => fmt(x) + ' px/s')}</b>
-    <span>Análisis</span><b>${dash(st.analysisTime, (x) => x + ' s · ' + st.analysisEnergy + ' u')}</b>
-    <span>Transmisión</span><b>${dash(st.txTime, (x) => x + ' s · ' + st.txEnergy + ' u')}</b></div>`;
-  const cv = $('preview'), g = cv.getContext('2d'); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(roverCanvas(app.build, 6), 0, 0, cv.width, cv.height);
-  const btn = $('start'); btn.setAttribute('aria-disabled', String(!v.ok));
-  const rs = $('reason'); rs.className = 'reason ' + (v.ok ? 'ok' : 'bad');
-  rs.innerHTML = v.ok ? 'Configuración válida: lista para despegar.' : v.reasons.map((r) => `<div>${r}</div>`).join('');
-}
-$('screen-build').addEventListener('click', (e) => {
-  const o = e.target.closest('.opt');
-  if (o) { setBuild(selectComponent(app.build, o.dataset.cat, o.dataset.id)); return; }
-  const c = e.target.closest('[data-cmd]'); if (!c) return;
-  const cmd = c.dataset.cmd;
-  if (cmd === 'start') { if (validateBuild(app.build).ok) beginMission(); else flash(validateBuild(app.build).reasons[0], 'bad'); }
-  else if (cmd === 'recommended') setBuild({ ...emptyBuild(), ...RECOMMENDED_BUILD });
-  else if (cmd === 'clear') setBuild(emptyBuild());
-  else if (cmd === 'back') go('briefing');
-});
-$('screen-build').addEventListener('keydown', (e) => {
-  const grp = e.target.closest && e.target.closest('.opts'); if (!grp || !e.target.classList.contains('opt')) return;
-  const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]; if (!d) return;
-  e.preventDefault(); const list = [...grp.querySelectorAll('.opt')], i = list.indexOf(e.target), n = list[(i + d + list.length) % list.length];
-  setBuild(selectComponent(app.build, n.dataset.cat, n.dataset.id)); grp.querySelector(`[data-id="${n.dataset.id}"]`).focus();
-});
-
 function renderResults() {
-  const r = app.result; if (!r) { go('build'); return; }
+  const r = app.result; if (!r) { go('waiting'); return; }
   const p = r.progress;
   $('screen-results').innerHTML = `<div class="wrap">
     <section class="panel hero"><span class="kicker">${r.success ? 'MISIÓN COMPLETADA' : 'MISIÓN NO COMPLETADA'}</span>
@@ -360,17 +267,41 @@ function renderResults() {
       <section class="panel"><h2>Resumen</h2><div class="stats"><span>Recogidas</span><b>${p.collected}</b><span>Analizadas</span><b>${p.analyzed} / ${p.goal}</b><span>Transmitidas</span><b>${p.transmitted} / ${p.goal}</b><span>Batería final</span><b>${r.energyPct} %</b><span>Tiempo</span><b>${fmt(r.elapsed, 0)} s</b><span>Choques</span><b>${r.bumps}</b><span>Masa / costo</span><b>${fmt(r.stats.mass)} kg · ${r.stats.cost} cr</b></div></section></div>
     <section class="panel"><h2>Cómo mejorar</h2><ul class="list">${r.suggestions.map((s) => `<li>${s}</li>`).join('')}</ul>
       <p class="muted" style="margin-top:8px;font-size:.85rem">Puntuación y sugerencias calculadas con reglas fijas a partir de tu partida; no hay decisiones arbitrarias.</p></section>
-    <div class="row"><button class="primary" data-cmd="retry">Reintentar con este rover</button><button data-cmd="rebuild">Modificar rover</button><button data-cmd="home">Volver al briefing</button></div></div>`;
+    <div class="row"><button class="primary" data-cmd="retry">Reintentar con este rover</button><button data-cmd="exit">Volver al centro de control</button></div></div>`;
 }
 $('screen-results').addEventListener('click', (e) => {
   const c = e.target.closest('[data-cmd]'); if (!c) return;
-  if (c.dataset.cmd === 'retry') beginMission(); else if (c.dataset.cmd === 'rebuild') go('build'); else if (c.dataset.cmd === 'home') go('briefing');
+  if (c.dataset.cmd === 'retry') beginMission(); else if (c.dataset.cmd === 'exit') exitMission();
 });
 
 // ---------- Arranque ----------
-const saved = store.get(BUILD_KEY);
-if (saved && typeof saved === 'object') { let b = emptyBuild(); for (const cat of CATEGORIES) b = selectComponent(b, cat.id, saved[cat.id]); app.build = b; }
-app.game = new Phaser.Game({ type: Phaser.CANVAS, parent: 'game', backgroundColor: '#050b16', pixelArt: true, scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' }, scene: [BackdropScene, ExploreScene] });
-window.__rover = { app, go, tryAction, setPaused, SAMPLE_DEFS, flash };
+const params = new URLSearchParams(location.search);
+const saved = params.get('resume') === '1' ? restoreMission(store.get(SAVE_KEY)) : null;
+const plan = saved?.build ?? readMissionPlan(location.hash);
+document.querySelectorAll('[data-mission-exit]').forEach(button => button.addEventListener('click', event => {
+  event.preventDefault();
+  saveNow();
+  exitMission();
+}));
 localizeDOM(document.querySelector('.topbar'));
-go('briefing');
+
+if (validateBuild(plan).ok) {
+  app.build = plan;
+  app.game = new Phaser.Game({
+    type: Phaser.CANVAS, parent: 'game', backgroundColor: '#050b16', pixelArt: true,
+    scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
+    scene: [BackdropScene, ExploreScene],
+    callbacks: { postBoot(game) {
+      app.game = game;
+      if (saved) {
+        app.mission = saved;
+        go('explore');
+        setPaused(true);
+      } else beginMission();
+    } },
+  });
+  window.__rover = { app, go, tryAction, setPaused, SAMPLE_DEFS, flash };
+} else {
+  $('screen-waiting').textContent = t('station.prepareFirst');
+  go('waiting');
+}

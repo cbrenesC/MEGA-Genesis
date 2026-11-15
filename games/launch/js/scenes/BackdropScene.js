@@ -14,10 +14,11 @@ export class BackdropScene extends Phaser.Scene {
     for (let i = 0; i < 140; i++) this.stars.push({ x: Math.random(), y: Math.random() * 0.9, r: Math.random() * 1.4 + 0.3, p: Math.random() * 6.28, s: 0.4 + Math.random() * 1.2 });
     this.g = this.add.graphics();
     this.t = 0;
-    this.scale.on('resize', () => this.draw(0));
+    const resize = () => this.draw(0);
+    this.scale.on('resize', resize);
     this.draw(0);
     this.mount();
-    this.events.once('shutdown', () => { this.scale.off('resize'); });
+    this.events.once('shutdown', () => { this.scale.off('resize', resize); });
   }
 
   update(time, delta) {

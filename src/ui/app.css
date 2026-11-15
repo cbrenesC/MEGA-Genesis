@@ -1078,3 +1078,31 @@ html.sms-reduced-animations #boot .boot-consent {
   .corner-controls #fullscreen-button { width: 36px; height: 36px; flex-basis: 36px; }
   .hud-top { padding-left: 98px; }
 }
+
+/* Preparation stations use the same terminal as the room's educational notes. */
+.preparation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.preparation-grid:empty, [data-preparation]:empty { display: none; }
+.preparation-grid label { display: grid; gap: 4px; min-width: 0; font-size: 20px; color: #c5f1f3; }
+.preparation-grid small { color: #afc6d1; font-size: 17px; }
+.preparation-grid select, .preparation-grid input[type="number"], .preparation-grid textarea {
+  width: 100%; min-height: 44px; padding: 5px 9px;
+  color: #e7f6f7; background: #091b2b; border: 1px solid #648e9f; font: inherit;
+}
+.mission-terminal .preparation-note, [data-preparation] li { font: 20px/1.3 'VT323', monospace; }
+.mission-terminal .preparation-note { margin: 8px 0; }
+.preparation-confirm {
+  font: 20px 'VT323', monospace; min-height: 44px; padding: 6px 12px;
+  color: #d5ffff; background: #173f4c; border: 1px solid #6cb8be; cursor: pointer;
+}
+.mission-terminal button:disabled { opacity: .55; cursor: not-allowed; }
+.preparation-grid :is(input, select):focus-visible, .preparation-confirm:focus-visible { outline: 2px solid #80e1e4; outline-offset: 2px; }
+.preparation-rover { display: block; margin: 8px auto; image-rendering: pixelated; max-width: 100%; }
+.mission-simulation { position: fixed; inset: 0; z-index: 10001; width: 100%; height: 100%; border: 0; background: #07111d; }
+
+.preparation-grid .preparation-ack { grid-template-columns: auto 1fr; align-items: center; }
+.preparation-ack input { width: 20px; height: 20px; accent-color: #6bd4c5; }

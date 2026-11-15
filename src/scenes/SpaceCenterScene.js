@@ -6,6 +6,7 @@ import { InteractionSignal } from '../map/InteractionSignal.js';
 import { getPreferences } from '../welcome/core/consent.js';
 import { Player } from '../player/Player.js';
 import { placeCrew } from '../crew/placeCrew.js';
+import { StationPreparation } from '../missions/StationPreparation.js';
 import { localizeDOM, onLanguageChange, t } from '../i18n/index.js';
 
 export class SpaceCenterScene extends Phaser.Scene {
@@ -39,7 +40,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       const item = { ...station, source: sources.get(id) };
       this.interactables.push({
         x, y: y + 52, radius: 78, markerY: -135,
-        label: () => t('map.prompt', { title: t(`lesson.${id}.title`) }),
+        label: () => t('map.prompt', { title: t(station.setup ? `station.title.${station.part}` : `lesson.${id}.title`) }),
         interact: () => this.openTerminal(item),
       });
     }
@@ -86,10 +87,12 @@ export class SpaceCenterScene extends Phaser.Scene {
     if (this.minimapContext) this.minimapContext.imageSmoothingEnabled = false;
 
     this.createTerminalDialog();
+    this.preparation = new StationPreparation(this);
     this.input.keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'E', 'ESC']);
     if (this.inputsBlocked()) this.input.keyboard.disableGlobalCapture();
     const removeLanguageListener = onLanguageChange(() => {
       this.findInteractionTarget();
+      if (this.terminalOpen && !this.terminalDialog.hidden) this.preparation.renderAgain();
       this.updateZoneDisplay(true);
       if (this.activeNotice) this.doorNotice.textContent = t(this.activeNotice.key, this.activeNotice.params);
     });
@@ -103,6 +106,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       removeLanguageListener();
       window.removeEventListener('sms-settings-toggled', stopWhenSettingsOpen);
       this.prompt?.classList.remove('visible');
+      this.preparation?.destroy();
       this.terminalDialog?.remove();
       this.scale.off('resize', resizeCamera);
       this.events.off('pause', hideSignal);
@@ -265,12 +269,25 @@ export class SpaceCenterScene extends Phaser.Scene {
         <div><h2 id="mission-terminal-title" data-title></h2><p data-role class="mission-terminal__role" hidden></p></div>
       </div>
       <p data-description></p>
-      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><a data-launch hidden data-i18n="terminal.launch">Start mission ▶</a><button type="button" data-close data-i18n="common.close">Close</button></div>
+      <div data-preparation></div>
+      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><button type="button" data-launch hidden data-i18n="terminal.launch">Start mission ▶</button><button type="button" data-close data-i18n="common.close">Close</button></div>
     </div>`;
     document.getElementById('app').append(dialog);
     dialog.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>this.closeTerminal()));
     this.terminalDialog=dialog;
-    this.input.keyboard.on('keydown-ESC',()=>{if(this.terminalOpen)this.closeTerminal();});
+    dialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.stopPropagation(); this.closeTerminal(); }
+      if (event.key === 'Tab') {
+        const items = [...dialog.querySelectorAll('button:not(:disabled), a[href], input, select, textarea')]
+          .filter(node => !node.closest('[hidden]'));
+        const target = event.shiftKey ? items.at(-1) : items[0];
+        const edge = event.shiftKey ? items[0] : items.at(-1);
+        if (target && (document.activeElement === edge || !items.includes(document.activeElement))) {
+          event.preventDefault();
+          target.focus();
+        }
+      }
+    });
   }
   openTerminal(item) {
     const dialog=this.terminalDialog;
@@ -278,6 +295,9 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.stopMovement();
     this.interactionSignal.hide();
     this.gameContainer.inert = true;
+    const cornerControls = document.querySelector('.corner-controls');
+    if (cornerControls) cornerControls.inert = true;
+    this.input.keyboard.disableGlobalCapture();
     const isCrew = item.kind === 'crew';
     const title = dialog.querySelector('[data-title]');
     const role = dialog.querySelector('[data-role]');
@@ -293,7 +313,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       role.dataset.i18n = `crew.${item.id}.role`;
       portrait.src = this.textures.get(item.texture).getSourceImage().toDataURL();
     } else {
-      title.dataset.i18n = `lesson.${item.id}.title`;
+      title.dataset.i18n = item.setup ? `station.title.${item.part}` : `lesson.${item.id}.title`;
       delete role.dataset.i18n;
       portrait.removeAttribute('src');
     }
@@ -302,25 +322,21 @@ export class SpaceCenterScene extends Phaser.Scene {
     const link=dialog.querySelector('[data-source]');
     link.hidden=!item.source;
     if(item.source)link.href=item.source;
-    const launchLink = dialog.querySelector('[data-launch]');
-    const missionUrl = { launch: '/games/launch/', rover: '/games/rover/' }[item.mission];
-    launchLink.hidden = !missionUrl;
-    if (missionUrl) {
-      launchLink.href = missionUrl;
-      launchLink.dataset.localeLink = '';
-    } else {
-      launchLink.removeAttribute('href');
-      delete launchLink.dataset.localeLink;
-    }
     localizeDOM(dialog);
     dialog.hidden=false;
+    dialog.querySelector('.mission-terminal__panel').scrollTop = 0;
+    void this.preparation.render(item);
     dialog.querySelector('[data-close]').focus({ preventScroll: true });
   }
   closeTerminal() {
     this.terminalOpen=false;
     this.terminalDialog.hidden=true;
+    this.preparation.item = null;
     this.gameContainer.inert = false;
+    const cornerControls = document.querySelector('.corner-controls');
+    if (cornerControls) cornerControls.inert = false;
     this.stopMovement();
+    this.input.keyboard.enableGlobalCapture();
     this.gameContainer.focus({ preventScroll: true });
   }
 
