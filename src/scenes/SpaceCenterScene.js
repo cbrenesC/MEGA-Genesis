@@ -8,6 +8,8 @@ export class SpaceCenterScene extends Phaser.Scene {
 
   create() {
     this.interactables = [];
+    this.gameContainer = document.getElementById('game-container');
+    this.terminalOpen = false;
     this.mobilePressed = new Set();
     this.mobileDirection = { x: 0, y: 0 };
     this.currentTarget = null;
@@ -32,7 +34,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       ['494,402',{title:'ROCKET LAUNCH MISSION',text:'Prepare and execute a launch. Plan the launch window, vehicle readiness, ground systems, and flight safety.',mission:'launch'}],
       ['822,402',{title:'LUNAR ROVER MISSION',text:'Plan a rover delivery to the Moon. Consider payload, communications, surface mobility, energy, and scientific objectives.',mission:'rover'}],
     ]);
-    stations.forEach(({x,y},index) => {
+    stations.forEach(({x,y}) => {
       const item = missions.get(x+','+y) || lessons.shift();
       this.interactables.push({
         x,y:y+69,radius:92,label:'[E] '+item.title,
@@ -65,6 +67,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.input.keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'E', 'ESC']);
     this.events.on('shutdown', () => {
       this.prompt?.classList.remove('visible');
+      this.terminalDialog?.remove();
       this.mapManager?.destroy();
     });
     this.updateZoneDisplay(true);
@@ -72,7 +75,7 @@ export class SpaceCenterScene extends Phaser.Scene {
   }
 
   update(time, delta) {
-    if (this.terminalOpen) return;
+    if (this.inputsBlocked()) return;
     this.player.update(time, delta);
     if (Phaser.Input.Keyboard.JustDown(this.player.keys.E)) this.interact();
     if (Phaser.Input.Keyboard.JustDown(this.player.keys.ESC)) this.pauseExploration();
@@ -82,13 +85,27 @@ export class SpaceCenterScene extends Phaser.Scene {
     if (this.minimapClock > 130) { this.minimapClock = 0; this.drawMinimap(); }
   }
 
+  inputsBlocked() {
+    return this.gameContainer.inert || this.terminalOpen;
+  }
+
+  stopMovement() {
+    this.player.body.stop();
+    this.mobilePressed.clear();
+    this.mobileDirection.x = 0;
+    this.mobileDirection.y = 0;
+    this.input.keyboard.resetKeys();
+  }
+
   pauseExploration() {
-    if (!this.scene.isActive() || this.scene.isPaused()) return;
+    if (this.inputsBlocked() || !this.scene.isActive() || this.scene.isPaused()) return;
+    this.stopMovement();
     this.scene.launch('PauseScene');
     this.scene.pause();
   }
 
   setMobileDirection(direction, active) {
+    if (active && (this.inputsBlocked() || !this.scene.isActive())) return;
     if (active) this.mobilePressed.add(direction);
     else this.mobilePressed.delete(direction);
     const has = (name) => this.mobilePressed.has(name);
@@ -113,6 +130,8 @@ export class SpaceCenterScene extends Phaser.Scene {
   }
 
   interact() {
+    if (this.inputsBlocked() || !this.scene.isActive()) return;
+    this.findInteractionTarget();
     const target = this.currentTarget;
     if (!target) {
       this.showNotice('APPROACH A CONSOLE AND PRESS E');
@@ -191,35 +210,37 @@ export class SpaceCenterScene extends Phaser.Scene {
     dialog.innerHTML = `<div class="mission-terminal__panel" role="dialog" aria-modal="true" aria-label="Mission console">
       <div class="mission-terminal__top"><span>◈ MISSION CONTROL // TERMINAL</span><button type="button" data-close aria-label="Close terminal">✕</button></div>
       <h2 data-title></h2><p data-description></p>
-      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer">NASA SOURCE ↗</a><button type="button" data-launch hidden>START MISSION ▶</button><button type="button" data-close>CLOSE</button></div>
+      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer">NASA SOURCE ↗</a><a data-launch hidden>START MISSION ▶</a><button type="button" data-close>CLOSE</button></div>
     </div>`;
     document.getElementById('app').append(dialog);
     dialog.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>this.closeTerminal()));
-    dialog.querySelector('[data-launch]').addEventListener('click',()=> {
-      const mission=this.activeMission;
-      this.closeTerminal();
-      window.dispatchEvent(new CustomEvent('mega-mission-selected',{detail:{mission}}));
-      this.showNotice(mission === 'launch' ? 'ROCKET LAUNCH MISSION SELECTED' : 'LUNAR ROVER MISSION SELECTED');
-    });
     this.terminalDialog=dialog;
     this.input.keyboard.on('keydown-ESC',()=>{if(this.terminalOpen)this.closeTerminal();});
   }
   openTerminal(item) {
     const dialog=this.terminalDialog;
     this.terminalOpen=true;
-    this.activeMission=item.mission || null;
+    this.stopMovement();
+    this.gameContainer.inert = true;
     dialog.querySelector('[data-title]').textContent=item.title;
     dialog.querySelector('[data-description]').textContent=item.text;
     const link=dialog.querySelector('[data-source]');
     link.hidden=!item.source;
     if(item.source)link.href=item.source;
-    dialog.querySelector('[data-launch]').hidden=!item.mission;
+    const launchLink = dialog.querySelector('[data-launch]');
+    const missionUrl = { launch: '/games/launch/', rover: '/games/rover/' }[item.mission];
+    launchLink.hidden = !missionUrl;
+    if (missionUrl) launchLink.href = missionUrl;
+    else launchLink.removeAttribute('href');
     dialog.hidden=false;
+    dialog.querySelector('[data-close]').focus({ preventScroll: true });
   }
   closeTerminal() {
     this.terminalOpen=false;
     this.terminalDialog.hidden=true;
-    this.player?.keys?.E?.reset?.();
+    this.gameContainer.inert = false;
+    this.stopMovement();
+    this.gameContainer.focus({ preventScroll: true });
   }
 
 }

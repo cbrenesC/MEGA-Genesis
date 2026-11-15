@@ -1,25 +1,22 @@
-# Space Mission — Mapa Explorable
+# Space Mission · MEGA Genesis
 
-Mapa top-down en Pixel Art del complejo espacial del Nivel 1. Construido con Phaser 3, JavaScript y Vite; todo el arte base se dibuja como texturas pixeladas locales, sin assets remotos obligatorios.
+Juego web en pixel art con un centro de control explorable hecho en Phaser 3. Ocho consolas explican el diseño de misiones espaciales y enlazan a recursos de la NASA. Las dos consolas principales abren las misiones de lanzamiento y rover lunar.
 
-## Ejecutar
+## Ejecutar localmente
 
-```bash
-npm install
+```sh
+npm ci
 npm run dev
 ```
 
-Para la compilación de distribución: `npm run build`. Vite genera el sitio estático en `dist/`, listo para Netlify.
+Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para Netlify. Puedes revisarlo con `npm run preview`.
 
-## Controles
+## Cómo jugar
 
-- **WASD** o **flechas:** caminar en cuatro direcciones.
-- **E:** abrir o cerrar una compuerta cercana; en el control central, abre los controles de la pantalla.
-- **ESC:** pausar o reanudar.
-- Usa el botón de la esquina superior derecha para pantalla completa. En móviles aparece un pad táctil.
+- **WASD o flechas** para caminar. En móviles, usa el pad táctil.
+- **E** para abrir la consola más cercana. Selecciona **Start Mission** en una consola de misión.
+- **Esc** para cerrar la consola o pausar y reanudar el recorrido.
+- La introducción del comandante se puede saltar y no aparece si desactivas **Animaciones y video**.
+- El menú **Juegos** ofrece acceso directo a ambas misiones.
 
-## Pantalla multimedia
-
-Acércate a la gran pantalla del Launch Control Center y pulsa **E**. Desde el panel contextual puedes iniciar/pausar la reproducción o seleccionar un PNG, JPG, WebP, MP4 o WebM. Para precargar un medio desde la configuración, añade el archivo bajo `public/media/` y define `media.src`/`media.type` en `src/config.js`; los videos comienzan solo cuando el usuario pulsa **Iniciar**, según las políticas del navegador. Sin contenido configurado se muestra el monitor espacial Pixel Art integrado.
-
-El juego es únicamente un mapa explorable: no incluye misiones, inventario, gestión funcional de recursos, reparaciones ni despegue.
+Las misiones de lanzamiento y rover están en `public/games/launch/` y `public/games/rover/`, respectivamente.
