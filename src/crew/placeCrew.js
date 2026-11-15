@@ -3,15 +3,15 @@ import { CREW } from './roster.js';
 
 const STOP_DISTANCE = 86;
 const WALK_SPEED = 30;
-
 export function placeCrew(scene, solids) {
+  let guideTargetId = null;
   const group = scene.physics.add.group({
     allowGravity: false, immovable: true, collideWorldBounds: true,
   });
   scene.physics.add.collider(group, solids);
 
   const members = CREW.map((member, index) => {
-    const { route, name, accent, texture } = member;
+    const { id, route, name, accent, texture } = member;
     const [x, y] = route[0];
     const sprite = group.create(x, y, texture).setOrigin(.5, .85).setScale(2).setName(name).setPushable(false);
     sprite.body.setSize(11, 7).setOffset(4.5, 13);
@@ -24,6 +24,8 @@ export function placeCrew(scene, solids) {
       stroke: '#0a1623',
       strokeThickness: 4,
     }).setOrigin(.5).setDepth(1200);
+    const guideHalo = scene.add.ellipse(x, y + 10, 48, 26, 0xffdf9d, .12)
+      .setStrokeStyle(3, 0xffdf9d, .95).setVisible(false);
 
     scene.interactables.push({
       get x() { return sprite.x; },
@@ -40,8 +42,10 @@ export function placeCrew(scene, solids) {
     let rest = 1250 + index * 420;
     let facing = 'down';
     let stepClock = 0;
+    let wasGuiding = false;
 
-    return (delta, animate, player) => {
+    return (delta, animate, player, time = 0) => {
+      const guiding = guideTargetId === id;
       const vx = player.x - sprite.x;
       const vy = player.y - sprite.y;
       const nearby = Math.hypot(vx, vy) < STOP_DISTANCE;
@@ -84,13 +88,21 @@ export function placeCrew(scene, solids) {
       sprite.setDepth(sprite.y + 6);
       shadow.setPosition(sprite.x, sprite.y + 4).setDepth(sprite.y - 1);
       nameplate.setPosition(sprite.x, sprite.y - 40);
+      const pulse = animate ? 1 + Math.sin(time / 180) * .08 : 1;
+      guideHalo.setPosition(sprite.x, sprite.y + 10).setDepth(sprite.y + 1)
+        .setScale(pulse).setVisible(guiding);
+      if (guiding !== wasGuiding) {
+        nameplate.setColor(guiding ? '#fff2b2' : accent).setFontSize(guiding ? '14px' : '12px');
+        wasGuiding = guiding;
+      }
     };
   });
 
   return {
     group,
-    update(delta, animate, player) {
-      for (const update of members) update(delta, animate, player);
+    update(delta, animate, player, time) {
+      for (const update of members) update(delta, animate, player, time);
     },
+    setGuideTarget(id) { guideTargetId = id ?? null; },
   };
 }

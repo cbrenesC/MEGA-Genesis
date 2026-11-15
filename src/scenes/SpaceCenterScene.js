@@ -6,6 +6,8 @@ import { InteractionSignal } from '../map/InteractionSignal.js';
 import { getPreferences } from '../welcome/core/consent.js';
 import { Player } from '../player/Player.js';
 import { placeCrew } from '../crew/placeCrew.js';
+import { CREW } from '../crew/roster.js';
+import { CREW_GUIDE } from '../crew/guideFlow.js';
 import { StationPreparation } from '../missions/StationPreparation.js';
 import { localizeDOM, onLanguageChange, t } from '../i18n/index.js';
 
@@ -46,6 +48,8 @@ export class SpaceCenterScene extends Phaser.Scene {
     }
 
     this.crew = placeCrew(this, this.mapManager.collision.solids);
+    this.guideStepIndex = 0;
+    this.createCrewGuide();
     this.interactionSignal = new InteractionSignal(this);
     this.motionClock = 0;
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -93,6 +97,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     const removeLanguageListener = onLanguageChange(() => {
       this.findInteractionTarget();
       if (this.terminalOpen && !this.terminalDialog.hidden) this.preparation.renderAgain();
+      this.renderCrewGuide();
       this.updateZoneDisplay(true);
       if (this.activeNotice) this.doorNotice.textContent = t(this.activeNotice.key, this.activeNotice.params);
     });
@@ -108,6 +113,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       this.prompt?.classList.remove('visible');
       this.preparation?.destroy();
       this.terminalDialog?.remove();
+      this.guidePanel?.remove();
       this.scale.off('resize', resizeCamera);
       this.events.off('pause', hideSignal);
     });
@@ -119,7 +125,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     const blocked = this.inputsBlocked();
     const animate = !blocked && getPreferences().animations && !this.reducedMotion.matches;
     if (animate) this.motionClock += delta;
-    this.crew.update(delta, animate, this.player);
+    this.crew.update(delta, animate, this.player, this.motionClock);
     if (blocked) {
       this.interactionSignal.hide();
       this.prompt.classList.remove('visible');
@@ -257,6 +263,53 @@ export class SpaceCenterScene extends Phaser.Scene {
     context.fillStyle = '#65f4e7'; context.fillRect(playerX - 3, playerY - 3, 7, 7);
     context.fillStyle = '#fff8d5'; context.fillRect(playerX - 1, playerY - 1, 3, 3);
   }
+  createCrewGuide() {
+    const panel = document.createElement('aside');
+    panel.id = 'crew-guide';
+    panel.className = 'crew-guide';
+    panel.setAttribute('role', 'status');
+    panel.setAttribute('aria-live', 'polite');
+    panel.dataset.i18nAria = 'guide.title';
+    panel.innerHTML = `<div class="crew-guide__top"><span data-i18n="guide.title">Crew guide</span><span data-count></span></div>
+      <h2 data-name></h2><p data-task></p><p class="crew-guide__hint" data-hint></p>
+      <button type="button" data-guide-action data-i18n="guide.skip">Skip this guide</button>`;
+    document.getElementById('app').append(panel);
+    localizeDOM(panel);
+    panel.querySelector('[data-guide-action]').addEventListener('click', () => {
+      if (this.guideStepIndex >= CREW_GUIDE.length) this.guideStepIndex = 0;
+      else this.guideStepIndex += 1;
+      this.renderCrewGuide();
+    });
+    this.guidePanel = panel;
+    this.renderCrewGuide();
+  }
+
+  renderCrewGuide() {
+    if (!this.guidePanel) return;
+    const step = CREW_GUIDE[this.guideStepIndex];
+    const name = this.guidePanel.querySelector('[data-name]');
+    const task = this.guidePanel.querySelector('[data-task]');
+    const hint = this.guidePanel.querySelector('[data-hint]');
+    const count = this.guidePanel.querySelector('[data-count]');
+    const action = this.guidePanel.querySelector('[data-guide-action]');
+    if (step) {
+      const member = CREW.find((person) => person.id === step.crewId);
+      count.textContent = t('guide.counter', { current: this.guideStepIndex + 1, total: CREW_GUIDE.length });
+      name.textContent = member?.name ?? '';
+      task.textContent = t(step.taskKey);
+      hint.textContent = t('guide.hint', { name: member?.name ?? '' });
+      action.textContent = t('guide.skip');
+      this.crew?.setGuideTarget(step.crewId);
+    } else {
+      count.textContent = t('guide.complete.counter');
+      name.textContent = t('guide.complete.title');
+      task.textContent = t('guide.complete.task');
+      hint.textContent = t('guide.complete.hint');
+      action.textContent = t('guide.restart');
+      this.crew?.setGuideTarget(null);
+    }
+  }
+
   createTerminalDialog() {
     const dialog = document.createElement('section');
     dialog.id = 'mission-terminal';
@@ -327,6 +380,10 @@ export class SpaceCenterScene extends Phaser.Scene {
     dialog.querySelector('.mission-terminal__panel').scrollTop = 0;
     void this.preparation.render(item);
     dialog.querySelector('[data-close]').focus({ preventScroll: true });
+    if (isCrew && CREW_GUIDE[this.guideStepIndex]?.crewId === item.id) {
+      this.guideStepIndex += 1;
+      this.renderCrewGuide();
+    }
   }
   closeTerminal() {
     this.terminalOpen=false;
