@@ -1,9 +1,12 @@
+import { playClick } from '../welcome/core/gameAudio.js';
+
 const DEPTH = 1400;
 
 export class InteractionSignal {
   constructor(scene) {
     this.icon = scene.add.graphics().setDepth(DEPTH).setVisible(false);
     this.zone = scene.add.zone(0, 0, 46, 44).setOrigin(.5).setDepth(DEPTH);
+    this.zone.on('pointerdown', playClick);
     this.zone.on('pointerup', () => scene.interact());
     this.active = null;
   }

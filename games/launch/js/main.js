@@ -12,7 +12,7 @@ import { ResultScene } from './scenes/panels.js';
 import { PadScene } from './scenes/PadScene.js';
 import { FlightScene } from './scenes/FlightScene.js';
 import { MapScene } from './scenes/MapScene.js';
-import { playClick, startGameplayMusic } from '../../../src/welcome/core/gameAudio.js';
+import { startGameplayMusic } from '../../../src/welcome/core/gameAudio.js';
 
 const $ = (id) => document.getElementById(id);
 const SCENES = { pad: 'PadScene', flight: 'FlightScene', result: 'ResultScene' };
@@ -83,6 +83,5 @@ app.game = new Phaser.Game({
   fps: { target: 60 },
   scene: [BootScene, PadScene, FlightScene, MapScene, ResultScene],
 });
-app.game.input.on('gameobjectdown', playClick);
 startGameplayMusic();
 window.__launch = { app, nav: app.nav }; // ayuda para probar desde la consola

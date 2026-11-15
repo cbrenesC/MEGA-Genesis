@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { localizeTextObjects, t } from '../i18n/index.js';
+import { playClick } from '../welcome/core/gameAudio.js';
 
 export class PauseScene extends Phaser.Scene {
   constructor() { super('PauseScene'); }
@@ -24,7 +25,10 @@ export class PauseScene extends Phaser.Scene {
     ]);
     this.button.on('pointerover', () => this.button.setFillStyle(0x1b4b55));
     this.button.on('pointerout', () => this.button.setFillStyle(0x123743));
-    this.button.on('pointerdown', () => this.resumeExploration());
+    this.button.on('pointerdown', () => {
+      playClick();
+      this.resumeExploration();
+    });
     this.input.keyboard.on('keydown-ESC', () => this.resumeExploration());
     this.scale.on('resize', this.layout, this);
     this.events.once('shutdown', () => this.scale.off('resize', this.layout, this));
