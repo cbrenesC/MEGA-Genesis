@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { localizeTextObjects, t } from '../i18n/index.js';
 import { GAME, ZONES, CORRIDORS } from '../config.js';
 import { CollisionManager } from './CollisionManager.js';
 import { Door } from '../objects/Door.js';
@@ -12,6 +13,7 @@ export class MapManager {
     this.graphics = scene.add.graphics();
     this.graphics.setDepth(3);
     this.structureGraphics = [];
+    this.localizedLabels = [];
     this.layers = { ground: null, structures: this.structureGraphics, furniture: [], collision: this.collision.solids, decorations: [this.graphics], lighting: [], effects: [] };
     this.doors = [];
     this.machines = [];
@@ -27,6 +29,7 @@ export class MapManager {
     this.segmentVertical(1152, 128, 832);
     this.buildControlCenter();
     this.drawCeilingLights();
+    localizeTextObjects(this.scene, this.localizedLabels);
     this.scene.physics.world.setBounds(0, 0, GAME.worldWidth, GAME.worldHeight);
     this.scene.solidColliders = this.collision.solids;
   }
@@ -244,10 +247,10 @@ export class MapManager {
       g.fillStyle(0xc49764).fillRect(1379, y, 12, 3);
       g.fillStyle(0x1d2b2e).fillRect(1393, y, 6, 3);
     }
-    this.addLabel('ZONA RESTRINGIDA', 2245, 1600, '#ffd093', 8);
-    this.addLabel('COMBUSTIBLE / O2', 2267, 1120, '#bbd4cd', 7);
-    this.addLabel('PAD · 04', 1694, 988, '#c4dcda', 11);
-    this.addLabel('VEHÍCULO · 03', 2226, 1545, '#a2b6b6', 7);
+    this.addLabel('sign.restricted', 2245, 1600, '#ffd093', 8);
+    this.addLabel('sign.fuel', 2267, 1120, '#bbd4cd', 7);
+    this.addLabel('sign.pad', 1694, 988, '#c4dcda', 11);
+    this.addLabel('sign.vehicle', 2226, 1545, '#a2b6b6', 7);
   }
 
   drawShrub(x, y, variant = 0) {
@@ -264,7 +267,7 @@ export class MapManager {
 
   buildControlCenter() {
     const scene = this.scene;
-    this.addRoomPlaque('LAUNCH CONTROL CENTER', 'MISSION OPERATIONS // LCC · 01', 640, 318, 0x67dfe2);
+    this.addRoomPlaque('sign.room', 'sign.operations', 640, 318, 0x67dfe2);
     this.addWallScreen();
     this.place('server-rack', 212, 236, { width: 40, height: 82, solid: true, label: 'servidor de comunicaciones' });
     this.place('server-rack', 1064, 236, { width: 40, height: 82, solid: true, label: 'servidor de comunicaciones' });
@@ -284,9 +287,9 @@ export class MapManager {
       g.fillStyle(0x73ddd9, .78).fillRect(x, 479, 9, 2);
       g.fillStyle(0xe08e51, .8).fillRect(x + 28, 684, 5, 3);
     }
-    this.addLabel('MISSION DESIGN / LAUNCH', 358, 343, '#7cd7db', 7);
-    this.addLabel('LUNAR ROVER / SYSTEMS', 734, 343, '#7cd7db', 7);
-    this.addLabel('ENGINEERING / SCIENCE', 512, 536, '#7cd7db', 7);
+    this.addLabel('sign.launch', 358, 343, '#7cd7db', 7);
+    this.addLabel('sign.rover', 734, 343, '#7cd7db', 7);
+    this.addLabel('sign.engineering', 512, 536, '#7cd7db', 7);
     this.machines.push(new AnimatedMachine(scene, { x: 1074, y: 682, texture: 'server-rack', type: 'server', scale: .82 }));
   }
 
@@ -297,7 +300,7 @@ export class MapManager {
   }
 
   buildEngineering() {
-    this.addRoomPlaque('CONSTRUCTION & ENGINEERING', 'ENGINEERING BAY // ENG · 02', 1920, 257, 0xffaa61);
+    this.addRoomPlaque('sign.construction', 'sign.bay', 1920, 257, 0xffaa61);
     this.place('engineering-bench', 1582, 380, { width: 126, height: 62, solid: true, colliderWidth: 124, colliderHeight: 48, label: 'mesa de trabajo' });
     this.place('engineering-bench', 2228, 380, { width: 126, height: 62, solid: true, colliderWidth: 124, colliderHeight: 48, label: 'mesa de ingeniería' });
     this.place('engineering-bench', 1580, 685, { width: 128, height: 64, solid: true, colliderWidth: 124, colliderHeight: 48, label: 'mesa de herramientas' });
@@ -314,8 +317,8 @@ export class MapManager {
       this.graphics.fillStyle(0x496067, .65).fillRect(x, 302, 15, 2);
       if (x % 3 === 0) this.graphics.fillStyle(0xff9c52, .85).fillRect(x + 17, 299, 3, 7);
     }
-    this.addLabel('ENSAMBLE / MOTORES', 1920, 320, '#e7b273', 7);
-    this.addLabel('BANCO DE PRUEBAS', 1920, 644, '#a7c3c2', 7);
+    this.addLabel('sign.assembly', 1920, 320, '#e7b273', 7);
+    this.addLabel('sign.test', 1920, 644, '#a7c3c2', 7);
     // Chispas sutiles de un puesto de soldadura.
     const spark = this.scene.add.image(2213, 500, 'warning-light').setScale(.7).setDepth(527).setAlpha(.12);
     this.scene.tweens.add({ targets: spark, alpha: { from: .12, to: .9 }, duration: 130, yoyo: true, repeat: -1, repeatDelay: 2400 });
@@ -324,10 +327,10 @@ export class MapManager {
   }
 
   buildResources() {
-    this.addRoomPlaque('RESOURCE MANAGEMENT', 'SUPPLY DEPOT // RES · 03', 640, 1088, 0x78d4d8);
-    this.addSectorTag('01 // PROPULSIÓN', 314, 1158, '#ffa366');
-    this.addSectorTag('02 // SOPORTE VITAL', 848, 1158, '#7fe4de');
-    this.addSectorTag('03 // RESERVA Y ENERGÍA', 560, 1498, '#c2d4c9');
+    this.addRoomPlaque('sign.resource', 'sign.depot', 640, 1088, 0x78d4d8);
+    this.addSectorTag('sign.propulsion', 314, 1158, '#ffa366');
+    this.addSectorTag('sign.lifeSupport', 848, 1158, '#7fe4de');
+    this.addSectorTag('sign.reserves', 560, 1498, '#c2d4c9');
     // Sectores identificados por señalética y colores, solo decorativos.
     this.place('fuel-tank', 240, 1267, { width: 48, height: 78, solid: true, colliderWidth: 43, colliderHeight: 70, label: 'tanque de combustible' });
     this.place('fuel-tank', 309, 1267, { width: 48, height: 78, solid: true, colliderWidth: 43, colliderHeight: 70, label: 'tanque de combustible' });
@@ -356,13 +359,13 @@ export class MapManager {
 
   buildDoors() {
     const doors = [
-      { x: 1152, y: 448, orientation: 'vertical', label: 'VESTÍBULO PRINCIPAL' },
-      { x: 1408, y: 448, orientation: 'vertical', label: 'ACCESO A INGENIERÍA' },
-      { x: 640, y: 832, orientation: 'horizontal', label: 'PASILLO DE SUMINISTROS' },
-      { x: 640, y: 960, orientation: 'horizontal', label: 'ENTRADA A RECURSOS' },
-      { x: 1152, y: 1232, orientation: 'vertical', label: 'PASILLO EXTERIOR' },
-      { x: 1408, y: 1232, orientation: 'vertical', label: 'SALIDA A LA PLATAFORMA' },
-      { x: 1904, y: 832, orientation: 'horizontal', label: 'SALIDA EXTERIOR' },
+      { x: 1152, y: 448, orientation: 'vertical', label: 'door.lobby' },
+      { x: 1408, y: 448, orientation: 'vertical', label: 'door.engineering' },
+      { x: 640, y: 832, orientation: 'horizontal', label: 'door.supply' },
+      { x: 640, y: 960, orientation: 'horizontal', label: 'door.resource' },
+      { x: 1152, y: 1232, orientation: 'vertical', label: 'door.outsideCorridor' },
+      { x: 1408, y: 1232, orientation: 'vertical', label: 'door.pad' },
+      { x: 1904, y: 832, orientation: 'horizontal', label: 'door.exit' },
     ];
     for (const config of doors) this.doors.push(new Door(this.scene, this.collision, { ...config, open: true }));
   }
@@ -397,11 +400,12 @@ export class MapManager {
   }
 
   addLabel(text, x, y, color = '#adc4c3', size = 8, align = 'center') {
-    const label = this.scene.add.text(x, y, text, {
+    const label = this.scene.add.text(x, y, t(text), {
       fontFamily: 'monospace', fontSize: `${size}px`, color, align,
       stroke: '#08131a', strokeThickness: 2, letterSpacing: 1,
     }).setOrigin(.5, .5).setDepth(y + 2).setResolution(2);
     this.layers.decorations.push(label);
+    this.localizedLabels.push([label, text]);
     return label;
   }
 

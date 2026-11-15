@@ -3,7 +3,7 @@ import {
   hasStorageConsent, getPreferences, updatePreferences,
   acceptStorageConsent, persistPreferencesAfterConsent, clearPreferences,
 } from '../core/consent.js';
-import { setLanguage, getLanguage, localizeDOM, translateSync } from '../i18n/index.js';
+import { setLanguage, getLanguage, onLanguageChange, t } from '../../i18n/index.js';
 
 export function installSettingsDialog() {
   const button = document.getElementById('settings-toggle');
@@ -20,9 +20,7 @@ export function installSettingsDialog() {
       dialog.querySelector(`[name="${key}"]`).value = Math.round(prefs[key] * 100);
       dialog.querySelector(`[data-value="${key}"]`).textContent = `${Math.round(prefs[key] * 100)}%`;
     }
-    dialog.querySelector('.settings-storage-status').textContent = translateSync(hasStorageConsent()
-      ? 'Partidas y preferencias: almacenamiento autorizado'
-      : 'Sin permiso: las partidas y preferencias no se guardarán');
+    dialog.querySelector('.settings-storage-status').textContent = t(hasStorageConsent() ? 'settings.storageAllowed' : 'settings.storageDisabled');
     dialog.querySelector('[data-action="allow-storage"]').hidden = hasStorageConsent();
   }
 
@@ -30,45 +28,32 @@ export function installSettingsDialog() {
     render();
     dialog.hidden = false;
     button.setAttribute('aria-expanded', 'true');
+    dialog.querySelector('[name="language"]').focus();
+    window.dispatchEvent(new CustomEvent('sms-settings-toggled', { detail: { open: true } }));
   };
   const close = () => {
     dialog.hidden = true;
     button.setAttribute('aria-expanded', 'false');
+    button.focus();
+    window.dispatchEvent(new CustomEvent('sms-settings-toggled', { detail: { open: false } }));
   };
 
   button.addEventListener('click', () => dialog.hidden ? open() : close());
   dialog.querySelector('[data-action="close-settings"]').addEventListener('click', close);
   dialog.querySelector('[data-action="allow-storage"]').addEventListener('click', () => {
+    updatePreferences({ language: getLanguage() });
     acceptStorageConsent();
     persistPreferencesAfterConsent();
     render();
   });
   dialog.querySelector('[data-action="clear-preferences"]').addEventListener('click', () => {
-    if (!window.confirm('¿Borrar preferencias de audio, animaciones y volumen? Tus partidas guardadas se conservarán.')) return;
+    if (!window.confirm(t('settings.confirmClear'))) return;
     clearPreferences();
     audio.syncVolumes();
-    localizeDOM(document);
-    window.dispatchEvent(new CustomEvent('sms-language-changed', {detail:{language:getLanguage()}}));
-    render();
+    setLanguage(getPreferences().language, { remember: false });
   });
 
-  dialog.querySelector('[name="language"]').addEventListener('change', event => {
-    const selector = event.target;
-    const nextLocale = selector.value;
-    selector.disabled = true;
-    const status = dialog.querySelector('.settings-storage-status');
-    status.textContent = translateSync('PREPARANDO TRADUCCIONES') + '…';
-    void setLanguage(nextLocale, { includeGame: true })
-      .then(() => {
-        localizeDOM(document);
-        render();
-      })
-      .catch(error => {
-        console.warn('La traducción no se pudo preparar por completo', error);
-        render();
-      })
-      .finally(() => { selector.disabled = false; });
-  });
+  onLanguageChange(render);
 
   for (const control of dialog.querySelectorAll('input[name]')) {
     const update = () => {

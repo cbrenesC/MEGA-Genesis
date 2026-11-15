@@ -4,7 +4,11 @@ import { BootScene } from './scenes/BootScene.js';
 import { SpaceCenterScene } from './scenes/SpaceCenterScene.js';
 import { PauseScene } from './scenes/PauseScene.js';
 import { getPreferences } from './welcome/core/consent.js';
+import { localizeDOM, t } from './i18n/index.js';
+import { installCommanderCaptions } from './welcome/ui/commanderCaptions.js';
 import './ui/app.css';
+
+localizeDOM();
 
 const gameContainer = document.getElementById('game-container');
 gameContainer.inert = true;
@@ -40,21 +44,24 @@ commanderOverlay.className = 'commander-intro';
 commanderOverlay.hidden = true;
 commanderOverlay.setAttribute('role', 'dialog');
 commanderOverlay.setAttribute('aria-modal', 'true');
-commanderOverlay.setAttribute('aria-label', 'Introducción del comandante');
+commanderOverlay.dataset.i18nAria = 'briefing.title';
 commanderOverlay.innerHTML = `
   <div class="commander-intro__panel">
-    <div class="commander-intro__top"><span>◈ MISSION CONTROL // COMMANDER BRIEFING</span><span>● LIVE</span></div>
+    <div class="commander-intro__top"><span data-i18n="briefing.header">◈ MISSION CONTROL // COMMANDER BRIEFING</span><span data-i18n="briefing.live">● LIVE</span></div>
     <div class="commander-intro__screen">
-      <video id="commander-intro-video" playsinline preload="none" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" aria-label="Mensaje del comandante"></video>
-      <button type="button" id="commander-skip" aria-label="Saltar introducción">SALTAR ▶▶</button>
+      <video id="commander-intro-video" playsinline preload="none" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" data-i18n-aria="briefing.video"></video>
+      <button type="button" id="commander-captions" aria-pressed="true" data-i18n="briefing.captions">Captions</button>
+      <button type="button" id="commander-skip" data-i18n-aria="briefing.skipLabel" data-i18n="briefing.skip">Skip ▶▶</button>
       <div class="commander-intro__fallback" hidden>
-        <p role="status">COMMANDER TRANSMISSION READY</p>
-        <button type="button" id="commander-retry">▶ INICIAR TRANSMISIÓN</button>
+        <p role="status" data-i18n="briefing.ready">Commander transmission ready</p>
+        <button type="button" id="commander-retry" data-i18n="briefing.retry">▶ Play transmission</button>
       </div>
     </div>
   </div>`;
 document.getElementById('app').append(commanderOverlay);
+localizeDOM(commanderOverlay);
 const commanderVideo = document.getElementById('commander-intro-video');
+installCommanderCaptions(commanderVideo, document.getElementById('commander-captions'));
 let commanderStarted = false;
 let commanderClosing = false;
 const COMMANDER_FADE_MS = 550;
@@ -62,6 +69,7 @@ function unlockMissionMap() {
   gameContainer.inert = false;
   const scene = game.scene.getScene('SpaceCenterScene');
   scene?.input?.keyboard?.resetKeys?.();
+  scene?.input?.keyboard?.enableGlobalCapture();
   gameContainer.focus({ preventScroll: true });
 }
 
@@ -96,7 +104,9 @@ retryBriefing.addEventListener('click', async () => {
 commanderVideo.addEventListener('ended', enterMissionMap);
 commanderVideo.addEventListener('error', () => {
   briefingFallback.hidden = false;
-  briefingFallback.querySelector('p').textContent = 'TRANSMISSION UNAVAILABLE';
+  const status = briefingFallback.querySelector('p');
+  status.dataset.i18n = 'briefing.unavailable';
+  status.textContent = t(status.dataset.i18n);
   retryBriefing.hidden = true;
 });
 window.__MEGA_ENTER_MAP__ = () => {
@@ -142,9 +152,11 @@ document.getElementById('fullscreen-button')?.addEventListener('click', () => {
   else game.scale.stopFullscreen();
 });
 
-document.getElementById('resume-button')?.addEventListener('click', () => {
-  const pause = game.scene.getScene('PauseScene');
-  if (pause?.scene.isActive()) pause.resumeExploration();
+document.addEventListener('fullscreenchange', () => {
+  const fullscreen = document.getElementById('fullscreen-button');
+  const key = document.fullscreenElement ? 'map.exitFullscreen' : 'map.fullscreen';
+  fullscreen.dataset.i18nAria = fullscreen.dataset.i18nTitle = key;
+  localizeDOM(fullscreen);
 });
 
 document.getElementById('mobile-pause')?.addEventListener('click', () => {
@@ -163,6 +175,14 @@ document.querySelectorAll('[data-move]').forEach((button) => {
 document.getElementById('mobile-interact')?.addEventListener('pointerdown', (event) => {
   event.preventDefault();
   game.scene.getScene('SpaceCenterScene')?.interact();
+});
+
+window.addEventListener('sms-settings-toggled', ({ detail }) => {
+  const keyboard = game.scene.getScene('SpaceCenterScene')?.input?.keyboard;
+  if (!keyboard) return;
+  keyboard.resetKeys();
+  if (detail.open || gameContainer.inert) keyboard.disableGlobalCapture();
+  else keyboard.enableGlobalCapture();
 });
 
 window.addEventListener('pagehide', (event) => {

@@ -1,5 +1,4 @@
 export const GAME = {
-  title: 'Space Mission · Complejo orbital',
   background: '#07111d',
   tileSize: 32,
   columns: 40,
@@ -18,6 +17,6 @@ export const GAME = {
 };
 
 export const ZONES = [
-  { id: 'control', code: 'LCC · 01', title: 'Launch Control Center', shortTitle: 'MISSION CONTROL', subtitle: 'Explore the consoles. Press E to learn or launch a mission.', x: 128, y: 128, width: 1024, height: 704, floor: 2 },
+  { id: 'control', code: 'LCC · 01', title: 'map.room', shortTitle: 'map.zone', subtitle: 'map.roomHelp', x: 128, y: 128, width: 1024, height: 704, floor: 2 },
 ];
 export const CORRIDORS = [];
