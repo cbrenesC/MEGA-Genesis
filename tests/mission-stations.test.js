@@ -117,7 +117,7 @@ test('Rover stations restore component cards, tradeoffs and live resource totals
   assert.match(full, /data-component="chassis" data-option="ligero"[^>]*aria-pressed="true"/);
   assert.match(full, /class="reason ok"/);
   assert.match(full, /106 \/ 145 kg/);
-  assert.match(full, /820 \/ 850 cr/);
+  assert.match(full, /82 \/ 85 M US\$/);
   assert.match(full, /data-rover-preview/);
   assert.doesNotMatch(full, /data-component="solar"|data-launch/);
   const incomplete = render('power', {});

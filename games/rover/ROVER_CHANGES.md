@@ -54,3 +54,12 @@ batería y reinicio. **Si tienes otra copia con el módulo original, estos cambi
 - Incluye pruebas de escáner, fotos, paquetes 0–100 %, acuses, guardado v1/v2 y transferencia de equipo desde las consolas.
 
 El balance de dificultad y el render en dispositivos reales quedan fuera de las pruebas automatizadas.
+
+## V2.1 · Misma moneda que el lanzamiento, datos y escenografía
+
+- **Moneda**: los «créditos» pasan a **millones de dólares (M US$)**, igual que el módulo de lanzamiento. `LIMITS.budgetMUSD = 85` (antes 850 créditos); cada componente cuesta una décima de su valor anterior (p. ej. chasis ligero 18 M US$). El bono de presupuesto da los mismos puntos (1 por millón sin gastar). `fmtCost()` en `rules.js`; textos en español e inglés actualizados. Las cifras son aproximadas para el juego (orden de un rover lunar pequeño).
+- **Datos**: las muestras llevan nombres de materiales lunares reales (anortosita de tierras altas, basalto de mar, brecha de impacto, regolito con hielo de agua).
+- **Terreno** (`art.js`): dos suelos como en la Luna real (tierras altas gris cálido y mares de basalto azulados, con borde tramado), relieve por pendiente, Sol bajo con sombras largas, crestas arrugadas, una rima sinuosa al este, bloques expulsados alrededor de los cráteres, cordillera en el borde, sombra permanente con destellos de hielo en los cráteres grandes y un parche de suelo anaranjado (vidrio volcánico).
+- **Escena** (`main.js`): capa de luz rasante, hielo que titila, baliza del módulo, sombra de un orbitador que cruza, sombra larga y faros del rover, llama y anillo de polvo en el descenso, rodadas dobles orientadas al movimiento y polvo que cae en arco (sin aire).
+- **Fondo** (`skyCanvas`) y Tierra (`earthCanvas`): la Tierra usa los continentes reales del módulo de lanzamiento (`earth.js`); dos cordilleras iluminadas de lado, llanura con cráteres en perspectiva, rocas con sombra, módulo con lámina dorada, rover y huellas.
+- Las reglas no cambian (27 casos en verde). Arte revisado con una página de prueba; la escena jugable no se ejecutó aquí (requiere Vite/Node).

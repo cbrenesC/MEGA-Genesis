@@ -433,7 +433,7 @@ export class StationPreparation {
     if (rover && !ready) {
       const missing = CATEGORIES.filter(c => !COMPONENTS[c.id].some(option => option.id === this.rover[c.id]));
       if (missing.length) this.note(root, 'station.roverMissing', { parts: missing.map(c => t(`station.field.${c.id}`)).join(', ') });
-      if (rover.stats.mass > LIMITS.mass || rover.stats.cost > LIMITS.credits) this.note(root, 'station.roverLimits');
+      if (rover.stats.mass > LIMITS.mass || rover.stats.cost > LIMITS.budgetMUSD) this.note(root, 'station.roverLimits');
     }
     if (rover) {
       this.note(root, 'station.roverStats', { mass: rover.stats.mass, cost: rover.stats.cost, battery: rover.stats.capacity, solar: rover.stats.solar });
