@@ -1,3 +1,5 @@
+import { pauseGameplayMusic, resumeGameplayMusic } from '../welcome/core/gameAudio.js';
+import { CREW_GUIDE } from '../crew/guideFlow.js';
 import { loadData } from '../../games/launch/js/state.js';
 import { operationalPropellant } from '../../games/launch/js/rules.js';
 import { vehicleFor, fuelSummary, FUEL_RANGE } from '../../games/launch/js/flight.js';
@@ -10,7 +12,8 @@ import { newFlightPlan, PAYLOAD_FIELDS, reviewFlightPlan } from './flightPlan.js
 import { renderLaunchStation, rocketControlsSummary } from './launchStationUI.js';
 import { renderRoverStation, ROVER_GROUPS } from './roverStationUI.js';
 import './stationUI.css';
-import { MISSION_COMPLETE, MISSION_EXIT, missionUrl, PREPARATION_KEY, ROVER_SAVE_KEY } from './missionTransfer.js';
+import { MISSION_COMPLETE, MISSION_EXIT, missionUrl, ROVER_SAVE_KEY } from './missionTransfer.js';
+import { clearGameSession, readGameSession, writeGameSession } from './gameSession.js';
 
 const el = (tag, value = '', className = '') => {
   const node = document.createElement(tag);
@@ -22,16 +25,23 @@ const el = (tag, value = '', className = '') => {
 export class StationPreparation {
   constructor(scene) {
     this.scene = scene;
-    let saved;
-    try { if (hasStorageConsent()) saved = JSON.parse(localStorage.getItem(PREPARATION_KEY)); } catch { /* optional storage */ }
+    const saved = hasStorageConsent() ? readGameSession(localStorage) : null;
+    this.started = false;
+    this.position = saved?.position;
+    this.completedMissions = Array.isArray(saved?.completedMissions) ? saved.completedMissions : [];
+    this.activeMission = saved?.activeMission ?? null;
     this.launch = saved?.launch;
     this.rover = { ...emptyBuild(), ...saved?.rover };
     this.guideProgress = Array.isArray(saved?.guideProgress) ? saved.guideProgress : [];
     this.guideConversations = Array.isArray(saved?.guideConversations) ? saved.guideConversations : [];
     this.onMessage = event => {
       if (!this.frame || event.origin !== location.origin || event.source !== this.frame.contentWindow) return;
-      if (event.data?.type === MISSION_COMPLETE && ['launch', 'rover'].includes(event.data.mission)) {
-        this.scene.onMissionCompleted(event.data.mission);
+      if (event.data?.type === MISSION_COMPLETE && event.data.mission === this.activeMission?.mission) {
+        const mission = this.activeMission.mission;
+        if (!this.completedMissions.includes(mission)) this.completedMissions.push(mission);
+        this.activeMission = null;
+        this.scene.onMissionCompleted(mission);
+        this.save();
       }
       if (event.data?.type === MISSION_EXIT) this.closeSimulation();
     };
@@ -39,8 +49,14 @@ export class StationPreparation {
   }
 
   save() {
-    if (!hasStorageConsent()) return;
-    try { localStorage.setItem(PREPARATION_KEY, JSON.stringify({ launch: this.launch, rover: this.rover, guideProgress: this.guideProgress, guideConversations: this.guideConversations })); } catch { /* still available within this visit */ }
+    if (!this.started || !hasStorageConsent()) return;
+    const player = this.scene.player;
+    if (player && Number.isFinite(player.x) && Number.isFinite(player.y)) this.position = { x: player.x, y: player.y };
+    writeGameSession(localStorage, {
+      launch: this.launch, rover: this.rover, guideProgress: this.guideProgress,
+      guideConversations: this.guideConversations, position: this.position,
+      completedMissions: this.completedMissions, activeMission: this.activeMission,
+    });
   }
 
   hasGuideConversation(key) { return this.guideConversations.includes(key); }
@@ -59,10 +75,26 @@ export class StationPreparation {
     }
   }
 
-  resetGuide() {
-    this.guideProgress = [];
-    this.guideConversations = [];
-    this.save();
+  beginSession({ resume = false } = {}) {
+    if (!resume) {
+      if (hasStorageConsent()) clearGameSession(localStorage);
+      this.launch = this.data ? newFlightPlan(this.data) : undefined;
+      this.rover = emptyBuild();
+      this.guideProgress = [];
+      this.guideConversations = [];
+      this.completedMissions = [];
+      this.activeMission = null;
+    }
+    this.started = true;
+  }
+
+  resumeSimulation() {
+    const pending = this.activeMission;
+    if (pending?.mission === 'rover' && validateBuild(pending.plan).ok) {
+      this.openSimulation('rover', pending.plan, { resume: true });
+    } else if (pending?.mission === 'launch' && pending.plan?.approved === true) {
+      this.openSimulation('launch', pending.plan);
+    }
   }
 
   guideStationReady(step) {
@@ -70,22 +102,21 @@ export class StationPreparation {
     if (step.kind.startsWith('launch-')) {
       if (!this.data || !this.launch) return false;
       const view = reviewFlightPlan(this.data, this.launch);
-      if (step.kind === 'launch-mission') return Boolean(this.launch.scenarioId);
-      if (step.kind === 'launch-rocket') return Boolean(view.selected?.compatible);
+      if (step.kind === 'launch-mission') return this.data.mocks.scenarios.some(scenario => scenario.id === this.launch.scenarioId);
+      if (step.kind === 'launch-rocket') return Boolean(view.selected?.compatible && vehicleFor(view.selected.launcherId, view.resolved.inputs.orbit.type, this.data));
       if (step.kind === 'launch-payload') {
-        const payload = this.launch.payload ?? {};
-        const validFields = Object.entries(PAYLOAD_FIELDS).every(([key, [min, max]]) => {
-          const value = Number(payload[key]);
-          return Number.isFinite(value) && value >= min && value <= max;
-        });
-        return validFields && view.reason !== 'payload';
+        // The console displays the scenario defaults even before they are edited.
+        // A valid default configuration can be confirmed as shown.
+        return view.reason !== 'payload';
       }
-      if (step.kind === 'launch-review') return view.ready;
+      if (step.kind === 'launch-review') return view.reason === null;
       return false;
     }
     if (step.kind === 'rover-group') {
-      return (ROVER_GROUPS[step.part] ?? []).every(id =>
-        COMPONENTS[id].some(option => option.id === this.rover[id]));
+      const { stats } = validateBuild(this.rover);
+      const group = ROVER_GROUPS[step.part];
+      return Boolean(group?.every(id => COMPONENTS[id].some(option => option.id === this.rover[id])))
+        && stats.mass <= LIMITS.mass && stats.cost <= LIMITS.credits;
     }
     return false;
   }
@@ -105,6 +136,9 @@ export class StationPreparation {
     content.className = item?.setup ? `station-ui station-ui--${item.setup}` : '';
     dialog.classList.toggle('mission-terminal--setup', Boolean(item?.setup));
     const start = dialog.querySelector('[data-launch]');
+    const confirm = dialog.querySelector('[data-confirm-station]');
+    confirm.hidden = true;
+    confirm.onclick = null;
     start.hidden = true;
     start.onclick = null;
     if (!item?.mission && !item?.setup) return;
@@ -124,6 +158,18 @@ export class StationPreparation {
     if (item.setup === 'launch') this.renderLaunch(content, item.part);
     if (item.setup === 'rover') this.renderRover(content, item.part);
     if (item.mission) this.renderStart(content, start, item.mission);
+    const stationStep = item.setup && CREW_GUIDE.find(step => step.stationId === item.id);
+    if (stationStep) {
+      confirm.hidden = false;
+      confirm.disabled = !this.guideStationReady(stationStep);
+      confirm.onclick = () => {
+        if (this.item !== item || !this.guideStationReady(stationStep)) return;
+        if (stationStep.kind === 'launch-review') this.launch.approved = true;
+        this.scene.confirmStation(item);
+        this.save();
+        this.scene.closeTerminal();
+      };
+    }
   }
 
   renderAgain() {
@@ -137,9 +183,11 @@ export class StationPreparation {
   }
 
   changeLaunch(patch) {
-    Object.assign(this.launch, { acks: {} }, patch, { approved: false });
+    // Editing notes, a weather window or another unrelated field must not
+    // erase approvals already selected in the review console.
+    const keepAcks = Object.keys(patch).every(key => ['acks', 'events', 'launchWindow'].includes(key));
+    Object.assign(this.launch, keepAcks ? {} : { acks: {} }, patch, { approved: false });
     this.save();
-    this.scene.onStationConfigurationChanged(this.item);
     this.renderAgain();
   }
 
@@ -355,17 +403,7 @@ export class StationPreparation {
       const notes = root.querySelector('#team-notes');
       if (notes) notes.oninput = () => { plan.notes = notes.value; this.save(); };
       if (view.reason) this.note(fields, `station.block.${view.reason}`);
-      const approve = el('button', t(view.ready ? 'station.approved' : 'station.approve'), 'primary big');
-      approve.type = 'button';
-      approve.disabled = !!view.reason || view.ready;
-      approve.onclick = () => {
-        this.launch.approved = true; this.save();
-        this.scene.onStationConfigurationChanged(this.item);
-        this.renderAgain();
-        requestAnimationFrame(() => root.querySelector('[data-station-fields] p[tabindex]')?.focus());
-      };
-      fields.append(approve);
-      if (view.ready) { this.note(fields, 'station.readyLaunch'); fields.lastElementChild.tabIndex = -1; }
+      if (view.ready) this.note(fields, 'station.readyLaunch');
     }
     this.bindGlossary(root);
   }
@@ -408,7 +446,6 @@ export class StationPreparation {
         const { component, option } = button.dataset;
         this.rover = selectComponent(this.rover, component, option);
         this.save();
-        this.scene.onStationConfigurationChanged(this.item);
         this.renderAgain();
       };
     }
@@ -418,7 +455,6 @@ export class StationPreparation {
           this.rover[id] = button.dataset.roverAction === 'recommend' ? RECOMMENDED_BUILD[id] : null;
         }
         this.save();
-        this.scene.onStationConfigurationChanged(this.item);
         this.renderAgain();
       };
     }
@@ -457,9 +493,19 @@ export class StationPreparation {
 
   openSimulation(mission, plan, options) {
     if (this.frame) return;
+    this.activeMission = { mission, plan };
+    this.save();
     this.scene.stopMovement();
+    this.scene.terminalOpen = true;
+    this.scene.gameContainer.inert = true;
+    const cornerControls = document.querySelector('.corner-controls');
+    if (cornerControls) cornerControls.inert = true;
+    this.scene.input.keyboard.disableGlobalCapture();
     this.scene.terminalDialog.hidden = true;
     this.item = null;
+    // The launch iframe has its own music player for the flight/pause UI.
+    if (mission === 'launch') pauseGameplayMusic();
+    this.frameMission = mission;
     this.frame = el('iframe', '', 'mission-simulation');
     this.frame.title = t(`lesson.${mission}.title`);
     this.frame.src = missionUrl(mission, getLanguage(), plan, options);
@@ -472,6 +518,10 @@ export class StationPreparation {
   closeSimulation() {
     this.frame.remove();
     this.frame = null;
+    this.activeMission = null;
+    if (this.frameMission === 'launch') resumeGameplayMusic();
+    this.frameMission = null;
+    this.save();
     this.scene.closeTerminal();
   }
 }

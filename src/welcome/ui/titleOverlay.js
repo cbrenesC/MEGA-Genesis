@@ -1,5 +1,5 @@
-import { getPreferences } from '../core/consent.js';
-import { startGameplayMusic } from '../core/gameAudio.js';
+import { getPreferences, hasStorageConsent } from '../core/consent.js';
+import { readGameSession } from '../../missions/gameSession.js';
 import { assetUrl } from '../core/assetLoader.js';
 import { localizeDOM } from '../../i18n/index.js';
 
@@ -27,6 +27,7 @@ export function mountTitleOverlay(scene) {
         <p class="space-title__description" data-i18n="home.description">Explore Mission Control and take on two space engineering simulations in a pixel-art world.</p>
         <div class="space-title__actions">
           <button type="button" class="space-title__button space-title__button--primary" data-title-action="start" data-i18n="home.play">Play now</button>
+          <button type="button" class="space-title__button space-title__button--primary" data-title-action="resume" data-i18n="home.resume" hidden>Resume game</button>
           <button type="button" class="space-title__button space-title__button--subtle" data-title-action="controls" data-i18n="home.controls">Controls</button>
           <button type="button" class="space-title__button space-title__button--subtle" data-title-action="credits" data-i18n="home.credits">Credits</button>
         </div>
@@ -86,7 +87,15 @@ export function mountTitleOverlay(scene) {
     }
   }
 
-  const refreshMedia = () => syncMedia();
+  const resumeButton = screen.querySelector('[data-title-action="resume"]');
+  const startButton = screen.querySelector('[data-title-action="start"]');
+  const refreshMedia = () => {
+    syncMedia();
+    const saved = hasStorageConsent() ? readGameSession(localStorage) : null;
+    resumeButton.hidden = !saved;
+    startButton.dataset.i18n = saved ? 'home.newGame' : 'home.play';
+    localizeDOM(startButton);
+  };
   // Un navegador puede bloquear audio automático incluso si el jugador
   // autorizó el almacenamiento en una visita anterior. Reintentar en
   // cualquier gesto real del usuario mientras esté abierta esta pantalla.
@@ -99,11 +108,12 @@ export function mountTitleOverlay(scene) {
   window.addEventListener('sms-intro-complete', refreshMedia);
   window.addEventListener('pointerdown', unlockOnGesture);
   window.addEventListener('keydown', unlockOnGesture);
-  syncMedia();
+  refreshMedia();
   localizeDOM(screen);
 
   const actions = {
-    start: () => scene.newGame(),
+    start: () => scene.newGame({ resume: false }),
+    resume: () => scene.newGame({ resume: true }),
     controls: () => scene.openInfo('controls'),
     credits: () => scene.openInfo('credits'),
   };
@@ -111,11 +121,9 @@ export function mountTitleOverlay(scene) {
   for (const button of screen.querySelectorAll('[data-title-action]')) {
     button.addEventListener('click', event => {
       if (button.disabled) return;
-      if (button.dataset.titleAction === 'start') {
-        remove();
-      }
-      if (button.dataset.titleAction === 'start') startGameplayMusic();
-      actions[button.dataset.titleAction]?.(event);
+      const action = button.dataset.titleAction;
+      if (action === 'start' || action === 'resume') remove();
+      actions[action]?.(event);
     });
   }
 

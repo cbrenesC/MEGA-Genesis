@@ -238,7 +238,7 @@ if (window.__MEGA_MAP_READY__) queueMicrotask(() => window.dispatchEvent(new Eve
 window.addEventListener('sms-intro-complete', () => {
   const adapter = {
     events: { on(){}, off(){}, once(){} },
-    newGame() { window.__MEGA_ENTER_MAP__?.(); },
+    newGame(options) { window.__MEGA_ENTER_MAP__?.(options); },
     openInfo(type) {
       if (type === 'credits') {
         showCredits();

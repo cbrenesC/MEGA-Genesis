@@ -7,7 +7,7 @@ import { getPreferences } from './welcome/core/consent.js';
 import { localizeDOM, t } from './i18n/index.js';
 import { installCommanderCaptions } from './welcome/ui/commanderCaptions.js';
 import './ui/app.css';
-import { stopGameplayMusic } from './welcome/core/gameAudio.js';
+import { startGameplayMusic, stopGameplayMusic } from './welcome/core/gameAudio.js';
 
 localizeDOM();
 
@@ -39,7 +39,16 @@ const game = new Phaser.Game({
   scene: [BootScene, SpaceCenterScene, PauseScene],
 });
 
-window.addEventListener('pagehide', stopGameplayMusic);
+function saveSession() {
+  game.scene.getScene('SpaceCenterScene')?.preparation?.save();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) saveSession();
+});
+window.addEventListener('pagehide', event => {
+  saveSession();
+  if (!event.persisted) stopGameplayMusic();
+});
 
 const commanderOverlay = document.createElement('section');
 commanderOverlay.id = 'commander-intro';
@@ -68,12 +77,14 @@ installCommanderCaptions(commanderVideo, document.getElementById('commander-capt
 let commanderStarted = false;
 let commanderClosing = false;
 const COMMANDER_FADE_MS = 550;
-function unlockMissionMap() {
+function unlockMissionMap({ resume = false } = {}) {
   gameContainer.inert = false;
   const scene = game.scene.getScene('SpaceCenterScene');
   scene?.input?.keyboard?.resetKeys?.();
-  scene?.input?.keyboard?.enableGlobalCapture();
+  scene?.input?.keyboard?.enableGlobalCapture?.();
   gameContainer.focus({ preventScroll: true });
+  startGameplayMusic();
+  if (resume) scene?.preparation?.resumeSimulation();
 }
 
 function enterMissionMap() {
@@ -112,13 +123,14 @@ commanderVideo.addEventListener('error', () => {
   status.textContent = t(status.dataset.i18n);
   retryBriefing.hidden = true;
 });
-window.__MEGA_ENTER_MAP__ = () => {
+window.__MEGA_ENTER_MAP__ = ({ resume = false } = {}) => {
   if (commanderStarted) return;
   commanderStarted = true;
   document.getElementById('boot')?.classList.add('hidden');
+  game.scene.getScene('SpaceCenterScene')?.beginGameSession(resume);
   const prefs = getPreferences();
-  if (!prefs.animations) {
-    unlockMissionMap();
+  if (resume || !prefs.animations) {
+    unlockMissionMap({ resume });
     return;
   }
   commanderOverlay.hidden = false;
@@ -147,7 +159,8 @@ import('./welcome/main.js').then(() => {
 }).catch(error => {
   console.error('No se pudo cargar la bienvenida original', error);
   document.getElementById('boot')?.classList.add('hidden');
-  unlockMissionMap();
+  game.scene.getScene('SpaceCenterScene')?.beginGameSession(true);
+  unlockMissionMap({ resume: true });
 });
 
 document.getElementById('fullscreen-button')?.addEventListener('click', () => {

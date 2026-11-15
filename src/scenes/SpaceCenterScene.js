@@ -7,7 +7,7 @@ import { getPreferences } from '../welcome/core/consent.js';
 import { Player } from '../player/Player.js';
 import { placeCrew } from '../crew/placeCrew.js';
 import { createDialogueReveal } from '../crew/dialogueReveal.js';
-import { CREW_GUIDE } from '../crew/guideFlow.js';
+import { activeStationStep, nextGuideStep } from '../crew/guideFlow.js';
 import { StationPreparation } from '../missions/StationPreparation.js';
 import { localizeDOM, onLanguageChange, t } from '../i18n/index.js';
 
@@ -267,28 +267,36 @@ export class SpaceCenterScene extends Phaser.Scene {
     context.fillStyle = '#65f4e7'; context.fillRect(playerX - 3, playerY - 3, 7, 7);
     context.fillStyle = '#fff8d5'; context.fillRect(playerX - 1, playerY - 1, 3, 3);
   }
-  currentGuideStep() {
-    return CREW_GUIDE.find(step => !this.completedGuideSteps.has(step.id)) ?? null;
+  beginGameSession(resume) {
+    const saved = resume ? this.preparation.position : null;
+    this.preparation.beginSession({ resume });
+    this.completedGuideSteps = new Set(this.preparation.guideProgress);
+    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)
+      && saved.x > ROOM.left && saved.x < ROOM.right && saved.y > ROOM.top && saved.y < ROOM.bottom) {
+      this.player.body.reset(saved.x, saved.y);
+    }
+    this.preparation.save();
+    this.updateGuideBeacon();
   }
 
-  completeGuideStep(id) {
-    const step = this.currentGuideStep();
-    if (!step || step.id !== id || !this.preparation.hasGuideConversation(step.talkKey)) return false;
-    this.completedGuideSteps.add(id);
-    this.preparation.completeGuideStep(id);
+  currentGuideStep() {
+    return nextGuideStep(this.completedGuideSteps, this.preparation.completedMissions ?? []);
+  }
+
+  confirmStation(item) {
+    const step = activeStationStep(this.currentGuideStep(), item?.id,
+      key => this.preparation.hasGuideConversation(key));
+    if (!step || !this.preparation.guideStationReady(step)) return false;
+    this.completedGuideSteps.add(step.id);
+    this.preparation.completeGuideStep(step.id);
     this.updateGuideBeacon();
     return true;
   }
 
-  onStationConfigurationChanged(item) {
-    const step = this.currentGuideStep();
-    if (!step || step.stationId !== item?.id || !this.preparation.hasGuideConversation(step.talkKey)) return;
-    if (this.preparation.guideStationReady(step)) this.completeGuideStep(step.id);
-  }
-
   onMissionCompleted(mission) {
-    const step = this.currentGuideStep();
-    if (step?.mission === mission && this.preparation.hasGuideConversation(step.talkKey)) this.completeGuideStep(step.id);
+    this.completedGuideSteps.add(mission);
+    this.preparation.completeGuideStep(mission);
+    this.updateGuideBeacon();
   }
 
   // Contextual wayfinding replaces the former Crew Guide HUD panel.
@@ -330,7 +338,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       <p data-description></p>
       <p id="crew-dialogue-transcript" class="crew-dialogue__accessible" data-crew-transcript hidden></p>
       <div data-preparation></div>
-      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><button type="button" data-launch hidden data-i18n="terminal.launch">Start mission ▶</button><button type="button" data-close data-terminal-close data-i18n="common.close">Close</button><button type="button" data-crew-advance hidden></button></div>
+      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><button type="button" data-launch hidden data-i18n="terminal.launch">Start mission ▶</button><button type="button" data-confirm-station data-i18n="station.confirm" hidden>Confirm</button><button type="button" data-close data-terminal-close data-i18n="common.close">Close</button><button type="button" data-crew-advance hidden></button></div>
     </div>`;
     document.getElementById('app').append(dialog);
     dialog.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>this.closeTerminal()));
@@ -447,7 +455,6 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.crewDialogue?.abort();
     this.crewDialogue = null;
     this.crewDialogueItem = null;
-    if (this.preparation.item?.setup) this.onStationConfigurationChanged(this.preparation.item);
     this.terminalOpen=false;
     this.terminalDialog.hidden=true;
     this.preparation.item = null;

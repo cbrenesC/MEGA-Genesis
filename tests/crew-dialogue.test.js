@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { createDialogueReveal } from '../src/crew/dialogueReveal.js';
-import { CREW_GUIDE } from '../src/crew/guideFlow.js';
+import { CREW_GUIDE, activeStationStep, nextGuideStep } from '../src/crew/guideFlow.js';
 import { STATIONS } from '../src/map/controlRoomLayout.js';
 
 function harness(text, animate = true) {
@@ -59,9 +59,9 @@ test('confirming a crew dialogue closes it before showing the station beacon', a
   // Use the real scene methods without booting the Phaser renderer.
   const source = readFileSync(new URL('../src/scenes/SpaceCenterScene.js', import.meta.url), 'utf8');
   const methods = source.replace(/^import .*;\n/gm, '');
-  const Scene = new Function('Phaser', 'CREW_GUIDE', 'STATIONS', 't', 'createDialogueReveal',
+  const Scene = new Function('Phaser', 'activeStationStep', 'nextGuideStep', 'STATIONS', 't', 'createDialogueReveal',
     methods.replace('export class', 'class') + '\nreturn SpaceCenterScene;')(
-    { Scene: class {} }, CREW_GUIDE, STATIONS, key => key, createDialogueReveal,
+    { Scene: class {} }, activeStationStep, nextGuideStep, STATIONS, key => key, createDialogueReveal,
   );
   const scene = new Scene();
   const conversations = new Set();
@@ -88,7 +88,7 @@ test('confirming a crew dialogue closes it before showing the station beacon', a
   scene.crewDialogue.advance();
   assert.equal(closed, true);
   assert.equal(scene.guideStation.id, first.stationId);
-  scene.onStationConfigurationChanged({ id: first.stationId });
+  assert.equal(scene.confirmStation({ id: first.stationId }), true);
   assert.equal(scene.currentGuideStep().id, second.id);
   assert.equal(scene.guideStation.id, second.stationId);
   assert.doesNotMatch(source, /id = 'crew-guide'|data-guide-next/);

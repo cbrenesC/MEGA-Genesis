@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { localizeTextObjects, t } from '../i18n/index.js';
+import { getLanguage, localizeTextObjects, t } from '../i18n/index.js';
 import { playClick } from '../welcome/core/gameAudio.js';
 
 export class PauseScene extends Phaser.Scene {
@@ -8,27 +8,33 @@ export class PauseScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     this.backdrop = this.add.rectangle(0, 0, width, height, 0x02080e, .66).setOrigin(0).setScrollFactor(0);
-    this.frame = this.add.rectangle(width / 2, height / 2, 430, 238, 0x0a1b27, .97).setStrokeStyle(2, 0x456c76).setScrollFactor(0);
-    this.kicker = this.add.text(width / 2 - 164, height / 2 - 73, t('pause.kicker'), { fontFamily: 'monospace', fontSize: '9px', color: '#75bec4', letterSpacing: 2 }).setScrollFactor(0);
-    this.title = this.add.text(width / 2 - 164, height / 2 - 45, t('pause.title'), { fontFamily: 'monospace', fontSize: '20px', color: '#e0efec' }).setScrollFactor(0);
-    this.copy = this.add.text(width / 2 - 164, height / 2 - 10, t('pause.description'), { fontFamily: 'monospace', fontSize: '10px', lineSpacing: 7, color: '#98b1b6' }).setScrollFactor(0);
-    this.button = this.add.rectangle(width / 2, height / 2 + 51, 330, 42, 0x123743).setStrokeStyle(1, 0x4a8790).setInteractive({ useHandCursor: true }).setScrollFactor(0);
-    this.buttonText = this.add.text(width / 2 - 143, height / 2 + 46, t('pause.resume'), { fontFamily: 'monospace', fontSize: '9px', color: '#c8f6ed', letterSpacing: 1 }).setScrollFactor(0);
-    this.buttonMark = this.add.text(width / 2 + 142, height / 2 + 43, '↗', { fontFamily: 'monospace', fontSize: '14px', color: '#ffb16c' }).setScrollFactor(0);
-    this.hint = this.add.text(width / 2, height / 2 + 96, t('pause.hint'), { fontFamily: 'monospace', fontSize: '8px', color: '#64818b', letterSpacing: 2 }).setOrigin(.5).setScrollFactor(0);
+    this.frame = this.add.rectangle(width / 2, height / 2, 430, 284, 0x0a1b27, .97).setStrokeStyle(2, 0x456c76).setScrollFactor(0);
+    this.kicker = this.add.text(0, 0, t('pause.kicker'), { fontFamily: 'monospace', fontSize: '9px', color: '#75bec4', letterSpacing: 2 }).setOrigin(.5).setScrollFactor(0);
+    this.title = this.add.text(0, 0, t('pause.title'), { fontFamily: 'monospace', fontSize: '20px', color: '#e0efec' }).setOrigin(.5).setScrollFactor(0);
+    this.copy = this.add.text(0, 0, t('pause.description'), { fontFamily: 'monospace', fontSize: '10px', lineSpacing: 7, color: '#98b1b6', align: 'center' }).setOrigin(.5).setScrollFactor(0);
+    const makeButton = (label, action) => {
+      const hit = this.add.rectangle(0, 0, 330, 42, 0x123743).setStrokeStyle(1, 0x4a8790).setInteractive({ useHandCursor: true }).setScrollFactor(0);
+      const text = this.add.text(0, 0, t(label), { fontFamily: 'monospace', fontSize: '12px', color: '#c8f6ed' }).setOrigin(.5).setScrollFactor(0);
+      hit.on('pointerover', () => hit.setFillStyle(0x1b4b55));
+      hit.on('pointerout', () => hit.setFillStyle(0x123743));
+      hit.on('pointerup', () => { playClick(); action(); });
+      return { hit, text };
+    };
+    this.resume = makeButton('pause.resume', () => this.resumeExploration());
+    this.exit = makeButton('pause.exit', () => {
+      this.scene.get('SpaceCenterScene').preparation.save();
+      location.assign('/?' + new URLSearchParams({ lang: getLanguage() }));
+    });
+    this.hint = this.add.text(0, 0, t('pause.hint'), { fontFamily: 'monospace', fontSize: '8px', color: '#98b1b6', letterSpacing: 2 }).setOrigin(.5).setScrollFactor(0);
+    this.layout({ width, height });
     localizeTextObjects(this, [
       [this.kicker, 'pause.kicker'],
       [this.title, 'pause.title'],
       [this.copy, 'pause.description'],
-      [this.buttonText, 'pause.resume'],
+      [this.resume.text, 'pause.resume'],
+      [this.exit.text, 'pause.exit'],
       [this.hint, 'pause.hint'],
     ]);
-    this.button.on('pointerover', () => this.button.setFillStyle(0x1b4b55));
-    this.button.on('pointerout', () => this.button.setFillStyle(0x123743));
-    this.button.on('pointerdown', () => {
-      playClick();
-      this.resumeExploration();
-    });
     this.input.keyboard.on('keydown-ESC', () => this.resumeExploration());
     this.scale.on('resize', this.layout, this);
     this.events.once('shutdown', () => this.scale.off('resize', this.layout, this));
@@ -38,14 +44,15 @@ export class PauseScene extends Phaser.Scene {
     if (!gameSize) return;
     const { width, height } = gameSize; const cx = width / 2; const cy = height / 2;
     this.backdrop?.setSize(width, height);
-    this.frame?.setPosition(cx, cy);
-    this.kicker?.setPosition(cx - 164, cy - 73);
-    this.title?.setPosition(cx - 164, cy - 45);
-    this.copy?.setPosition(cx - 164, cy - 10);
-    this.button?.setPosition(cx, cy + 51);
-    this.buttonText?.setPosition(cx - 143, cy + 46);
-    this.buttonMark?.setPosition(cx + 142, cy + 43);
-    this.hint?.setPosition(cx, cy + 96);
+    this.frame.setPosition(cx, cy).setDisplaySize(Math.min(430, width - 20), 284);
+    this.kicker.setPosition(cx, cy - 115);
+    this.title.setPosition(cx, cy - 86);
+    this.copy.setPosition(cx, cy - 47);
+    for (const [button, offset] of [[this.resume, 8], [this.exit, 62]]) {
+      button.hit.setPosition(cx, cy + offset).setDisplaySize(Math.min(330, width - 42), 42);
+      button.text.setPosition(cx, cy + offset);
+    }
+    this.hint.setPosition(cx, cy + 113);
   }
 
   resumeExploration() {

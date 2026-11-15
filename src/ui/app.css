@@ -365,6 +365,7 @@ noscript{position:fixed;inset:0;display:grid;place-items:center;background:var(-
   border-color:#4fd8ff; background:#0a3748; color:#9ff4ff;
 }
 .space-title__button--subtle { color:#aec0db; }
+.space-title__button[hidden] { display: none; }
 .space-title__button:disabled {opacity:.45;cursor:not-allowed;}
 .space-title__best,.space-title__meta {
   color:#8fa3c7; font-size:clamp(13px,1.2vw,18px);
@@ -943,7 +944,8 @@ html.sms-reduced-animations #boot .boot-consent {
 .mission-terminal p{font:clamp(20px,2.4vw,27px)/1.35 'VT323',monospace;color:#d1e6e8}
 .mission-terminal__actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:25px}
 .mission-terminal__actions button,.mission-terminal__actions a{padding:11px 15px;background:#173f4c;color:#d5ffff;border:2px solid #6cb8be;text-decoration:none;cursor:pointer;font:16px 'VT323',monospace}
-.mission-terminal__actions [data-launch]{background:#70d8bf;color:#092a2c;border-color:#a8fff0}
+.mission-terminal__actions :is([data-launch], [data-confirm-station]){background:#70d8bf;color:#092a2c;border-color:#a8fff0}
+.mission-terminal__actions button:disabled{opacity:.55;cursor:not-allowed}
 .mission-terminal__actions [hidden]{display:none!important}
 
 #commander-intro-video::cue {
