@@ -2,6 +2,7 @@
 
 import { vehicleFor, withPilotMargin, COAST_DV, FlightSim, programGrid, programScore, runAutopilot, missionRotationBonus, PHYS } from './flight.js';
 import { planFlightEvents, resolveFlight, resolveAutomatic } from './outcome.js';
+import { windowDelayRisk, windowGustEvents } from './launchWeather.js';
 import { app, inputs, current, currentOutput, writeLaunch } from './store.js';
 import { MISSION_COMPLETE } from '../../../src/missions/missionTransfer.js';
 
@@ -30,7 +31,18 @@ export async function prepareLaunch() {
   if (vi) vi.vehicle = withPilotMargin(vi.vehicle, app.data.flight.calibration.pilotMargin?.[inputs().difficulty] ?? 1);
   app.vehicleInfo = vi;
   app.opts = missionOptions();
-  app.plan = planFlightEvents(e, app.data, inputs(), { seed: app.seed, eventsEnabled: app.eventsEnabled, stageCount: vi ? vi.vehicle.stages.length : 2 });
+  // Ventana de lanzamiento elegida en el planificador de clima: sus condiciones influyen en el vuelo.
+  //   · la probabilidad de que el clima detenga la cuenta sale del semáforo de la ventana (no del riesgo fijo del sitio);
+  //   · si hay ráfagas fuertes, el cohete recibe empujones de viento mientras sube por el aire.
+  const lw = app.launchWindow;
+  const forEvents = lw && e.probabilities?.weather != null && windowDelayRisk(lw.status) != null
+    ? { ...e, probabilities: { ...e.probabilities, weather: windowDelayRisk(lw.status) } } : e;
+  app.plan = planFlightEvents(forEvents, app.data, inputs(), { seed: app.seed, eventsEnabled: app.eventsEnabled, stageCount: vi ? vi.vehicle.stages.length : 2 });
+  if (lw && app.eventsEnabled) {
+    let s = (app.seed * 2654435761) >>> 0;
+    const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+    app.plan.flightEvents.push(...windowGustEvents(lw.conditions, rng));
+  }
   app.reference = null;
   if (!vi) return;
   const grid = programGrid(app.data.flight.calibration.searchGrid);

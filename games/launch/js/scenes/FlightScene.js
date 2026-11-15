@@ -22,6 +22,7 @@ import { toast } from '../ui.js';
 import {
   phaseOf, PHASE_LABEL, FlightCamera, anchorY, CAMERA, makeDebris, stepDebris, cullReason, groundDistance, thrustAccelG,
 } from '../world.js';
+import { windEastMs } from '../weather.js';
 import { ParticleSystem } from '../particles.js';
 import { MAP_ZOOM } from './MapScene.js';
 import { PixelView, FlightRenderer } from './render.js';
@@ -89,6 +90,8 @@ export class FlightScene extends Phaser.Scene {
     this.prevNozzle = null;
     this.debris = [];
     this.particles = new ParticleSystem();
+    this.weather = app.weather ?? null; // clima real del sitio (se consulta en la plataforma); fijo durante el vuelo
+    this.t0 = performance.now() / 1000;
     app.autopilotUsed = false;
 
     // lienzo pixel art + dibujo + cámara
@@ -581,6 +584,7 @@ export class FlightScene extends Phaser.Scene {
       stage: Math.min(sim.stage, this.vehicle.stages.length), fairing: sim.fairing,
       throttle, engineOn: Boolean(this.ignition) || (sim.status === 'flying' && !sim.engineOut),
       betaShown, flicker: Math.random(), airFade: pressureRatio(alt),
+      weather: this.weather, windE: this.weather ? windEastMs(this.weather) * (performance.now() / 1000 - this.t0) : 0,
       hideRocket: this.exploded, focus: this.cam.focusT < Infinity, zoomOut: this.cam.zoomOut,
       debris: this.debris, particles: this.particles, rx: sim.x, ry: sim.y,
       flowX, flowY, flowPhaseX: this.flow.px, flowPhaseY: this.flow.py,
