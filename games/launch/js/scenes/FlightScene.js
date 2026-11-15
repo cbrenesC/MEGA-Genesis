@@ -14,6 +14,7 @@ import {
   PHYS, DEG, DEST, applyAutopilot, autopilotStep, orbitGoalMet, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
 } from '../flight.js';
 import { app, inputs, current, reducedMotion } from '../store.js';
+import { playEffect, setThruster } from '../../../../src/welcome/core/gameAudio.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
@@ -164,6 +165,7 @@ export class FlightScene extends Phaser.Scene {
     window.removeEventListener('pointerup', this.onPtrUp);
     window.removeEventListener('pointercancel', this.onPtrUp);
     this.scale.off('resize', this.onResize);
+    setThruster(0);
     this.hud?.destroy();
     this.view?.destroy();
     this.particles?.clear();
@@ -243,6 +245,7 @@ export class FlightScene extends Phaser.Scene {
       return makeDebris({ ...sep, x: sep.x + ax * along - ay * (extra.lateral ?? 0) * mpp, y: sep.y + ay * along + ax * (extra.lateral ?? 0) * mpp }, { side: extra.side ?? 0, index: sep.index });
     };
     if (sep.kind === 'stage') {
+      playEffect('stage-separation');
       // una etapa entera, o los dos propulsores laterales (cada uno se abre hacia su lado)
       for (const piece of stageDebris(this.vehicle, sep.index)) this.debris.push(make(piece, { side: piece.side, lateral: piece.lateral }));
       this.cam.kick(0.5);
@@ -313,6 +316,8 @@ export class FlightScene extends Phaser.Scene {
         else if (sim.status === 'flying') followThrottle = this.step(FIXED_DT);
       }
     }
+    const enginePower = this.paused || this.ended || sim.engineOut ? 0 : this.ignition ? this.spool : sim.status === 'flying' ? sim.throttle : 0;
+    setThruster(enginePower);
     this.updateHints(followThrottle);
     this.drawFrame(dt);
     if (sim.status === 'ended' && !this.ended) this.onEnded();
