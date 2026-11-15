@@ -1,4 +1,3 @@
-import { audio } from '../core/audio.js';
 const readSave = () => null;
 const getBest = () => null;
 import { getPreferences } from '../core/consent.js';
@@ -123,7 +122,7 @@ export function mountTitleOverlay(scene) {
     button.addEventListener('click', event => {
       if (button.disabled) return;
       if (button.dataset.titleAction === 'start' || button.dataset.titleAction === 'continue') {
-        screen.classList.add('space-title--leaving');
+        remove();
       }
       actions[button.dataset.titleAction]?.(event);
     });
@@ -143,7 +142,11 @@ export function mountTitleOverlay(scene) {
     screenIsActive = false;
     video.pause();
     music.pause();
-    music.currentTime = 0;
+    video.querySelector('source')?.remove();
+    for (const media of [video, music]) {
+      media.removeAttribute('src');
+      media.load();
+    }
     window.removeEventListener('sms-consent-changed', refreshMedia);
     window.removeEventListener('sms-preferences-changed', refreshMedia);
     window.removeEventListener('sms-intro-complete', refreshMedia);

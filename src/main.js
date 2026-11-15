@@ -3,7 +3,11 @@ import { GAME } from './config.js';
 import { BootScene } from './scenes/BootScene.js';
 import { SpaceCenterScene } from './scenes/SpaceCenterScene.js';
 import { PauseScene } from './scenes/PauseScene.js';
+import { getPreferences } from './welcome/core/consent.js';
 import './ui/app.css';
+
+const gameContainer = document.getElementById('game-container');
+gameContainer.inert = true;
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -21,6 +25,7 @@ const game = new Phaser.Game({
     width: GAME.viewWidth,
     height: GAME.viewHeight,
     expandParent: false,
+    fullscreenTarget: 'app',
   },
   physics: {
     default: 'arcade',
@@ -40,77 +45,97 @@ commanderOverlay.innerHTML = `
   <div class="commander-intro__panel">
     <div class="commander-intro__top"><span>◈ MISSION CONTROL // COMMANDER BRIEFING</span><span>● LIVE</span></div>
     <div class="commander-intro__screen">
-  <video id="commander-intro-video" src="/intro_comander.mp4" autoplay playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" aria-label="Mensaje del comandante"></video>
-    <button type="button" id="commander-skip" aria-label="Saltar introducción">SALTAR ▶▶</button>
+      <video id="commander-intro-video" playsinline preload="none" disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback" aria-label="Mensaje del comandante"></video>
+      <button type="button" id="commander-skip" aria-label="Saltar introducción">SALTAR ▶▶</button>
+      <div class="commander-intro__fallback" hidden>
+        <p role="status">COMMANDER TRANSMISSION READY</p>
+        <button type="button" id="commander-retry">▶ INICIAR TRANSMISIÓN</button>
+      </div>
     </div>
-  </div>
-  <div class="commander-intro__fallback" hidden>
-    <p>COMMANDER TRANSMISSION READY</p>
-    <button type="button" id="commander-retry">▶ INICIAR TRANSMISIÓN</button>
   </div>`;
 document.getElementById('app').append(commanderOverlay);
 const commanderVideo = document.getElementById('commander-intro-video');
 let commanderStarted = false;
 let commanderClosing = false;
 const COMMANDER_FADE_MS = 550;
+function unlockMissionMap() {
+  gameContainer.inert = false;
+  const scene = game.scene.getScene('SpaceCenterScene');
+  scene?.input?.keyboard?.resetKeys?.();
+  gameContainer.focus({ preventScroll: true });
+}
+
 function enterMissionMap() {
   if (commanderClosing || commanderOverlay.hidden) return;
   commanderClosing = true;
   commanderOverlay.classList.remove('commander-intro--visible');
   commanderOverlay.classList.add('commander-intro--leaving');
-  commanderVideo.volume = 0;
+  commanderVideo.pause();
   window.setTimeout(() => {
-    commanderVideo.pause();
     commanderOverlay.hidden = true;
     commanderOverlay.classList.remove('commander-intro--leaving');
-  document.getElementById('settings-toggle')?.setAttribute('hidden', '');
-  document.getElementById('boot')?.classList.add('hidden');
-  const scene = game.scene.getScene('SpaceCenterScene');
-    scene?.input?.keyboard?.resetKeys?.();
+    unlockMissionMap();
   }, COMMANDER_FADE_MS);
 }
-document.getElementById('commander-skip').addEventListener('click', enterMissionMap);
-document.getElementById('commander-retry').addEventListener('click', () => { commanderVideo.muted = false; void commanderVideo.play(); });
+
+const skipBriefing = document.getElementById('commander-skip');
+const retryBriefing = document.getElementById('commander-retry');
+const briefingFallback = commanderOverlay.querySelector('.commander-intro__fallback');
+skipBriefing.addEventListener('click', enterMissionMap);
+retryBriefing.addEventListener('click', async () => {
+  if (commanderClosing) return;
+  commanderVideo.muted = !getPreferences().audio;
+  try {
+    await commanderVideo.play();
+    briefingFallback.hidden = true;
+    skipBriefing.focus();
+  } catch {
+    briefingFallback.hidden = false;
+  }
+});
 commanderVideo.addEventListener('ended', enterMissionMap);
 commanderVideo.addEventListener('error', () => {
-  const fallback = commanderOverlay.querySelector('.commander-intro__fallback');
-  fallback.hidden = false;
-  fallback.querySelector('p').textContent = 'TRANSMISSION UNAVAILABLE';
+  briefingFallback.hidden = false;
+  briefingFallback.querySelector('p').textContent = 'TRANSMISSION UNAVAILABLE';
+  retryBriefing.hidden = true;
 });
 window.__MEGA_ENTER_MAP__ = () => {
   if (commanderStarted) return;
   commanderStarted = true;
-  const screen = document.getElementById('space-title-overlay');
-  if (screen) {
-    screen.querySelectorAll('video,audio').forEach(media => {
-      media.pause(); media.removeAttribute('src'); media.load();
-    });
-    screen.remove();
-  }
   document.getElementById('boot')?.classList.add('hidden');
+  const prefs = getPreferences();
+  if (!prefs.animations) {
+    unlockMissionMap();
+    return;
+  }
   commanderOverlay.hidden = false;
-  commanderOverlay.classList.remove('commander-intro--leaving');
+  skipBriefing.focus({ preventScroll: true });
   // Two frames guarantee the browser paints the initial transparent state.
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    commanderOverlay.classList.add('commander-intro--visible');
+    if (!commanderClosing) commanderOverlay.classList.add('commander-intro--visible');
   }));
-  const prefs = window.__SMS_GET_PREFERENCES__?.();
-  commanderVideo.muted = prefs?.audio === false;
-  commanderVideo.volume = Math.min(1, Math.max(0, prefs?.musicVolume ?? 0.8));
-  commanderVideo.currentTime = 0;
-  void commanderVideo.play().catch(() => {
-    // Browsers may block autoplay with sound; retry muted automatically.
+  commanderVideo.muted = !prefs.audio;
+  commanderVideo.volume = prefs.musicVolume;
+  commanderVideo.src = '/intro_comander.mp4';
+  void commanderVideo.play().catch(async () => {
+    if (commanderClosing) return;
+    // Some browsers allow inline autoplay only when muted.
     commanderVideo.muted = true;
-    void commanderVideo.play().catch(() => {
-      commanderOverlay.querySelector('.commander-intro__fallback').hidden = false;
-    });
+    try {
+      await commanderVideo.play();
+    } catch {
+      if (!commanderClosing) briefingFallback.hidden = false;
+    }
   });
 };
 import('./welcome/main.js').then(() => {
-  // Phaser has already been instantiated. Never wait for a potentially missed boot event.
   window.__MEGA_MAP_READY__ = true;
   window.dispatchEvent(new Event('mega-map-ready'));
-}).catch(error => console.error('No se pudo cargar la bienvenida original',error));
+}).catch(error => {
+  console.error('No se pudo cargar la bienvenida original', error);
+  document.getElementById('boot')?.classList.add('hidden');
+  unlockMissionMap();
+});
 
 document.getElementById('fullscreen-button')?.addEventListener('click', () => {
   if (!game.scale.isFullscreen) game.scale.startFullscreen();
@@ -140,5 +165,7 @@ document.getElementById('mobile-interact')?.addEventListener('pointerdown', (eve
   game.scene.getScene('SpaceCenterScene')?.interact();
 });
 
-window.addEventListener('beforeunload', () => game.destroy(true));
+window.addEventListener('pagehide', (event) => {
+  if (!event.persisted) game.destroy(true);
+});
 
