@@ -8,6 +8,7 @@ thruster.loop = true;
 thruster.preload = 'auto';
 let wantsMusic = false;
 let thrusterPower = 0;
+let audioUnlocked = false;
 
 function preferences() {
   return getPreferences();
@@ -15,7 +16,7 @@ function preferences() {
 
 function syncMusic() {
   const prefs = preferences();
-  if (!wantsMusic || !prefs.audio) {
+  if (!audioUnlocked || !wantsMusic || !prefs.audio) {
     music.pause();
     return;
   }
@@ -25,7 +26,7 @@ function syncMusic() {
 
 function syncThruster() {
   const prefs = preferences();
-  if (thrusterPower <= 0.02 || !prefs.audio) {
+  if (!audioUnlocked || thrusterPower <= 0.02 || !prefs.audio) {
     thruster.pause();
     return;
   }
@@ -41,14 +42,13 @@ window.addEventListener('sms-consent-changed', () => {
   syncMusic();
   syncThruster();
 });
-window.addEventListener('pointerdown', () => {
+const unlockAudio = () => {
+  audioUnlocked = true;
   syncMusic();
   syncThruster();
-}, { capture: true });
-window.addEventListener('keydown', () => {
-  syncMusic();
-  syncThruster();
-}, { capture: true });
+};
+window.addEventListener('pointerdown', unlockAudio, { capture: true });
+window.addEventListener('keydown', unlockAudio, { capture: true });
 
 document.addEventListener('click', event => {
   if (event.target.closest?.('button, [role="button"], input[type="button"], input[type="submit"]')) {
