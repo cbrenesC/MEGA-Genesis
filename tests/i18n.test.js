@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import en from '../src/i18n/en.json' with { type: 'json' };
 import es from '../src/i18n/es.json' with { type: 'json' };
+import { CREW } from '../src/crew/roster.js';
 
 const parameters = (value) => [...new Set(value.match(/\{\w+\}/g) ?? [])].sort();
 
@@ -36,6 +37,18 @@ test('static UI references use valid translation keys', () => {
     for (const suffix of ['title', 'text']) assert.ok(Object.hasOwn(en, `lesson.${id}.${suffix}`));
   }
   for (let i = 1; i <= 14; i++) assert.ok(Object.hasOwn(en, 'briefing.cue' + String(i).padStart(2, '0')));
+});
+
+test('each crew member has a role and three briefing sentences in both languages', () => {
+  assert.equal(CREW.length, 4);
+  assert.equal(new Set(CREW.map(member => member.id)).size, CREW.length);
+  for (const { id, source } of CREW) {
+    assert.match(new URL(source).hostname, /(^|\.)nasa\.gov$/);
+    for (const catalog of [en, es]) {
+      assert.ok(catalog[`crew.${id}.role`]);
+      assert.equal(catalog[`crew.${id}.text`].split(/(?<=[.!?])\s+/).length, 3, id);
+    }
+  }
 });
 
 test('language changes update text, accessibility labels and links without storage consent', async () => {

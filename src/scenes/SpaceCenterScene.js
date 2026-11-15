@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME, ZONES } from '../config.js';
 import { MapManager } from '../map/MapManager.js';
 import { Player } from '../player/Player.js';
+import { placeCrew } from '../crew/placeCrew.js';
 import { localizeDOM, onLanguageChange, t } from '../i18n/index.js';
 
 export class SpaceCenterScene extends Phaser.Scene {
@@ -42,6 +43,8 @@ export class SpaceCenterScene extends Phaser.Scene {
         interact:()=>this.openTerminal(item)
       });
     });
+
+    placeCrew(this, this.mapManager.collision);
 
     this.player = new Player(this, 640, 720);
     this.physics.add.collider(this.player, this.mapManager.collision.solids);
@@ -87,9 +90,9 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.drawMinimap();
   }
 
-  update(time, delta) {
+  update(_time, delta) {
     if (this.inputsBlocked()) return;
-    this.player.update(time, delta);
+    this.player.update();
     if (Phaser.Input.Keyboard.JustDown(this.player.keys.E)) this.interact();
     if (Phaser.Input.Keyboard.JustDown(this.player.keys.ESC)) this.pauseExploration();
     this.updateZoneDisplay(false);
@@ -104,6 +107,7 @@ export class SpaceCenterScene extends Phaser.Scene {
 
   stopMovement() {
     this.player.body.stop();
+    this.player.setIdlePose();
     this.mobilePressed.clear();
     this.mobileDirection.x = 0;
     this.mobileDirection.y = 0;
@@ -216,9 +220,13 @@ export class SpaceCenterScene extends Phaser.Scene {
     dialog.id = 'mission-terminal';
     dialog.className = 'mission-terminal';
     dialog.hidden = true;
-    dialog.innerHTML = `<div class="mission-terminal__panel" role="dialog" aria-modal="true" data-i18n-aria="terminal.label">
+    dialog.innerHTML = `<div class="mission-terminal__panel" role="dialog" aria-modal="true" aria-labelledby="mission-terminal-title">
       <div class="mission-terminal__top"><span data-i18n="terminal.header">◈ MISSION CONTROL // TERMINAL</span><button type="button" data-close data-i18n-aria="terminal.close">✕</button></div>
-      <h2 data-title></h2><p data-description></p>
+      <div class="mission-terminal__profile">
+        <img data-portrait alt="" hidden />
+        <div><h2 id="mission-terminal-title" data-title></h2><p data-role class="mission-terminal__role" hidden></p></div>
+      </div>
+      <p data-description></p>
       <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><a data-launch hidden data-i18n="terminal.launch">Start mission ▶</a><button type="button" data-close data-i18n="common.close">Close</button></div>
     </div>`;
     document.getElementById('app').append(dialog);
@@ -231,8 +239,27 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.terminalOpen=true;
     this.stopMovement();
     this.gameContainer.inert = true;
-    dialog.querySelector('[data-title]').dataset.i18n = `lesson.${item.id}.title`;
-    dialog.querySelector('[data-description]').dataset.i18n = `lesson.${item.id}.text`;
+    const isCrew = item.kind === 'crew';
+    const title = dialog.querySelector('[data-title]');
+    const role = dialog.querySelector('[data-role]');
+    const portrait = dialog.querySelector('[data-portrait]');
+    const header = dialog.querySelector('.mission-terminal__top span');
+    header.dataset.i18n = isCrew ? 'crew.header' : 'terminal.header';
+    dialog.querySelector('.mission-terminal__top [data-close]').dataset.i18nAria =
+      isCrew ? 'crew.close' : 'terminal.close';
+    role.hidden = portrait.hidden = !isCrew;
+    if (isCrew) {
+      delete title.dataset.i18n;
+      title.textContent = item.name;
+      role.dataset.i18n = `crew.${item.id}.role`;
+      portrait.src = this.textures.get(item.texture).getSourceImage().toDataURL();
+    } else {
+      title.dataset.i18n = `lesson.${item.id}.title`;
+      delete role.dataset.i18n;
+      portrait.removeAttribute('src');
+    }
+    const topic = isCrew ? 'crew' : 'lesson';
+    dialog.querySelector('[data-description]').dataset.i18n = `${topic}.${item.id}.text`;
     const link=dialog.querySelector('[data-source]');
     link.hidden=!item.source;
     if(item.source)link.href=item.source;

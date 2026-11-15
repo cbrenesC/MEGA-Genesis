@@ -47,29 +47,6 @@ function floorTile(context, index) {
   });
 }
 
-function drawAstronaut(context, pose) {
-  const step = pose === 'a' ? -2 : pose === 'b' ? 2 : 0;
-  px(context, '#07121b', 4, 25, 16, 5);
-  px(context, '#111b25', 5, 22 + step, 5, 7); px(context, '#101a23', 14, 22 - step, 5, 7);
-  px(context, '#728b91', 5, 26 + step, 5, 3); px(context, '#728b91', 14, 26 - step, 5, 3);
-  px(context, '#192a37', 3, 16, 18, 9);
-  px(context, '#dce7df', 6, 15, 13, 9);
-  px(context, '#a4bbb6', 8, 17, 10, 6);
-  px(context, '#ff8e54', 4, 18, 3, 4); px(context, '#fc984e', 18, 18, 3, 4);
-  px(context, '#f3f0d9', 7, 7, 12, 10);
-  px(context, '#c4d5cb', 5, 10, 2, 5); px(context, '#c4d5cb', 19, 10, 2, 5);
-  px(context, '#142a39', 7, 10, 12, 5); px(context, '#5ddce2', 8, 10, 9, 3);
-  px(context, '#baf7ef', 9, 10, 2, 1); px(context, '#20465a', 14, 12, 2, 2);
-  px(context, '#ffaf6e', 10, 19, 3, 2); px(context, '#e2f1e7', 9, 4, 8, 3);
-  px(context, '#fff5d4', 11, 3, 5, 2); px(context, '#829995', 5, 14, 14, 1);
-  px(context, '#375365', 7, 23, 11, 1);
-  if (pose === 'blink') {
-    px(context, '#122c38', 7, 10, 11, 4);
-    px(context, '#538e97', 9, 11, 8, 1);
-    px(context, '#203e4b', 9, 13, 7, 1);
-  }
-}
-
 function drawDesk(context, w, h) {
   px(context, '#060d13', 5, h - 8, w - 10, 6);
   px(context, '#17232b', 4, 10, w - 8, h - 17);
@@ -273,10 +250,6 @@ export function createSpaceTextures(scene) {
       context.save(); context.translate(tile * 32, 0); floorTile(context, tile); context.restore();
     }
   });
-  texture(scene, 'astronaut-idle', 24, 32, (context) => drawAstronaut(context, 'idle'));
-  texture(scene, 'astronaut-idle-blink', 24, 32, (context) => drawAstronaut(context, 'blink'));
-  texture(scene, 'astronaut-step-a', 24, 32, (context) => drawAstronaut(context, 'a'));
-  texture(scene, 'astronaut-step-b', 24, 32, (context) => drawAstronaut(context, 'b'));
   texture(scene, 'console-desk', 112, 72, drawDesk);
   texture(scene, 'engineering-bench', 144, 76, drawWorkbench);
   texture(scene, 'server-rack', 52, 96, drawServer);
