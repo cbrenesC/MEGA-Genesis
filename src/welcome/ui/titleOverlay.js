@@ -1,46 +1,35 @@
-import { audio } from '../core/audio.js';
-const readSave = () => null;
-const getBest = () => null;
 import { getPreferences } from '../core/consent.js';
 import { assetUrl } from '../core/assetLoader.js';
-import { localizeDOM } from '../i18n/index.js';
+import { localizeDOM } from '../../i18n/index.js';
 
 // UI nativa inspirada en spacemiss: NO se rasteriza ni se amplía con Phaser.
 export function mountTitleOverlay(scene) {
   document.getElementById('space-title-overlay')?.remove();
-  const hasSave = Boolean(readSave());
-  const best = getBest();
 
   const screen = document.createElement('section');
   screen.id = 'space-title-overlay';
   screen.className = 'space-title';
-  screen.setAttribute('aria-label', 'Pantalla de inicio de Space Mission');
+  screen.dataset.i18nAria = 'home.screen';
   screen.innerHTML = `
     <video class="space-title__video" autoplay muted loop playsinline preload="auto" aria-hidden="true">
       <source src="/title-background.mp4" type="video/mp4" />
     </video>
     <audio class="space-title__music" src="/title-music.mp3" preload="auto" loop aria-hidden="true"></audio>
-    <div class="space-title__video-error" role="status" hidden>El video de fondo no está disponible. Verifica public/title-background.mp4.</div>
+    <div class="space-title__video-error" role="status" data-i18n="home.videoError" hidden>The background video could not be played.</div>
     <div class="space-title__gradient" aria-hidden="true"></div>
     <div class="space-title__layout">
       <div class="space-title__content">
-        <p class="space-title__kicker">PROGRAMA ESPACIAL · NIVEL 1</p>
+        <p class="space-title__kicker" data-i18n="home.kicker">SPACE PROGRAM · MISSION CONTROL</p>
         <h1 class="space-title__name"><span>SPACE</span><span>MISSION</span></h1>
-        <p class="space-title__subtitle">COORDINACIÓN Y DESPEGUE</p>
+        <p class="space-title__subtitle" data-i18n="home.subtitle">Design, launch, and explore</p>
         <div class="space-title__rule" aria-hidden="true"></div>
-        <p class="space-title__description">
-          El cohete espera en la plataforma. Explora el centro espacial,
-          diseña la nave, carga el propelente, repara los sistemas averiados,
-          elige una ventana segura y firma la autorización final.
-        </p>
+        <p class="space-title__description" data-i18n="home.description">Explore Mission Control and take on two space engineering simulations in a pixel-art world.</p>
         <div class="space-title__actions">
-          <button type="button" class="space-title__button space-title__button--primary" data-title-action="start">JUGAR AHORA</button>
-          <button type="button" class="space-title__button" data-title-action="continue" ${hasSave ? '' : 'disabled'}>${hasSave ? 'CONTINUAR MISIÓN' : 'SIN PARTIDA GUARDADA'}</button>
-          <button type="button" class="space-title__button space-title__button--subtle" data-title-action="controls">CONTROLES</button>
-          <button type="button" class="space-title__button space-title__button--subtle" data-title-action="credits">CRÉDITOS</button>
+          <button type="button" class="space-title__button space-title__button--primary" data-title-action="start" data-i18n="home.play">Play now</button>
+          <button type="button" class="space-title__button space-title__button--subtle" data-title-action="controls" data-i18n="home.controls">Controls</button>
+          <button type="button" class="space-title__button space-title__button--subtle" data-title-action="credits" data-i18n="home.credits">Credits</button>
         </div>
-        ${best ? `<p class="space-title__best">MEJOR PUNTUACIÓN: ${Math.round(best.score).toLocaleString('es-ES')} / 100</p>` : ''}
-        <p class="space-title__meta">WASD O FLECHAS · E INTERACTUAR · I INVENTARIO · ESC PAUSA</p>
+        <p class="space-title__meta" data-i18n="home.shortcut">WASD or arrow keys · E to interact · Esc to pause</p>
       </div>
     </div>
   `;
@@ -114,7 +103,6 @@ export function mountTitleOverlay(scene) {
 
   const actions = {
     start: () => scene.newGame(),
-    continue: () => hasSave && scene.continueGame(),
     controls: () => scene.openInfo('controls'),
     credits: () => scene.openInfo('credits'),
   };
@@ -122,8 +110,8 @@ export function mountTitleOverlay(scene) {
   for (const button of screen.querySelectorAll('[data-title-action]')) {
     button.addEventListener('click', event => {
       if (button.disabled) return;
-      if (button.dataset.titleAction === 'start' || button.dataset.titleAction === 'continue') {
-        screen.classList.add('space-title--leaving');
+      if (button.dataset.titleAction === 'start') {
+        remove();
       }
       actions[button.dataset.titleAction]?.(event);
     });
@@ -143,7 +131,11 @@ export function mountTitleOverlay(scene) {
     screenIsActive = false;
     video.pause();
     music.pause();
-    music.currentTime = 0;
+    video.querySelector('source')?.remove();
+    for (const media of [video, music]) {
+      media.removeAttribute('src');
+      media.load();
+    }
     window.removeEventListener('sms-consent-changed', refreshMedia);
     window.removeEventListener('sms-preferences-changed', refreshMedia);
     window.removeEventListener('sms-intro-complete', refreshMedia);

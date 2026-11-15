@@ -895,47 +895,143 @@ html.sms-reduced-animations #boot .boot-consent {
 #boot .boot-toggle-row input:focus-visible+.boot-switch {
   outline:3px solid #5cc3ec; outline-offset:3px;
 }
-#boot .boot-localizing-dialog {text-align:center; width:min(600px,92vw);}
-#boot .boot-localizing-dialog h2 {font-size:clamp(13px,2vw,19px);}
-#boot .boot-localizing-progress {
-  margin:22px auto 10px; width:100%; height:12px;
-  border:1px solid #bad2e0; background:#eaf4f8;
-  border-radius:8px; overflow:hidden;
-}
-#boot #boot-localizing-fill {
-  display:block; width:0%; height:100%;
-  background:#208eb3; transition:width .2s ease;
-}
-#boot #boot-localizing-label {color:#50718a;min-height:1.2em;}
-
-/* Reuse the original animated preloader during language preparation. */
-#boot .boot-localizing-dialog {
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:clamp(8px,1.5vh,18px); width:min(760px,94vw);
-  padding:clamp(15px,2.5vw,32px);
-}
-#boot .boot-localizing-svg {
-  display:block;
-  width:min(72vw,500px);
-  height:min(35vh,265px);
-  max-width:100%;
-  background:transparent;
-  border:0;
-  flex:0 1 auto;
-  pointer-events:none;
-}
-#boot .boot-localizing-svg img {
-  display:block; width:100%; height:100%; object-fit:contain;
-}
-#boot .boot-localizing-dialog h2 {margin:0;}
-#boot .boot-localizing-progress {margin:4px auto 4px;}
-@media (max-height:500px) {
-  #boot .boot-localizing-svg {height:22vh;width:min(62vw,420px);}
-}
-
 /* Preserve the MEGA Genesis map layout behind original onboarding */
 #app.game-frame{position:fixed;inset:0;padding:0}
 #game-container.game-stage{position:relative;width:100%;height:100%;border:0;box-shadow:none}
 #boot[hidden],#boot [hidden],#settings-dialog[hidden],.space-title[hidden]{display:none!important}
 #settings-toggle{position:fixed;right:12px;top:55px;z-index:21}
 #settings-dialog{z-index:50}
+
+/* Commander briefing stays within the viewport, including short landscape screens. */
+.commander-intro[hidden], .commander-intro [hidden] { display: none !important; }
+.commander-intro {
+  position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center;
+  padding: clamp(12px, 4vw, 46px); background: rgba(2,9,17,.88);
+  color: #e9f7ff; font-family: 'VT323', monospace;
+}
+.commander-intro__panel {
+  width: min(1040px, 100%, calc((100dvh - 90px) * 16 / 9));
+  overflow: hidden; border: 4px solid #90d8e8; background: #0a1a2b;
+  box-shadow: 0 0 0 5px #183b54, 0 24px 90px #000c;
+}
+.commander-intro__top{display:flex;justify-content:space-between;gap:12px;padding:12px 17px;background:#173a51;border-bottom:3px solid #6db6ca;color:#d4f5fc;font:clamp(13px,1.7vw,20px) 'VT323',monospace;letter-spacing:1px}
+.commander-intro__top span:last-child{color:#ff777e;white-space:nowrap}
+.commander-intro__screen{position:relative;width:100%;aspect-ratio:16/9;background:#000}
+#commander-intro-video{width:100%;height:100%;display:block;object-fit:contain}
+#commander-skip{position:absolute;right:14px;bottom:14px;z-index:3;padding:10px 13px;border:1px solid rgba(201,244,248,.36);background:rgba(7,23,33,.38);color:rgba(238,253,255,.7);font:12px 'Press Start 2P',monospace;cursor:pointer;opacity:.55;transition:opacity .2s,background .2s}
+#commander-skip:hover,#commander-skip:focus-visible{opacity:1;background:rgba(7,23,33,.82);color:#fff}
+.commander-intro__fallback{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);z-index:2;text-align:center;background:#0a1a2b;padding:8px 12px}
+#commander-retry{background:#7cdece;color:#092a35;border:3px solid #c8fff4;padding:12px;cursor:pointer;font:12px 'Press Start 2P',monospace}
+@media(max-width:600px){.commander-intro__top{font-size:12px;padding:10px}#commander-skip{font-size:9px;padding:9px;right:8px;bottom:8px}}
+
+/* Cinematic commander briefing transitions: subtle, crisp, no abrupt cuts. */
+.commander-intro:not([hidden]){opacity:0;transition:opacity 650ms ease-in-out;will-change:opacity}
+.commander-intro.commander-intro--visible{opacity:1}
+.commander-intro.commander-intro--leaving{opacity:0;transition-duration:550ms}
+.commander-intro__panel{transform:translateY(12px) scale(.985);opacity:.85;transition:transform 650ms cubic-bezier(.22,1,.36,1),opacity 650ms ease;will-change:transform,opacity}
+.commander-intro--visible .commander-intro__panel{transform:translateY(0) scale(1);opacity:1}
+.commander-intro--leaving .commander-intro__panel{transform:translateY(-5px) scale(.99);opacity:0;transition-duration:550ms}
+@media(prefers-reduced-motion:reduce){.commander-intro:not([hidden]),.commander-intro__panel{transition-duration:150ms}}
+
+/* NASA learning consoles, English-only pixel UI. */
+.mission-terminal[hidden]{display:none!important}
+.mission-terminal{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;background:rgba(2,10,18,.82);font-family:'VT323',monospace;color:#e6f5f6}
+.mission-terminal__panel{width:min(740px,96vw);max-height:85dvh;overflow:auto;background:#0c2231;border:4px solid #80d5db;box-shadow:0 0 0 5px #1d4351,0 22px 80px #000a;padding:0 25px 25px}
+.mission-terminal__top{margin:0 -25px 25px;padding:12px 17px;background:#173b4c;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:18px;letter-spacing:1px}
+.mission-terminal__top button{border:0;background:transparent;color:#fff;cursor:pointer;font-size:22px}
+.mission-terminal h2{font:clamp(13px,2vw,19px)/1.6 'Press Start 2P',monospace;color:#93e9e8}
+.mission-terminal p{font:clamp(20px,2.4vw,27px)/1.35 'VT323',monospace;color:#d1e6e8}
+.mission-terminal__actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:25px}
+.mission-terminal__actions button,.mission-terminal__actions a{padding:11px 15px;background:#173f4c;color:#d5ffff;border:2px solid #6cb8be;text-decoration:none;cursor:pointer;font:16px 'VT323',monospace}
+.mission-terminal__actions [data-launch]{background:#70d8bf;color:#092a2c;border-color:#a8fff0}
+.mission-terminal__actions [hidden]{display:none!important}
+
+#commander-intro-video::cue {
+  color: #fff;
+  background: rgba(0, 0, 0, .8);
+  font: clamp(11px, 2vw, 20px) / 1.25 system-ui, sans-serif;
+}
+#commander-captions {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+  padding: 5px 9px; border: 1px solid #9bc9d9; border-radius: 3px;
+  color: #f2fcff; background: #0a1a2bdf; cursor: pointer;
+  font: clamp(15px, 2vw, 19px) 'VT323', monospace;
+}
+#commander-captions[aria-pressed="false"] { opacity: .7; }
+#settings-dialog { max-height: calc(100dvh - 65px); overflow-y: auto; }
+
+.mission-terminal__profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.mission-terminal__profile img {
+  box-sizing: content-box;
+  width: 60px;
+  height: 60px;
+  flex: 0 0 auto;
+  padding: 6px;
+  background: #091925;
+  border: 2px solid #548995;
+  image-rendering: pixelated;
+}
+.mission-terminal__profile img[hidden], .mission-terminal__role[hidden] { display: none; }
+.mission-terminal__profile h2 { margin: 0; }
+.mission-terminal p.mission-terminal__role {
+  margin: 4px 0 0;
+  font-size: 19px;
+  color: #a9c4ce;
+}
+@media (max-width: 500px) {
+  .mission-terminal__profile img { width: 40px; height: 40px; }
+}
+
+/* Panoramic, responsive world view. Keep the HUD compact over the canvas. */
+#app:fullscreen { width: 100%; height: 100%; background: #111e2d; }
+#game-container.game-stage { background: #111e2d; }
+.display-console {
+  width: min(540px, calc(100% - 28px));
+  max-height: calc(100dvh - 30px);
+  overflow-y: auto;
+  padding: 20px 22px;
+  border: 2px solid #9dbdcb;
+  border-radius: 5px;
+  color: #edf7f9;
+  background: #122536;
+  box-shadow: 0 0 0 4px #2b4458, 0 20px 70px #000a;
+  font: 20px/1.25 'VT323', monospace;
+}
+.display-console::backdrop { background: #06101cbb; }
+.display-console__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.display-console__header .section-tag { color: #99d3de; }
+.display-console h2 { margin: 8px 0 0; color: #ddeef1; font: 14px/1.5 'Press Start 2P', monospace; }
+.display-console label { display: block; margin: 12px 0 6px; color: #a9d8e3; }
+.display-console textarea {
+  width: 100%; resize: vertical; min-height: 65px; max-height: 160px;
+  padding: 8px 10px; border: 1px solid #557c8f; background: #091b2b; color: #f2f9fd;
+  font: inherit;
+}
+.display-console__actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.display-console button {
+  min-height: 42px; padding: 6px 12px; border: 1px solid #648e9f; border-radius: 3px;
+  background: #1b384e; color: #e7f6f7; cursor: pointer; font: inherit;
+}
+.display-console button:hover { background: #2c5368; }
+.display-console .display-console__primary { background: #b5e3df; border-color: #cdeee7; color: #153e4b; }
+.display-console .display-console__primary:hover { background: #d1f0eb; }
+.display-console button:focus-visible, .display-console textarea:focus-visible { outline: 2px solid #80e1e4; outline-offset: 2px; }
+.display-console small, .display-console__tip { color: #a4bac8; }
+.display-console__tip { margin: 8px 0; }
+#media-status { color: #a2efe8; margin: 0; }
+#media-status:empty { display: none; }
+@media (max-width: 560px) {
+  .display-console { padding: 15px; font-size: 18px; }
+}
+.display-console button:disabled { opacity: .5; cursor: default; }
+.display-console button:disabled:hover { background: #1b384e; }
+/* Phaser supplies the drawing buffer size. The game canvas still follows the
+   viewport so resizing/fullscreen never leaves a stale one-pixel outline. */
+#game-container.game-stage > canvas { display: block; border: 0; }
+@media (max-width: 600px) and (orientation: portrait) {
+  #game-container .mobile-controls { bottom: max(22px, env(safe-area-inset-bottom)); }
+}

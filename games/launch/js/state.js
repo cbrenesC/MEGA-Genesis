@@ -24,10 +24,10 @@ export const ROLES = {
   mission: 'Dirección de misión (presupuesto y calendario)',
 };
 
-export async function loadData(base = './data/') {
+export async function loadData() {
   const names = ['launchers', 'sites', 'orbits', 'rules', 'reference-missions', 'glossary', 'mock-missions', 'flight', 'flight-calibration', 'facts'];
   const files = await Promise.all(names.map(async (name) => {
-    const response = await fetch(`${base}${name}.json`);
+    const response = await fetch(new URL(`../data/${name}.json`, import.meta.url));
     if (!response.ok) throw new Error(`No se pudo cargar data/${name}.json (${response.status})`);
     return response.json();
   }));

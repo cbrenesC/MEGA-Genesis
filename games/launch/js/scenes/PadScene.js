@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 // Plataforma de lanzamiento: se ve el cohete, se revisan los imprevistos y se hace la cuenta regresiva.
 import { app, inputs, current, reducedMotion } from '../store.js';
 import { esc } from '../screens.js';
@@ -12,7 +13,6 @@ import { PHYS } from '../flight.js';
 // Cohete genérico para dibujar la plataforma cuando el par cohete/destino no tiene simulador.
 const GENERIC = { id: 'generic', diameterM: 3, stackKg: 60000, fairingKg: 400, stages: [{ dryKg: 3500, propKg: 38000 }, { dryKg: 700, propKg: 9000 }] };
 
-const Phaser = window.Phaser;
 
 export class PadScene extends Phaser.Scene {
   constructor() { super('PadScene'); }

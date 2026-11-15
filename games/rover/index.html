@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" data-i18n-content="rover.description" content="Land on the Moon and drive the rover to collect three scientific samples. Avoid craters and manage your battery." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../mission.css" />
+  <title data-i18n="rover.pageTitle">Space Mission · Lunar Rover</title>
+</head>
+<body>
+  <header>
+    <div class="mission-header">
+      <a href="/" data-locale-link>← <span data-i18n="common.backControl">Back to Mission Control</span></a>
+      <label><span data-i18n="common.language">Language</span>
+        <select name="language" data-language-picker>
+          <option value="en" lang="en">English</option>
+          <option value="es" lang="es">Español</option>
+        </select>
+      </label>
+    </div>
+    <h1 data-i18n="rover.title">02 · Lunar rover</h1>
+    <p data-i18n="rover.description">Land on the Moon and drive the rover to collect three scientific samples. Avoid craters and manage your battery.</p>
+  </header>
+  <main>
+    <canvas id="view" width="640" height="520" aria-label="Lunar surface simulation" data-i18n-aria="rover.canvas"></canvas>
+    <aside>
+      <h2 data-i18n="rover.control">Mission Control</h2>
+      <p id="status" role="status">Select Start mission to begin.</p>
+      <button data-i18n="common.startMission" id="start" type="button">Start mission</button>
+      <button data-i18n="common.reset" id="reset" type="button">Restart</button>
+      <p data-i18n="rover.movement">Move with WASD or the arrow keys.</p>
+      <div class="mission-dpad">
+        <button type="button" data-dir="up" aria-label="Up" data-i18n-aria="common.up">↑</button>
+        <button type="button" data-dir="left" aria-label="Left" data-i18n-aria="common.left">←</button>
+        <button type="button" data-dir="down" aria-label="Down" data-i18n-aria="common.down">↓</button>
+        <button type="button" data-dir="right" aria-label="Right" data-i18n-aria="common.right">→</button>
+      </div>
+      <p id="telemetry"></p>
+    </aside>
+  </main>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>

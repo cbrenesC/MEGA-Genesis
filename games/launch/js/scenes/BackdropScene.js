@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 // Base de las escenas de decisión: un fondo de estrellas y de Tierra dibujado con Phaser,
 // y un panel HTML encima con la información y los botones.
 
@@ -5,7 +6,6 @@ import { app, reducedMotion } from '../store.js';
 import { bindScreens } from '../screens.js';
 import { gradientRect } from './gfx.js';
 
-export const Phaser = window.Phaser;
 
 export class BackdropScene extends Phaser.Scene {
   create() {

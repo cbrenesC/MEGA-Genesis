@@ -1,16 +1,16 @@
+import Phaser from 'phaser';
 // Carga los datos del juego y muestra datos curiosos mientras tanto.
 import { loadData } from '../state.js';
 import { app, recompute, diff } from '../store.js';
 import { rotateFacts } from '../ui.js';
 
-const Phaser = window.Phaser;
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
 
   create() {
     const started = performance.now();
-    loadData('./data/')
+    loadData()
       .then((data) => {
         app.data = data;
         recompute();

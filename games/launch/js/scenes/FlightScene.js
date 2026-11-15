@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 // Vuelo interactivo: vista lateral 2D en pixel art, controles táctiles y de teclado, telemetría y pistas.
 //
 // Capas (cada una separada de las demás):
@@ -24,7 +25,6 @@ import { ParticleSystem } from '../particles.js';
 import { PixelView, FlightRenderer } from './render.js';
 import { stageSprite, fairingSprite, rocketDims } from './rocketArt.js';
 
-const Phaser = window.Phaser;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;

@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 // Mapa de la órbita: vista desde arriba de la Tierra con la trayectoria proyectada.
 // Responde una pregunta: ¿tu órbita "cierra" (te quedas dando vueltas) o vas a caer?
 
@@ -5,7 +6,6 @@ import { PHYS, DEST, DEG, orbitElements, transferWindow, timeToApoapsis } from '
 import { app } from '../store.js';
 import { gradientRect } from './gfx.js';
 
-const Phaser = window.Phaser;
 const mmss = (s) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '—');
 const fmtKm = (m) => `${Math.round(m / 1000).toLocaleString('es')} km`;
 

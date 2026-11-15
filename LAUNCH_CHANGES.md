@@ -1,3 +1,5 @@
+> **Nota de integración:** este informe conserva el historial de la rama de lanzamiento. En `main`, la ruta vigente es `games/launch/`, Vite usa el Phaser de `package.json` y la práctica conserva la versión bilingüe que ya tenía el sitio. Para comandos y rutas actuales, ver [el README del módulo](games/launch/README.md).
+
 # LAUNCH_CHANGES — Módulo de Lanzamiento (Space Mission · NASA Space Apps)
 
 > Este archivo tiene dos partes: **Versión 2 — Phaser e interactivo** (esta sección) y, más abajo, el informe completo de la **Versión 1** sin cambios.

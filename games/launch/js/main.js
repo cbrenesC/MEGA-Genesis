@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 // Módulo LAUNCH, versión 2: un juego de Phaser 3 con escenas separadas.
 //
 //   Boot → Briefing (misión) → Hangar (catálogo y revisión) → Pad (plataforma y cuenta regresiva)
@@ -10,6 +11,7 @@ import { app, current, recompute, invalidateDecision, clearLaunch, inputs } from
 import { renderResources, resetForNewInputs } from './screens.js';
 import { bindGlossary } from './ui.js';
 import { prepareRetry } from './flow.js';
+import { localizeDOM } from '../../../src/i18n/index.js';
 import { BootScene } from './scenes/BootScene.js';
 import { BriefingScene, HangarScene, ResultScene } from './scenes/panels.js';
 import { PadScene } from './scenes/PadScene.js';
@@ -109,20 +111,16 @@ $('steps').addEventListener('click', (event) => {
 });
 
 bindGlossary();
+// Preserve the site language on navigation without changing the Spanish simulator UI.
+localizeDOM($('topbar'));
 
-if (!window.Phaser) {
-  $('boot-error').hidden = false;
-  $('boot-error').textContent = 'No se pudo cargar Phaser (vendor/phaser.min.js).';
-} else {
-  const Phaser = window.Phaser;
-  app.game = new Phaser.Game({
-    type: Phaser.CANVAS, // Canvas 2D: dibujos vectoriales simples, funciona igual en cualquier celular o computadora
-    parent: 'game',
-    backgroundColor: '#050b16',
-    scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
-    render: { antialias: false, pixelArt: true, roundPixels: true }, // pixel art nítido: sin suavizado de imágenes
-    fps: { target: 60 },
-    scene: [BootScene, BriefingScene, HangarScene, PadScene, FlightScene, MapScene, ResultScene],
-  });
-  window.__launch = { app, nav: app.nav }; // ayuda para probar desde la consola
-}
+app.game = new Phaser.Game({
+  type: Phaser.CANVAS, // Canvas 2D: dibujos vectoriales simples, funciona igual en cualquier celular o computadora
+  parent: 'game',
+  backgroundColor: '#050b16',
+  scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
+  render: { antialias: false, pixelArt: true, roundPixels: true }, // pixel art nítido: sin suavizado de imágenes
+  fps: { target: 60 },
+  scene: [BootScene, BriefingScene, HangarScene, PadScene, FlightScene, MapScene, ResultScene],
+});
+window.__launch = { app, nav: app.nav }; // ayuda para probar desde la consola
