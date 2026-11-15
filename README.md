@@ -21,7 +21,13 @@ Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para N
 
 Las misiones de lanzamiento y rover están en `games/launch/` y `games/rover/`, respectivamente.
 
-El astronauta y los cuatro tripulantes del centro de control (Kade, Ríos, Vega y Sol) usan los sprites cenitales de `demogame`. Cada tripulante ofrece tres consejos sobre su área y un recurso de la NASA.
+El botón ⛶ abre el centro de control en pantalla completa. En ventanas anchas se encuadra toda la sala. En pantallas compactas, la cámara sigue al astronauta para conservar la legibilidad.
+
+## Pantalla de anuncios
+
+Acercate al escritorio central debajo de la pantalla y presioná **E** o **Usar**. Podés publicar un texto de hasta 180 caracteres, mostrar una imagen (PNG, JPG, WebP) o cargar y reproducir un video (MP4, WebM) sin sonido. **Restaurar vista orbital** recupera la ilustración Tierra–Luna. Los anuncios y archivos elegidos se muestran solo en el dispositivo durante la visita. Para configurar un archivo inicial para todos los jugadores, configurá `GAME.media.src` en `src/config.js` o asigná una clave bilingüe a `GAME.media.announcementKey` para mostrar un anuncio de texto inicial.
+
+El astronauta y los cuatro tripulantes del centro de control (Durman, Josué, Luis Eduardo y Johana) usan los sprites cenitales de `demogame`. Cada tripulante recorre una ruta corta y se detiene al acercarte. La señal sobre el personaje o la consola más próxima indica que podés interactuar con **E**, **Usar** o tocando la señal. Cada tripulante ofrece tres consejos sobre su área y un recurso de la NASA. La opción **Animaciones y video** desactiva los recorridos, destellos y el movimiento de las señales, sin bloquear la interacción.
 
 ## Idiomas
 

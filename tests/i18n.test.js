@@ -39,6 +39,16 @@ test('static UI references use valid translation keys', () => {
   for (let i = 1; i <= 14; i++) assert.ok(Object.hasOwn(en, 'briefing.cue' + String(i).padStart(2, '0')));
 });
 
+test('the renamed crew retain distinct roles and short patrol routes', () => {
+  assert.deepEqual(Object.fromEntries(CREW.map(({ id, name }) => [id, name])), {
+    kade: 'Durman', rios: 'Josué', vega: 'Luis Eduardo', sol: 'Johana',
+  });
+  for (const { route } of CREW) {
+    assert.ok(route.length >= 2);
+    assert.equal(new Set(route.map(point => point.join(','))).size, route.length);
+  }
+});
+
 test('each crew member has a role and three briefing sentences in both languages', () => {
   assert.equal(CREW.length, 4);
   assert.equal(new Set(CREW.map(member => member.id)).size, CREW.length);
