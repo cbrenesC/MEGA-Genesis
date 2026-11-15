@@ -14,7 +14,7 @@ import {
   PHYS, DEG, DEST, applyAutopilot, autopilotStep, orbitGoalMet, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
 } from '../flight.js';
 import { app, inputs, current, reducedMotion } from '../store.js';
-import { playEffect, setThruster } from '../../../../src/welcome/core/gameAudio.js';
+import { pauseGameplayMusic, playEffect, resumeGameplayMusic, setThruster } from '../../../../src/welcome/core/gameAudio.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
@@ -165,6 +165,7 @@ export class FlightScene extends Phaser.Scene {
     window.removeEventListener('pointerup', this.onPtrUp);
     window.removeEventListener('pointercancel', this.onPtrUp);
     this.scale.off('resize', this.onResize);
+    resumeGameplayMusic();
     setThruster(0);
     this.hud?.destroy();
     this.view?.destroy();
@@ -190,6 +191,8 @@ export class FlightScene extends Phaser.Scene {
   togglePause() {
     if (this.ended || (this.sim.status === 'pad' && !this.ignition)) return;
     this.paused = !this.paused;
+    if (this.paused) pauseGameplayMusic();
+    else resumeGameplayMusic();
     const ov = document.getElementById('overlay');
     if (this.paused) {
       ov.hidden = false;
