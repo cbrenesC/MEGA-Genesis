@@ -3,6 +3,7 @@
 import { vehicleFor, withPilotMargin, COAST_DV, FlightSim, programGrid, programScore, runAutopilot, missionRotationBonus, PHYS } from './flight.js';
 import { planFlightEvents, resolveFlight, resolveAutomatic } from './outcome.js';
 import { app, inputs, current, currentOutput, writeLaunch } from './store.js';
+import { MISSION_COMPLETE } from '../../../src/missions/missionTransfer.js';
 
 /** Datos de la misión que necesita el simulador. */
 export function missionOptions() {
@@ -74,6 +75,7 @@ export function finishFlight(sim) {
     app.flight = resolveAutomatic(e, app.data, inputs(), { seed: app.seed, eventsEnabled: app.eventsEnabled });
   }
   writeLaunch(currentOutput('lanzado'));
+  if (window.parent !== window) window.parent.postMessage({ type: MISSION_COMPLETE, mission: 'launch' }, location.origin);
   return app.flight;
 }
 

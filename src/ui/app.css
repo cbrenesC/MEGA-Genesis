@@ -1133,3 +1133,19 @@ html.sms-reduced-animations #boot .boot-consent {
   .crew-guide h2 { margin-top: 5px; }
   .crew-guide button { min-height: 28px; margin-top: 5px; }
 }
+
+
+/* Highlight the active console instruction in crew conversations. */
+.mission-terminal__guide {
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  color: #fff2c2;
+  background: linear-gradient(110deg, #3c2b12, #142638 75%);
+  border: 1px solid #ffd166;
+  border-left: 4px solid #ffd166;
+  box-shadow: 0 0 16px #ffd16633;
+}
+.mission-terminal__guide[hidden] { display: none; }
+.mission-terminal__guide strong { display: block; margin-bottom: 5px; color: #ffd166; font: 700 9px/1.5 'Press Start 2P', monospace; }
+.mission-terminal__guide p { margin: 0; color: #edf7f9; font: 20px/1.3 'VT323', monospace; }
+.mission-terminal__guide:focus-within { outline: 2px solid #fff2b2; outline-offset: 2px; }

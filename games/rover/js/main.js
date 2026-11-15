@@ -11,7 +11,7 @@ import Phaser from 'phaser';
 import '@fontsource/press-start-2p/latin-400.css';
 import { getLanguage, localizeDOM, t } from '../../../src/i18n/index.js';
 import { getPreferences, hasStorageConsent } from '../../../src/welcome/core/consent.js';
-import { readMissionPlan, returnToControl, ROVER_SAVE_KEY as SAVE_KEY } from '../../../src/missions/missionTransfer.js';
+import { MISSION_COMPLETE, readMissionPlan, returnToControl, ROVER_SAVE_KEY as SAVE_KEY } from '../../../src/missions/missionTransfer.js';
 
 const $ = (id) => document.getElementById(id);
 const exitMission = () => returnToControl(getLanguage());
@@ -64,7 +64,12 @@ function setPaused(p) {
   const sc = sceneOf(); if (sc?.sys.isActive()) p ? sc.tweens.pauseAll() : sc.tweens.resumeAll();
   if (p) saveNow();
 }
-function finishMission() { app.result = evaluate(app.mission); store.del(SAVE_KEY); go('results'); }
+function finishMission() {
+  app.result = evaluate(app.mission);
+  store.del(SAVE_KEY);
+  if (window.parent !== window) window.parent.postMessage({ type: MISSION_COMPLETE, mission: 'rover' }, location.origin);
+  go('results');
+}
 
 function tryAction(type) {
   const m = app.mission;
