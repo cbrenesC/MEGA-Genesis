@@ -7,6 +7,7 @@ const thruster = new Audio('/thruster.mp3');
 thruster.loop = true;
 thruster.preload = 'auto';
 let wantsMusic = false;
+let musicPaused = false;
 let thrusterPower = 0;
 let audioUnlocked = false;
 
@@ -16,7 +17,7 @@ function preferences() {
 
 function syncMusic() {
   const prefs = preferences();
-  if (!audioUnlocked || !wantsMusic || !prefs.audio) {
+  if (!audioUnlocked || !wantsMusic || musicPaused || !prefs.audio) {
     music.pause();
     return;
   }
@@ -85,8 +86,19 @@ export function startGameplayMusic() {
   syncMusic();
 }
 
+export function pauseGameplayMusic() {
+  musicPaused = true;
+  music.pause();
+}
+
+export function resumeGameplayMusic() {
+  musicPaused = false;
+  syncMusic();
+}
+
 export function stopGameplayMusic() {
   wantsMusic = false;
+  musicPaused = false;
   music.pause();
   setThruster(0);
 }
