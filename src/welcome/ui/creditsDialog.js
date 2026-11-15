@@ -26,7 +26,6 @@ export function showCredits() {
         <p>Special thanks to Claude, GPT, Gemini, and Manus AI for their incredible assistance throughout this project.</p>
         <h3>AI-GENERATED CONTENT</h3>
         <p>All videos, SVG animations, images, and audio assets were created using artificial intelligence tools exclusively for the MEGA Genesis project.</p>
-        <p>AI-Generated Content — This asset was created using artificial intelligence tools for the MEGA Genesis project.</p>
         <p>Thank you for making this possible!</p>
         <form method="dialog">
           <button type="submit" class="space-title__button space-title__button--primary" autofocus>BACK</button>
