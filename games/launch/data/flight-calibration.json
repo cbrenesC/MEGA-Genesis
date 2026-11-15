@@ -1,0 +1,366 @@
+{
+ "_about": "Generado por tests/calibrate.mjs. stackKg = masa total de las etapas; program = programa de inclinación del piloto automático que lo logra. No editar a mano.",
+ "generatedWith": "flight.js v2",
+ "vehicles": {
+  "electron": {
+   "LEO": {
+    "stackKg": 12192,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 300
+   },
+   "SSO": {
+    "stackKg": 15415,
+    "program": {
+     "h1": 70000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.12
+    },
+    "capacityKg": 200
+   },
+   "TLI": {
+    "stackKg": 18082,
+    "program": {
+     "h1": 70000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.12
+    },
+    "capacityKg": 30
+   }
+  },
+  "rideshare": {
+   "LEO": {
+    "stackKg": 410878,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 17500
+   },
+   "SSO": {
+    "stackKg": 444410,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 12000
+   },
+   "GTO": {
+    "stackKg": 347481,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 5500
+   },
+   "TLI": {
+    "stackKg": 285810,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 3000
+   },
+   "ESCAPE": {
+    "stackKg": 154108,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 1500
+   }
+  },
+  "pegasus": {
+   "LEO": {
+    "stackKg": 32539,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 450
+   },
+   "SSO": {
+    "stackKg": 41024,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 300
+   }
+  },
+  "alpha": {
+   "LEO": {
+    "stackKg": 49678,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 1030
+   },
+   "SSO": {
+    "stackKg": 75381,
+    "program": {
+     "h1": 70000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.12
+    },
+    "capacityKg": 630
+   }
+  },
+  "pslv": {
+   "LEO": {
+    "stackKg": 244651,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 3800
+   },
+   "SSO": {
+    "stackKg": 211837,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 1750
+   }
+  },
+  "vegac": {
+   "LEO": {
+    "stackKg": 180846,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 3300
+   },
+   "SSO": {
+    "stackKg": 209177,
+    "program": {
+     "h1": 100000,
+     "p": 0.5,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 2300
+   }
+  },
+  "falcon9": {
+   "LEO": {
+    "stackKg": 410878,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 17500
+   },
+   "SSO": {
+    "stackKg": 444410,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 12000
+   },
+   "GTO": {
+    "stackKg": 347481,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 5500
+   },
+   "TLI": {
+    "stackKg": 285810,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 3000
+   },
+   "ESCAPE": {
+    "stackKg": 154108,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 1500
+   }
+  },
+  "ariane64": {
+   "LEO": {
+    "stackKg": 440539,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 21600
+   },
+   "SSO": {
+    "stackKg": 403077,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 15000
+   },
+   "GTO": {
+    "stackKg": 443557,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 11500
+   },
+   "TLI": {
+    "stackKg": 437669,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 8600
+   },
+   "ESCAPE": {
+    "stackKg": 268888,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 5000
+   }
+  },
+  "falconheavy": {
+   "LEO": {
+    "stackKg": 1854196,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 63800
+   },
+   "SSO": {
+    "stackKg": 1946108,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 40000
+   },
+   "GTO": {
+    "stackKg": 2063944,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 26700
+   },
+   "TLI": {
+    "stackKg": 2287755,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 20000
+   },
+   "ESCAPE": {
+    "stackKg": 2021858,
+    "program": {
+     "h1": 150000,
+     "p": 0.5,
+     "decel": 1,
+     "slope": 0.25
+    },
+    "capacityKg": 16800
+   }
+  },
+  "sls": {
+   "LEO": {
+    "stackKg": 1542733,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 95000
+   },
+   "TLI": {
+    "stackKg": 1327037,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 27000
+   },
+   "ESCAPE": {
+    "stackKg": 1035718,
+    "program": {
+     "h1": 150000,
+     "p": 0.35,
+     "decel": 2,
+     "slope": 0.4
+    },
+    "capacityKg": 20000
+   }
+  }
+ }
+}

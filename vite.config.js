@@ -17,6 +17,7 @@ export default defineConfig({
       input: {
         home: resolve('index.html'),
         launch: resolve('games/launch/index.html'),
+        launchPractice: resolve('games/launch/practica-ascenso.html'),
         rover: resolve('games/rover/index.html'),
       },
     },

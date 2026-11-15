@@ -1,45 +1,50 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" data-i18n-content="launch.description" content="Set the initial fuel, thrust, and launch angle. Reach the target altitude without running out of fuel or exceeding safety limits." />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="../mission.css" />
-  <title data-i18n="launch.pageTitle">Space Mission · Rocket Launch</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111d">
+  <title>Space Mission · Lanzamiento</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <header>
-    <div class="mission-header">
-      <a href="/" data-locale-link>← <span data-i18n="common.backControl">Back to Mission Control</span></a>
-      <label><span data-i18n="common.language">Language</span>
-        <select name="language" data-language-picker>
-          <option value="en" lang="en">English</option>
-          <option value="es" lang="es">Español</option>
-        </select>
-      </label>
+  <div class="shell" id="shell">
+    <div id="game" aria-hidden="true"></div>
+
+    <header class="topbar" id="topbar">
+      <a class="back" href="/" data-locale-link title="Volver a Mission Control">← <span>Complejo</span></a>
+      <div class="brand"><span class="kicker">MÓDULO 01</span><b>Lanzamiento</b></div>
+      <nav class="steps" id="steps" aria-label="Pasos del juego"></nav>
+      <div id="res-pills" class="res-pills" aria-label="Recursos de la misión"></div>
+      <a class="back" href="./practica-ascenso.html" data-locale-link>Práctica</a>
+      <span class="badge approx" title="Todas las cifras están redondeadas o simplificadas para el juego.">≈ datos aproximados para el juego</span>
+    </header>
+
+    <main class="ui" id="ui" hidden></main>
+    <aside class="resources" id="resources" aria-label="Recursos de la misión" hidden></aside>
+    <section class="hud" id="hud" hidden></section>
+    <div class="overlay" id="overlay" hidden></div>
+
+    <div class="boot" id="boot">
+      <div class="boot-card">
+        <span class="kicker">SPACE MISSION · MÓDULO DE LANZAMIENTO</span>
+        <h1>Preparando la plataforma…</h1>
+        <div class="boot-bar"><i></i></div>
+        <div class="fact" id="boot-fact"></div>
+        <p class="muted" id="boot-error" hidden></p>
+      </div>
     </div>
-    <h1 data-i18n="launch.title">01 · Rocket launch</h1>
-    <p data-i18n="launch.description">Set the initial fuel, thrust, and launch angle. Reach the target altitude without running out of fuel or exceeding safety limits.</p>
-  </header>
-  <main>
-    <canvas id="view" width="640" height="560" aria-label="Rocket launch simulation" data-i18n-aria="launch.canvas"></canvas>
-    <aside>
-      <label class="mission-slider"><span data-i18n="launch.fuelInitial">Initial fuel</span> <output id="fuelValue">85</output>%
-        <input id="fuel" type="range" min="50" max="100" value="85" />
-      </label>
-      <label class="mission-slider"><span data-i18n="launch.thrust">Thrust</span> <output id="thrustValue">85</output>%
-        <input id="thrust" type="range" min="60" max="100" value="85" />
-      </label>
-      <label class="mission-slider"><span data-i18n="launch.angle">Launch angle</span> <output id="angleValue">0</output>°
-        <input id="angle" type="range" min="-15" max="15" value="0" />
-      </label>
-      <button data-i18n="launch.start" id="start" type="button">Start launch</button>
-      <p id="telemetry"></p>
-      <p id="log" role="status">Objective: reach an altitude of 100 km.</p>
-      <button data-i18n="common.reset" id="reset" type="button">Restart</button>
-    </aside>
-  </main>
-  <script type="module" src="./game.js"></script>
+
+    <div class="popover" id="popover" role="dialog" aria-modal="false" hidden>
+      <button class="popover-close" aria-label="Cerrar">×</button>
+      <strong id="popover-title"></strong>
+      <p id="popover-text"></p>
+      <details id="popover-more"></details>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
 </body>
 </html>
