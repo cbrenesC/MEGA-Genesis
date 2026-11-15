@@ -17,11 +17,14 @@ export function showCredits() {
       </header>
       <div class="credits-dialog__body">
         <h3>SPACE MISSION · MEGA GENESIS</h3>
-        <p class="credits-dialog__subtitle">Un juego de ingeniería aeroespacial y exploración</p>
-        <p>Desde el centro de control, prepara el lanzamiento de un cohete y dirige una misión con un rover lunar.</p>
-        <p class="credits-dialog__technology"><span>TECNOLOGÍA</span> · PHASER 3 · VITE · JAVASCRIPT · HTML5 · CSS3</p>
-        <p>Arte pixel art generado por procedimiento para esta misión.</p>
-        <p>Gracias por jugar.</p>
+        <p class="credits-dialog__subtitle">Desarrollado por el equipo MEGA Genesis</p>
+        <p><strong>Andrés Castro · Camila Brenes · Matías Cubero · Kendall Valencia</strong></p>
+        <h3>AGRADECIMIENTOS ESPECIALES</h3>
+        <p>Gracias a todas las personas que nos ayudaron a hacer posible este proyecto, especialmente a nuestros mentores por su orientación y apoyo.</p>
+        <p>A la NASA, por poner a disposición recursos y datos que contribuyeron al desarrollo de esta experiencia.</p>
+        <p>A SVGator, por su plantilla de loader animado, disponible para uso libre conforme a su licencia.</p>
+        <p>Y un agradecimiento muy especial a Claude, GPT, Gemini y Manus AI por su increíble ayuda durante el desarrollo de este proyecto.</p>
+        <p>¡Gracias por hacerlo posible!</p>
         <form method="dialog">
           <button type="submit" class="space-title__button space-title__button--primary" autofocus>VOLVER</button>
         </form>
