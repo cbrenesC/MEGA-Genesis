@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { GAME, ZONES } from '../config.js';
 import { ROOM, SPAWN, STATIONS } from '../map/controlRoomLayout.js';
 import { MapManager } from '../map/MapManager.js';
+import { InteractionSignal } from '../map/InteractionSignal.js';
+import { getPreferences } from '../welcome/core/consent.js';
 import { Player } from '../player/Player.js';
 import { placeCrew } from '../crew/placeCrew.js';
 import { localizeDOM, onLanguageChange, t } from '../i18n/index.js';
@@ -36,16 +38,20 @@ export class SpaceCenterScene extends Phaser.Scene {
       const { x, y, id } = station;
       const item = { ...station, source: sources.get(id) };
       this.interactables.push({
-        x, y: y + 52, radius: 78,
+        x, y: y + 52, radius: 78, markerY: -135,
         label: () => t('map.prompt', { title: t(`lesson.${id}.title`) }),
         interact: () => this.openTerminal(item),
       });
     }
 
-    placeCrew(this, this.mapManager.collision);
+    this.crew = placeCrew(this, this.mapManager.collision.solids);
+    this.interactionSignal = new InteractionSignal(this);
+    this.motionClock = 0;
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     this.player = new Player(this, SPAWN.x, SPAWN.y);
     this.physics.add.collider(this.player, this.mapManager.collision.solids);
+    this.physics.add.collider(this.player, this.crew.group);
     this.physics.world.setBounds(0, 0, GAME.worldWidth, GAME.worldHeight);
 
     const camera = this.cameras.main;
@@ -91,19 +97,31 @@ export class SpaceCenterScene extends Phaser.Scene {
       if (event.detail.open && this.scene.isActive()) this.stopMovement();
     };
     window.addEventListener('sms-settings-toggled', stopWhenSettingsOpen);
+    const hideSignal = () => this.interactionSignal.hide();
+    this.events.on('pause', hideSignal);
     this.events.once('shutdown', () => {
       removeLanguageListener();
       window.removeEventListener('sms-settings-toggled', stopWhenSettingsOpen);
       this.prompt?.classList.remove('visible');
       this.terminalDialog?.remove();
       this.scale.off('resize', resizeCamera);
+      this.events.off('pause', hideSignal);
     });
     this.updateZoneDisplay(true);
     this.drawMinimap();
   }
 
   update(_time, delta) {
-    if (this.inputsBlocked()) return;
+    const blocked = this.inputsBlocked();
+    const animate = !blocked && getPreferences().animations && !this.reducedMotion.matches;
+    if (animate) this.motionClock += delta;
+    this.crew.update(delta, animate, this.player);
+    if (blocked) {
+      this.interactionSignal.hide();
+      this.prompt.classList.remove('visible');
+      return;
+    }
+    this.consoleActivity.update(this.motionClock, animate);
     this.player.update();
     if (Phaser.Input.Keyboard.JustDown(this.player.keys.E)) this.interact();
     if (Phaser.Input.Keyboard.JustDown(this.player.keys.ESC)) this.pauseExploration();
@@ -144,12 +162,20 @@ export class SpaceCenterScene extends Phaser.Scene {
 
   findInteractionTarget() {
     if (!this.player || !this.prompt) return;
+    if (this.inputsBlocked() || !this.scene.isActive()) {
+      this.currentTarget = null;
+      this.interactionSignal.hide();
+      this.prompt.classList.remove('visible');
+      return;
+    }
     let nearest = null; let nearestDistance = Infinity;
     for (const target of this.interactables) {
       const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, target.x, target.y);
       if (distance <= target.radius && distance < nearestDistance) { nearest = target; nearestDistance = distance; }
     }
     this.currentTarget = nearest;
+    const animate = getPreferences().animations && !this.reducedMotion.matches;
+    this.interactionSignal.update(nearest, this.motionClock, animate);
     if (nearest) {
       const label = nearest.label();
       if (this.prompt.textContent !== label) this.prompt.textContent = label;
@@ -250,6 +276,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     const dialog=this.terminalDialog;
     this.terminalOpen=true;
     this.stopMovement();
+    this.interactionSignal.hide();
     this.gameContainer.inert = true;
     const isCrew = item.kind === 'crew';
     const title = dialog.querySelector('[data-title]');

@@ -18,7 +18,7 @@ export class MediaScreen {
     this.createDisplay(x, y, width, height);
     this.bindControls();
     scene.interactables.push({
-      x: accessX, y: accessY, radius: 87,
+      x: accessX, y: accessY, radius: 87, markerY: -50,
       label: () => t('media.prompt'),
       interact: () => this.openPanel(),
     });

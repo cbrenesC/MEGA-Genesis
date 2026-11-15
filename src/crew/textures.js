@@ -14,11 +14,19 @@ function texture(scene, key, w, h, paint) {
 function rect(c, color, x, y, w, h) {
   c.fillStyle = color; c.fillRect(x, y, w, h);
 }
-function crew(c, coat, shadow, hair, face) {
+function crew(c, coat, shadow, hair, face, facing = 'down', step = 0) {
   // Cabeza, torso, guantes y botas en perspectiva desde arriba.
   rect(c, P.ink, 5, 1, 10, 9);
   rect(c, hair, 6, 1, 8, 3);
-  rect(c, face, 6, 4, 8, 5);
+  if (facing === 'up') {
+    rect(c, hair, 6, 3, 8, 6);
+  } else {
+    rect(c, face, 6, 4, facing === 'down' ? 8 : 4, 5);
+    if (facing === 'down') {
+      rect(c, P.ink, 7, 6, 1, 1);
+      rect(c, P.ink, 12, 6, 1, 1);
+    }
+  }
   rect(c, P.ink, 6, 10, 8, 8);
   rect(c, shadow, 6, 12, 8, 6);
   rect(c, coat, 5, 10, 10, 6);
@@ -26,9 +34,9 @@ function crew(c, coat, shadow, hair, face) {
   rect(c, coat, 15, 11, 3, 7);
   rect(c, face, 2, 16, 3, 2);
   rect(c, face, 15, 16, 3, 2);
-  rect(c, P.navy, 6, 18, 3, 2);
-  rect(c, P.navy, 11, 18, 3, 2);
-  rect(c, P.bright, 9, 11, 2, 2);
+  rect(c, P.navy, 6, step === 1 ? 17 : 18, 3, 2);
+  rect(c, P.navy, 11, step === 2 ? 17 : 18, 3, 2);
+  if (facing !== 'up') rect(c, P.bright, 9, 11, 2, 2);
 }
 export function createCrewTextures(scene) {
   const crewPalettes = {
@@ -38,7 +46,13 @@ export function createCrewTextures(scene) {
     technician: [P.green, '#2f9e6a', '#3a2a1a', '#c98e63'],
   };
   for (const [name, palette] of Object.entries(crewPalettes)) {
-    texture(scene, 'top-npc-' + name, 20, 20, c => crew(c, ...palette));
+    const key = `top-npc-${name}`;
+    texture(scene, key, 20, 20, c => crew(c, ...palette));
+    for (const facing of ['down', 'up', 'side']) {
+      for (let step = 0; step < 3; step++) {
+        texture(scene, `${key}-${facing}-${step}`, 20, 20, c => crew(c, ...palette, facing, step));
+      }
+    }
   }
   // Traje blanco, visor cian y mochila naranja, en las cuatro direcciones.
   for (const facing of ['down', 'up', 'left', 'right']) {

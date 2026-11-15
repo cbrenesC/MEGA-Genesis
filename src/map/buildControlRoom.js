@@ -1,5 +1,6 @@
 import { DISPLAY, ROOM, STATIONS } from './controlRoomLayout.js';
 import { MediaScreen } from '../objects/MediaScreen.js';
+import { ConsoleActivity } from './ConsoleActivity.js';
 import { localizeTextObjects, t } from '../i18n/index.js';
 
 export function buildControlRoom(scene, collision) {
@@ -33,8 +34,9 @@ export function buildControlRoom(scene, collision) {
     }
   }
 
-  for (const [i, x] of [1044, 1100, 1156].entries()) {
-    const rack = prop('lcc-rack-' + i, x, 263, [46, 40]);
+  const rackPositions = [1044, 1100, 1156].map(x => ({ x, y: 263 }));
+  for (const [i, { x, y }] of rackPositions.entries()) {
+    const rack = prop('lcc-rack-' + i, x, y, [46, 40]);
     rack.setScale(1.66, 2);
   }
   prop('lcc-cabinet', 1202, 263, [49, 34]);
@@ -48,6 +50,7 @@ export function buildControlRoom(scene, collision) {
     prop('lcc-plant', x, y, [39, 22]);
   }
 
+  scene.consoleActivity = new ConsoleActivity(scene, STATIONS, rackPositions);
   localizeTextObjects(scene, localizedLabels);
   return new MediaScreen(scene, DISPLAY);
 }
