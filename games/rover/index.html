@@ -1,44 +1,66 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" data-i18n-content="rover.description" content="Land on the Moon and drive the rover to collect three scientific samples. Avoid craters and manage your battery." />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="../mission.css" />
-  <title data-i18n="rover.pageTitle">Space Mission · Lunar Rover</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111d">
+  <title>Space Mission · Rover lunar</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="stylesheet" href="./styles.css">
 </head>
-<body>
-  <header>
-    <div class="mission-header">
-      <a href="/" data-locale-link>← <span data-i18n="common.backControl">Back to Mission Control</span></a>
-      <label><span data-i18n="common.language">Language</span>
-        <select name="language" data-language-picker>
-          <option value="en" lang="en">English</option>
-          <option value="es" lang="es">Español</option>
-        </select>
-      </label>
-    </div>
-    <h1 data-i18n="rover.title">02 · Lunar rover</h1>
-    <p data-i18n="rover.description">Land on the Moon and drive the rover to collect three scientific samples. Avoid craters and manage your battery.</p>
-  </header>
-  <main>
-    <canvas id="view" width="640" height="520" aria-label="Lunar surface simulation" data-i18n-aria="rover.canvas"></canvas>
-    <aside>
-      <h2 data-i18n="rover.control">Mission Control</h2>
-      <p id="status" role="status">Select Start mission to begin.</p>
-      <button data-i18n="common.startMission" id="start" type="button">Start mission</button>
-      <button data-i18n="common.reset" id="reset" type="button">Restart</button>
-      <p data-i18n="rover.movement">Move with WASD or the arrow keys.</p>
-      <div class="mission-dpad">
-        <button type="button" data-dir="up" aria-label="Up" data-i18n-aria="common.up">↑</button>
-        <button type="button" data-dir="left" aria-label="Left" data-i18n-aria="common.left">←</button>
-        <button type="button" data-dir="down" aria-label="Down" data-i18n-aria="common.down">↓</button>
-        <button type="button" data-dir="right" aria-label="Right" data-i18n-aria="common.right">→</button>
+<body data-screen="briefing">
+  <div class="shell">
+    <div id="game" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="back" href="/" data-locale-link title="Volver al complejo">← <span>Complejo</span></a>
+      <a class="back" href="./practica-rover.html" data-locale-link>Práctica</a>
+      <div class="brand"><span class="kicker">MÓDULO 02</span><b>Rover lunar</b></div>
+      <nav class="steps" id="steps" aria-label="Pasos de la misión"></nav>
+    </header>
+
+    <main class="screen" id="screen-briefing" data-screen-id="briefing"></main>
+    <main class="screen" id="screen-build" data-screen-id="build" hidden></main>
+    <main class="screen" id="screen-results" data-screen-id="results" hidden></main>
+
+    <section class="hud" id="hud" data-screen-id="explore" hidden aria-label="Telemetría de la misión">
+      <div class="hud-top" id="hud-top">
+        <div class="hud-stats" id="hud-stats"></div>
+        <button type="button" id="btn-pause" class="ghost" aria-label="Pausar misión">⏸ <span>Pausa</span></button>
       </div>
-      <p id="telemetry"></p>
-    </aside>
-  </main>
-  <script type="module" src="./game.js"></script>
+      <div class="hud-bottom" id="hud-bottom">
+        <p class="hint" id="hud-hint" role="status" aria-live="polite"></p>
+        <div class="controls">
+          <div class="dpad" id="dpad" aria-label="Movimiento">
+            <button type="button" data-dir="up" aria-label="Arriba">▲</button>
+            <button type="button" data-dir="left" aria-label="Izquierda">◀</button>
+            <button type="button" data-dir="down" aria-label="Abajo">▼</button>
+            <button type="button" data-dir="right" aria-label="Derecha">▶</button>
+          </div>
+          <div class="actions" id="actions">
+            <button type="button" data-action="collect"><b>E</b> Recoger</button>
+            <button type="button" data-action="analyze"><b>F</b> Analizar</button>
+            <button type="button" data-action="transmit"><b>T</b> Transmitir</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="overlay" id="pause" hidden>
+      <div class="panel dialog" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+        <h2 id="pause-title" class="pixel">Misión en pausa</h2>
+        <p class="muted">La simulación, el reloj y las acciones en curso están detenidos.</p>
+        <div class="stack">
+          <button type="button" class="primary" data-cmd="resume">Continuar</button>
+          <button type="button" data-cmd="restart">Reiniciar misión</button>
+          <button type="button" data-cmd="rebuild">Volver a construcción</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
 </body>
 </html>
