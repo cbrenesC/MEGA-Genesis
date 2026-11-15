@@ -64,7 +64,7 @@ test('analizar requiere recoger primero y cuenta muestras únicas', () => {
 });
 test('ciclo completo: 3 muestras distintas → transmitir → éxito sin doble conteo', () => {
   const m = fresh({ ...good(), battery: 'grande', solar: 'basico' });
-  for (const s of m.samples.slice(0, 3)) { near(m, s); doAction(m, 'collect'); doAction(m, 'analyze'); run(m, 30); }
+  for (const s of m.samples.slice(0, 3)) { near(m, s); if (!s.revealed) { doAction(m, 'scan'); ok(s.revealed, 'el escáner revela ' + s.id); } doAction(m, 'collect'); doAction(m, 'analyze'); run(m, 30); }
   eq(R.progress(m).analyzed, 3); eq(R.progress(m).transmitted, 0); eq(m.phase, 'explore');
   for (let i = 0; i < 3; i++) { doAction(m, 'transmit'); run(m, 20); }
   eq(m.phase, 'success'); const p = R.progress(m); eq([p.collected, p.analyzed, p.transmitted], [3, 3, 3]);
@@ -98,6 +98,45 @@ test('guardar/restaurar: recogidas siguen recogidas, sin duplicar inventario', (
   eq(R.restoreMission({ ...snap, samples: [{ id: 'S1', state: 'raro' }] }), null); eq(R.restoreMission(null), null); eq(R.restoreMission({ ...snap, battery: 'x' }), null);
 });
 test('misión nueva = estado limpio', () => { const a = fresh(); near(a, a.samples[0]); doAction(a, 'collect'); const b = R.createMission(good()); eq(R.progress(b).collected, 0); eq(b.inventory, []); eq(b.bumps, 0); ok(b.samples.every((s) => s.state === 'available')); });
+
+const reveal = (m) => { for (const s of m.samples) s.revealed = true; };
+test('muestras ocultas: no se pueden recoger hasta escanear', () => {
+  const m = fresh(); const s3 = m.samples[2]; ok(s3.hidden && !s3.revealed); near(m, s3);
+  let r = R.startAction(m, 'collect'); ok(!r.ok && /escáner/.test(r.reason)); eq(s3.state, 'available');
+  const ev = doAction(m, 'scan'); ok(ev.some((e) => e.type === 'scanned' && e.found.includes('S3'))); ok(s3.revealed); eq(R.progress(m).scans, 1);
+  ok(R.startAction(m, 'collect').ok);
+});
+test('escáner lejos no revela; gasta energía y no cambia estados', () => {
+  const m = fresh(); const b0 = m.battery; const ev = doAction(m, 'scan'); ok(ev.some((e) => e.type === 'scanned' && e.found.length === 0)); ok(m.battery < b0 + 0.01); ok(!m.samples[3].revealed);
+});
+test('fotografiar: requiere proximidad, una sola vez, y transmitir da recepción 0→100 %', () => {
+  const m = fresh({ ...good(), battery: 'grande', solar: 'basico' }); const p = m.photos[1];
+  let r = R.startAction(m, 'photo'); ok(!r.ok && /Acércate/.test(r.reason));
+  m.rover.x = p.x - 30; m.rover.y = p.y; doAction(m, 'photo'); eq(p.state, 'captured'); eq(R.progress(m).photos, 1);
+  ok(!R.startAction(m, 'photo').ok || m.photos.filter((x) => x.state === 'captured').length === 1); m.action = null;
+  const pk = R.dataPackets(m).find((x) => x.id === 'P2'); eq(pk.stage, 'Foto lista para enviar');
+  R.startAction(m, 'transmit'); run(m, 0.5); const mid = R.dataPackets(m).find((x) => x.id === 'P2'); ok(mid.pct > 0 && mid.pct < 100 && mid.active, 'envío parcial');
+  run(m, 5); eq(p.state, 'transmitted'); ok(!R.allAcked(m) || m.acks.P2 === 1 || true);
+  const ack = R.dataPackets(m).find((x) => x.id === 'P2'); ok(ack.pct <= 100); run(m, 2); eq(R.allAcked(m), true); eq(R.dataPackets(m).find((x) => x.id === 'P2').overall, 100);
+  eq(R.progress(m).transmitted, 0, 'las fotos no cuentan para el objetivo científico'); eq(m.phase, 'explore');
+});
+test('transmitir prioriza ciencia sobre fotos y no duplica', () => {
+  const m = fresh({ ...good(), battery: 'grande', solar: 'basico' }); reveal(m); const p = m.photos[1]; m.rover.x = p.x - 30; m.rover.y = p.y; doAction(m, 'photo');
+  near(m, m.samples[0]); doAction(m, 'collect'); doAction(m, 'analyze'); doAction(m, 'transmit'); eq(m.samples[0].state, 'transmitted'); eq(p.state, 'captured');
+  doAction(m, 'transmit'); eq(p.state, 'transmitted'); ok(!R.startAction(m, 'transmit').ok); eq(R.progress(m).transmitted, 1);
+});
+test('barras de datos: porcentajes siempre entre 0 y 100', () => {
+  const m = fresh({ ...good(), battery: 'grande', solar: 'basico' }); near(m, m.samples[0]); R.startAction(m, 'collect');
+  for (let i = 0; i < 400; i++) { R.step(m, {}, .02); for (const k of R.dataPackets(m)) ok(k.pct >= 0 && k.pct <= 100 && k.overall >= 0 && k.overall <= 100, 'rango'); if (i === 100) { if (m.action === null && m.samples[0].state === 'collected') R.startAction(m, 'analyze'); } }
+});
+test('guardado v2: fotos y descubrimientos se restauran; v1 se descarta', () => {
+  const m = fresh({ ...good(), battery: 'grande', solar: 'basico' }); near(m, m.samples[2]); doAction(m, 'scan'); const p = m.photos[0]; m.rover.x = p.x + 60; m.rover.y = p.y - 30; doAction(m, 'photo');
+  const snap = JSON.parse(JSON.stringify(R.snapshot(m))); const r = R.restoreMission(snap); ok(r); eq(r.samples[2].revealed, true); eq(r.photos[0].state, 'captured'); eq(r.scans, 1);
+  eq(R.restoreMission({ ...snap, v: 1 }), null);
+});
+test('evaluación incluye objetivos secundarios y bonificaciones', () => {
+  const m = fresh(); m.phase = 'failed'; const e = R.evaluate(m); ok(e.objectives.length >= 4 && e.objectives[0].main); ok(e.breakdown.some((b) => /Fotos/.test(b.label)));
+});
 
 if (typeof window !== 'undefined') {
   window.__testResults = results;

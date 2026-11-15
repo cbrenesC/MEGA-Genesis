@@ -39,3 +39,17 @@ batería y reinicio. **Si tienes otra copia con el módulo original, estos cambi
 - En el prototipo original no se capturó con las 4 imágenes de referencia
   (no estaban disponibles como archivos), el estilo se infirió de la descripción y del módulo `launch`.
 - Sin audio ni pruebas en dispositivo táctil real (solo emulación).
+
+## v3 — Luna más rica, más actividades, Centro de datos
+- **Terreno** (`art.js`): campo de brillo con luz desde arriba-izquierda, «mares» oscuros, tramado ordenado, cráteres con pared
+  iluminada, reborde, rayos de eyecciones, terrazas y pico central; ~150 cráteres decorativos, guijarros con sombra, zona
+  chamuscada de aterrizaje, huellas de ruedas, polvo y viñeta. Fondo de briefing/resultados con Tierra, Vía Láctea y horizonte.
+- **Nuevas actividades**: `C` fotografiar 4 puntos de interés (módulo, bandera, monolito, borde del cráter Aurora; valor ×
+  cámara) y `R` escanear con radar de subsuelo (320 px) para revelar las muestras ocultas S3 y S4. Objetivos secundarios,
+  bonificaciones de puntuación y sugerencias en resultados. Guardado v2 (los guardados v1 se descartan).
+- **Centro de datos** (HUD): tarjeta «Enlace Tierra» y un paquete por muestra/foto con barra 0–100 % (marcas 25/50/75 %:
+  recogida → análisis → envío → recibido). La Tierra confirma cada envío (barra de recepción) y el informe final lista todos.
+- Pruebas de reglas: 26 casos (`games/rover/tests/`), incluyendo escáner, fotos, paquetes 0–100 %, acuses y guardado v2.
+
+No verificado: `npm run build` (sin Node en este equipo; se probó con Phaser local y sin los imports de npm/i18n), render
+con el renderer Canvas de producción en dispositivos reales, ni balance de dificultad con jugadores.
