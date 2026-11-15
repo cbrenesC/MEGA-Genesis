@@ -23,7 +23,7 @@ export const SITE_GEO = {
 };
 
 // Clima típico por mes (enero → diciembre): probabilidad aproximada de que un día tenga lluvia, y temperatura media (°C).
-const TYPICAL = {
+export const TYPICAL = {
   ksc: { rain: [0.2, 0.2, 0.2, 0.18, 0.28, 0.45, 0.5, 0.52, 0.48, 0.3, 0.2, 0.2], temp: [16, 17, 19, 22, 25, 27, 28, 28, 27, 24, 20, 17], wind: 15, storms: [5, 6, 7, 8, 9] },
   vsfb: { rain: [0.2, 0.22, 0.2, 0.1, 0.04, 0.01, 0.01, 0.01, 0.03, 0.07, 0.12, 0.18], temp: [12, 12, 13, 13, 14, 15, 16, 17, 17, 16, 14, 12], wind: 18, fog: [5, 6, 7, 8] },
   kourou: { rain: [0.65, 0.6, 0.6, 0.7, 0.8, 0.75, 0.6, 0.4, 0.2, 0.2, 0.35, 0.6], temp: [26, 26, 26, 27, 27, 27, 27, 28, 28, 28, 27, 26], wind: 12, storms: [3, 4, 5, 6] },
@@ -159,3 +159,29 @@ export function describeWeather(w, siteName) {
 
 /** Componente del viento hacia el este (m/s): la dirección de un parte meteorológico dice DE DÓNDE viene el viento. */
 export const windEastMs = (w) => (-Math.sin((w.windDirDeg ?? 0) * DEG) * (w.windKmh ?? 0)) / 3.6;
+
+/**
+ * Clima para DIBUJAR a partir de las condiciones de una ventana de lanzamiento elegida en el planificador
+ * (pronóstico de Meteomatics o modo simulación). El día o la noche salen de la posición real del Sol a esa hora.
+ * @param c { tempC, windMs, windDirDeg, gustMs, precipMm, cloudPct, lightning, visibilityKm }
+ */
+export function weatherFromConditions(c, siteId, date, sourceName) {
+  const geo = SITE_GEO[siteId] ?? SITE_GEO.ksc;
+  const cold = Number.isFinite(c.tempC) && c.tempC <= 0.5;
+  const precip = Number(c.precipMm ?? 0) || 0;
+  return finish({
+    source: 'window',
+    sourceName,
+    isDay: sunElevationDeg(geo.lat, geo.lon, date) > -3,
+    cloud: Number.isFinite(c.cloudPct) ? c.cloudPct / 100 : precip > 0 ? 0.9 : 0.3,
+    rainMmH: cold ? 0 : precip,
+    snow: cold && precip > 0,
+    thunder: (Number(c.lightning ?? 0) || 0) > 0,
+    fog: Number.isFinite(c.visibilityKm) && c.visibilityKm < 1,
+    windKmh: (Number(c.windMs ?? 0) || 0) * 3.6,
+    windDirDeg: Number(c.windDirDeg ?? 0) || 0,
+    tempC: Number(c.tempC ?? NaN),
+    code: null,
+    localTime: localClock(siteId, date),
+  });
+}

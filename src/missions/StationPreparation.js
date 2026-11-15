@@ -1,6 +1,7 @@
 import { loadData } from '../../games/launch/js/state.js';
 import { operationalPropellant } from '../../games/launch/js/rules.js';
 import { vehicleFor, fuelSummary, FUEL_RANGE } from '../../games/launch/js/flight.js';
+import { loadForecast, buildWindows, recommendWindow, bestPerDay, siteLocal } from '../../games/launch/js/launchWeather.js';
 import { CATEGORIES, COMPONENTS, emptyBuild, LIMITS, RECOMMENDED_BUILD, RULES, restoreMission, selectComponent, validateBuild } from '../../games/rover/js/rules.js';
 import { roverCanvas } from '../../games/rover/js/art.js';
 import { hasStorageConsent } from '../welcome/core/consent.js';
@@ -99,6 +100,90 @@ export class StationPreparation {
     select.onchange = () => onChange(select.value);
     label.append(select);
     root.append(label);
+  }
+
+  /**
+   * Planificador de clima: pronóstico real de Meteomatics para el sitio elegido (o modo simulación, siempre avisado),
+   * semáforo GO / CAUTION / NO-GO por ventana, la mejor fecha y hora, y elección de la ventana de lanzamiento.
+   * El pronóstico se pide una sola vez al abrir la estación y queda en caché (ver launchWeather.js).
+   */
+  weatherPlanner(root, view) {
+    const chosen = view.selected;
+    const siteId = chosen.siteId;
+    const box = el('section', '', 'wx-planner');
+    box.append(el('h3', t('station.weather.title')), el('p', t('station.weather.loading'), 'muted'));
+    root.append(box);
+    const item = this.item;
+    const locale = getLanguage() === 'es' ? 'es-CR' : 'en-US';
+    const when = (time) => {
+      const l = siteLocal(time, siteId);
+      const d = new Date(`${l.date}T${l.clock}:00Z`);
+      return `${new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(d)} · ${l.clock}`;
+    };
+    const statusLabel = (st) => ({ GO: t('station.weather.go'), CAUTION: t('station.weather.caution'), 'NO-GO': t('station.weather.nogo') })[st] ?? st;
+    const chip = (st) => { const c = el('span', statusLabel(st), `wx-chip wx-${st === 'GO' ? 'go' : st === 'CAUTION' ? 'caution' : 'nogo'}`); return c; };
+    const value = (f) => `${formatNumber(f.value, f.value < 10 && f.unit !== '%' ? 1 : 0)}${f.unit ? ` ${f.unit}` : ''}`;
+    const pick = (w, source) => this.changeLaunch({ launchWindow: w ? { siteId, time: w.time, source, status: w.status, score: w.score, isDay: w.isDay, conditions: w.conditions } : null });
+
+    loadForecast(siteId).then((forecast) => {
+      if (this.item !== item || !box.isConnected) return;
+      const windows = buildWindows(forecast.hours, { siteId });
+      const best = recommendWindow(windows);
+      const real = forecast.source === 'meteomatics';
+      box.replaceChildren(el('h3', t('station.weather.title')));
+      const src = el('p', real ? t('station.weather.sourceReal') : t('station.weather.sourceSim', { reason: t(`station.weather.reason.${['credentials', 'rate-limit', 'auth', 'timeout', 'offline', 'empty', 'upstream'].includes(forecast.reason) ? forecast.reason : 'network'}`) }), real ? 'wx-source' : 'wx-source wx-sim');
+      box.append(src, el('p', t('station.weather.disclaimer'), 'muted'));
+      if (!best) { box.append(el('p', t('station.weather.none'), 'status-yellow')); return; }
+
+      const current = view.launchWindow && windows.find(w => w.time === view.launchWindow.time) ? view.launchWindow : null;
+      const shown = current ? windows.find(w => w.time === current.time) : best;
+      // recomendación
+      const rec = el('div', '', 'wx-best');
+      const head = el('p');
+      head.append(el('b', t('station.weather.best')), ` ${when(best.time)} ${t('station.weather.siteTime')} · `, chip(best.status), ` ${t('station.weather.score', { score: best.score })}`);
+      rec.append(head);
+      rec.append(el('p', best.reasons.length
+        ? t('station.weather.why', { list: best.reasons.map(r => `${t(`station.weather.factor.${r.id}`)} ${formatNumber(r.value, 1)}${r.unit ? ` ${r.unit}` : ''}`).join(', ') })
+        : t('station.weather.whyGood'), 'muted'));
+      box.append(rec);
+      // factores de la ventana mostrada (la elegida, o la recomendada)
+      const table = el('dl', '', 'wx-factors');
+      for (const f of shown.factors) {
+        const dt = el('dt', t(`station.weather.factor.${f.id}`));
+        const dd = el('dd');
+        if (f.available) dd.append(value(f), ' ', chip(f.status)); else dd.append(el('span', t('station.weather.noData'), 'muted'));
+        table.append(dt, dd);
+      }
+      const c = shown.conditions;
+      for (const [key, unit] of [['humidityPct', '%'], ['pressureHpa', 'hPa'], ['windDirDeg', '°']]) {
+        if (typeof c[key] !== 'number') continue;
+        table.append(el('dt', t(`station.weather.info.${key}`)), el('dd', `${formatNumber(c[key], 0)} ${unit}`));
+      }
+      box.append(el('p', t(current ? 'station.weather.selected' : 'station.weather.showing', { when: when(shown.time) }), current ? 'status-green' : 'muted'), table);
+      // elegir ventana: la mejor de cada día y, desplegable, todas las horas
+      const list = el('div', '', 'wx-windows');
+      const button = (w, text) => {
+        const b = el('button', '', `wx-window${current?.time === w.time ? ' is-selected' : ''}`);
+        b.type = 'button';
+        b.append(el('span', text), chip(w.status), el('small', `${w.score}/100 ${w.isDay ? '☀' : '🌙'}`));
+        b.onclick = () => pick(w, forecast.source);
+        return b;
+      };
+      for (const w of bestPerDay(windows, siteId)) list.append(button(w, when(w.time)));
+      box.append(el('p', t('station.weather.choose'), 'muted'), list);
+      const all = el('details');
+      all.append(el('summary', t('station.weather.allHours', { n: windows.length })));
+      const grid = el('div', '', 'wx-windows wx-all');
+      for (const w of windows) grid.append(button(w, when(w.time)));
+      all.append(grid);
+      box.append(all);
+      const actions = el('div', '', 'actions');
+      const useBest = el('button', t('station.weather.useBest'));
+      useBest.type = 'button'; useBest.disabled = current?.time === best.time; useBest.onclick = () => pick(best, forecast.source);
+      actions.append(useBest);
+      if (current) { const clear = el('button', t('station.weather.clear')); clear.type = 'button'; clear.onclick = () => pick(null); actions.append(clear); }
+      box.append(actions, el('p', t('station.weather.effect'), 'muted'));
+    });
   }
 
   /** Carga de combustible del cohete: deslizador dentro de lo permitido, con toneladas, peso al despegue y empuje/peso. */
@@ -211,6 +296,7 @@ export class StationPreparation {
       if (view.selected) fields.className = 'card';
       this.select(grid, 'events', [['on', t('common.on')], ['off', t('common.off')]], view.events ? 'on' : 'off',
         value => this.changeLaunch({ events: value === 'on' }));
+      if (view.selected) this.weatherPlanner(fields, view);
       for (const check of root.querySelectorAll('[data-ack]')) {
         check.onchange = () => this.changeLaunch({ acks: { ...plan.acks, [check.dataset.ack]: check.checked } });
       }
