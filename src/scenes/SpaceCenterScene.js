@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME, ZONES } from '../config.js';
+import { ROOM, SPAWN, STATIONS } from '../map/controlRoomLayout.js';
 import { MapManager } from '../map/MapManager.js';
 import { Player } from '../player/Player.js';
 import { placeCrew } from '../crew/placeCrew.js';
@@ -30,30 +31,41 @@ export class SpaceCenterScene extends Phaser.Scene {
       {id:'ground',source:'https://www.nasa.gov/reference/jsc-program-management-execution/'},
       {id:'operations',source:'https://science.nasa.gov/earth-science/programs/flight-programs/mission-phase-definitions/'},
     ];
-    const stations = [];
-    for (const y of [402,593]) for (const x of [330,494,658,822,986]) stations.push({x,y});
-    const missions = new Map([
-      ['494,402',{id:'launch',mission:'launch'}],
-      ['822,402',{id:'rover',mission:'rover'}],
-    ]);
-    stations.forEach(({x,y}) => {
-      const item = missions.get(x+','+y) || lessons.shift();
+    const sources = new Map(lessons.map(({ id, source }) => [id, source]));
+    for (const station of STATIONS) {
+      const { x, y, id } = station;
+      const item = { ...station, source: sources.get(id) };
       this.interactables.push({
-        x,y:y+69,radius:92, label: () => t('map.prompt', { title: t(`lesson.${item.id}.title`) }),
-        interact:()=>this.openTerminal(item)
+        x, y: y + 52, radius: 78,
+        label: () => t('map.prompt', { title: t(`lesson.${id}.title`) }),
+        interact: () => this.openTerminal(item),
       });
-    });
+    }
 
     placeCrew(this, this.mapManager.collision);
 
-    this.player = new Player(this, 640, 720);
+    this.player = new Player(this, SPAWN.x, SPAWN.y);
     this.physics.add.collider(this.player, this.mapManager.collision.solids);
     this.physics.world.setBounds(0, 0, GAME.worldWidth, GAME.worldHeight);
 
     const camera = this.cameras.main;
-    camera.setBounds(0, 0, GAME.worldWidth, GAME.worldHeight);
-    camera.setZoom(1);
-    camera.startFollow(this.player, true, .085, .085);
+    const resizeCamera = () => {
+      const { width, height } = this.scale.gameSize;
+      const fit = Math.min(width / ROOM.width, height / ROOM.height);
+      // Frame the complete room whenever the furniture remains legible.
+      const zoom = width < height ? Math.max(.79, fit) : fit;
+      camera.setZoom(zoom);
+      if (zoom > fit) {
+        camera.setBounds(0, 0, ROOM.width, ROOM.height);
+        camera.startFollow(this.player, true, .14, .14);
+      } else {
+        camera.stopFollow();
+        camera.removeBounds();
+        camera.centerOn(ROOM.width / 2, ROOM.height / 2);
+      }
+    };
+    resizeCamera();
+    this.scale.on('resize', resizeCamera);
     camera.setRoundPixels(true);
 
     this.prompt = document.getElementById('interaction-prompt');
@@ -84,7 +96,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       window.removeEventListener('sms-settings-toggled', stopWhenSettingsOpen);
       this.prompt?.classList.remove('visible');
       this.terminalDialog?.remove();
-      this.mapManager?.destroy();
+      this.scale.off('resize', resizeCamera);
     });
     this.updateZoneDisplay(true);
     this.drawMinimap();
@@ -102,7 +114,7 @@ export class SpaceCenterScene extends Phaser.Scene {
   }
 
   inputsBlocked() {
-    return this.gameContainer.inert || this.terminalOpen || !document.getElementById('settings-dialog').hidden;
+    return this.gameContainer.inert || this.terminalOpen || this.mediaScreen?.isOpen() || !document.getElementById('settings-dialog').hidden;
   }
 
   stopMovement() {
