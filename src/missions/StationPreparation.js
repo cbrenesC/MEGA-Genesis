@@ -1,6 +1,6 @@
 import { loadData } from '../../games/launch/js/state.js';
 import { operationalPropellant } from '../../games/launch/js/rules.js';
-import { CATEGORIES, COMPONENTS, emptyBuild, LIMITS, RECOMMENDED_BUILD, restoreMission, selectComponent, validateBuild } from '../../games/rover/js/rules.js';
+import { CATEGORIES, COMPONENTS, emptyBuild, LIMITS, RECOMMENDED_BUILD, RULES, restoreMission, selectComponent, validateBuild } from '../../games/rover/js/rules.js';
 import { roverCanvas } from '../../games/rover/js/art.js';
 import { hasStorageConsent } from '../welcome/core/consent.js';
 import { getLanguage, t, formatNumber } from '../i18n/index.js';
@@ -271,7 +271,7 @@ export class StationPreparation {
     }
     if (rover) {
       this.note(root, 'station.roverStats', { mass: rover.stats.mass, cost: rover.stats.cost, battery: rover.stats.capacity, solar: rover.stats.solar });
-      this.note(root, 'station.roverControls');
+      this.note(root, 'station.roverControls', { goal: RULES.sampleGoal });
       let saved;
       try { if (hasStorageConsent()) saved = restoreMission(JSON.parse(localStorage.getItem(ROVER_SAVE_KEY))); } catch { /* optional storage */ }
       if (saved) {

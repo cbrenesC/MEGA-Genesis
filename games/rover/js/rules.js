@@ -16,6 +16,10 @@ export const RULES = Object.freeze({
   roverRadius: 18,
   bumpDraw: 1.2,        // u/s extra al empujar contra un obstáculo
   maxDt: 0.05,
+  photoTxMultiplier: 0.7, // las fotos ocupan un paquete más pequeño que las muestras
+  photoRange: 90,       // distancia máxima para fotografiar un punto de interés
+  scanTime: 2, scanEnergy: 5, scanRange: 320, // radar de subsuelo: revela muestras ocultas
+  ackTime: 1.2,         // s que tarda la Tierra en confirmar la recepción (visual, determinista)
 });
 
 export const CATEGORIES = Object.freeze([
@@ -56,8 +60,8 @@ export const COMPONENTS = {
     { id: 'laser', name: 'Láser de ablación', mass: 15, cost: 190, analysisTime: 3, analysisEnergy: 15, quality: 1.2, trade: 'Análisis rápido con buen valor, a un precio medio-alto.' },
   ],
   camera: [
-    { id: 'basica', name: 'Cámara básica', mass: 4, cost: 40, draw: 0.1, dataMul: 1.0, trade: 'Consumo mínimo; los paquetes de datos valen lo estándar.' },
-    { id: 'hd', name: 'Cámara HD', mass: 8, cost: 90, draw: 0.3, dataMul: 1.5, trade: 'Cada transmisión vale 50 % más, pero gasta energía constantemente.' },
+    { id: 'basica', name: 'Cámara básica', mass: 4, cost: 40, draw: 0.1, dataMul: 1.0, photoTime: 1.2, photoEnergy: 2, trade: 'Consumo mínimo; fotos y paquetes de datos de valor estándar.' },
+    { id: 'hd', name: 'Cámara HD', mass: 8, cost: 90, draw: 0.3, dataMul: 1.5, photoTime: 0.8, photoEnergy: 3.5, trade: 'Fotos más rápidas y datos que valen 50 % más, pero gasta energía constantemente.' },
   ],
   comms: [
     { id: 'baja', name: 'Antena de baja ganancia', mass: 5, cost: 50, txTime: 3, txEnergy: 10, trade: 'Barata, pero transmite despacio y con más energía.' },
@@ -77,13 +81,22 @@ export const CRATERS = Object.freeze([
   { x: 260, y: 800, r: 70 }, { x: 1250, y: 700, r: 80 },
 ]);
 export const ROCKS = Object.freeze([
-  { x: 560, y: 820, r: 18 }, { x: 1100, y: 480, r: 20 }, { x: 460, y: 560, r: 16 }, { x: 1420, y: 500, r: 18 }, { x: 900, y: 140, r: 16 },
+  { x: 560, y: 820, r: 18 }, { x: 460, y: 560, r: 16 }, { x: 1420, y: 500, r: 18 }, { x: 900, y: 140, r: 16 },
+  { x: 1180, y: 900, r: 14 }, { x: 140, y: 300, r: 20 }, { x: 640, y: 440, r: 14 },
 ]);
+// Puntos de interés fotografiables. Algunos son obstáculos (módulo, monolito).
+export const PHOTO_DEFS = Object.freeze([
+  { id: 'P1', name: 'Módulo de aterrizaje', kind: 'lander', x: 650, y: 945, r: 36, obstacle: true },
+  { id: 'P2', name: 'Bandera de la misión', kind: 'flag', x: 1010, y: 810, r: 10, obstacle: false },
+  { id: 'P3', name: 'Borde del cráter Aurora', kind: 'rim', x: 780, y: 516, r: 8, obstacle: false },
+  { id: 'P4', name: 'Monolito de basalto', kind: 'monolith', x: 1100, y: 480, r: 22, obstacle: true },
+]);
+export const PHOTO_STATES = Object.freeze(['available', 'captured', 'transmitted']);
 export const SAMPLE_DEFS = Object.freeze([
   { id: 'S1', kind: 'Regolito claro', x: 630, y: 260, value: 1.0 },
   { id: 'S2', kind: 'Basalto oscuro', x: 1350, y: 860, value: 1.2 },
-  { id: 'S3', kind: 'Fragmento de cráter', x: 210, y: 540, value: 1.1 },
-  { id: 'S4', kind: 'Polvo de alta cresta', x: 1380, y: 300, value: 0.9 },
+  { id: 'S3', kind: 'Fragmento de cráter', x: 210, y: 540, value: 1.1, hidden: true },
+  { id: 'S4', kind: 'Polvo de alta cresta', x: 1380, y: 300, value: 0.9, hidden: true },
 ]);
 export const SAMPLE_STATES = Object.freeze(['available', 'collected', 'analyzed', 'transmitted']);
 
@@ -109,7 +122,7 @@ export function selectComponent(build, cat, id) {
 export function computeBuild(build) {
   const pick = {};
   const t = { mass: 0, cost: 0, capacity: 0, solar: 0, speed: 0, moveDraw: 0, idleDraw: RULES.idleDraw, bumpMul: 1,
-    analysisTime: 0, analysisEnergy: 0, quality: 0, dataMul: 0, txTime: 0, txEnergy: 0 };
+    analysisTime: 0, analysisEnergy: 0, quality: 0, dataMul: 0, txTime: 0, txEnergy: 0, photoTxTime: 0, photoTxEnergy: 0, photoTime: 0, photoEnergy: 0 };
   for (const cat of CATEGORIES) {
     const comp = getComponent(cat.id, build && build[cat.id]);
     pick[cat.id] = comp;
@@ -123,9 +136,9 @@ export function computeBuild(build) {
     t.moveDraw = chassis.moveDraw * wheels.drawMul;
     t.bumpMul = chassis.bumpMul * wheels.bumpMul;
   }
-  if (camera) { t.idleDraw += camera.draw; t.dataMul = camera.dataMul; }
+  if (camera) { t.idleDraw += camera.draw; t.dataMul = camera.dataMul; t.photoTime = camera.photoTime; t.photoEnergy = camera.photoEnergy; }
   if (instrument) { t.analysisTime = instrument.analysisTime; t.analysisEnergy = instrument.analysisEnergy; t.quality = instrument.quality; }
-  if (comms) { t.txTime = comms.txTime; t.txEnergy = comms.txEnergy; }
+  if (comms) { t.txTime = comms.txTime; t.txEnergy = comms.txEnergy; t.photoTxTime = comms.txTime * RULES.photoTxMultiplier; t.photoTxEnergy = comms.txEnergy * RULES.photoTxMultiplier; }
   t.mass = Math.round(t.mass * 100) / 100;
   t.moveDraw = Math.round(t.moveDraw * 1000) / 1000;
   t.speed = Math.round(t.speed * 100) / 100;
@@ -155,74 +168,103 @@ export function createMission(build) {
     phase: 'landing', t: 0, elapsed: 0,
     rover: { x: START.x, y: START.y, facing: 1, moving: false, blocked: false },
     battery: v.stats.capacity, minBattery: v.stats.capacity, energyUsed: 0,
-    samples: SAMPLE_DEFS.map((s) => ({ ...s, state: 'available' })),
+    samples: SAMPLE_DEFS.map((s) => ({ ...s, state: 'available', revealed: !s.hidden })),
+    photos: PHOTO_DEFS.map((p) => ({ ...p, state: 'available' })), acks: {}, scans: 0,
     inventory: [], action: null, bumps: 0, distance: 0, noPower: false, endReason: null,
   };
 }
 export function progress(m) {
-  const s = m.samples;
+  const s = m.samples, ph = m.photos;
   return {
     collected: s.filter((x) => x.state !== 'available').length,
     analyzed: s.filter((x) => x.state === 'analyzed' || x.state === 'transmitted').length,
     transmitted: s.filter((x) => x.state === 'transmitted').length,
     goal: RULES.sampleGoal,
+    photos: ph.filter((x) => x.state !== 'available').length,
+    photosTransmitted: ph.filter((x) => x.state === 'transmitted').length,
+    photoTotal: ph.length,
+    discovered: s.filter((x) => x.hidden && x.revealed).length,
+    hiddenTotal: s.filter((x) => x.hidden).length,
+    scans: m.scans,
   };
 }
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 function blockedAt(x, y) {
   const R = RULES.roverRadius;
   if (x < R || y < R || x > WORLD.w - R || y > WORLD.h - R) return true;
-  return CRATERS.some((c) => Math.hypot(x - c.x, y - c.y) < c.r + R) || ROCKS.some((c) => Math.hypot(x - c.x, y - c.y) < c.r + R);
+  return CRATERS.some((c) => Math.hypot(x - c.x, y - c.y) < c.r + R) || ROCKS.some((c) => Math.hypot(x - c.x, y - c.y) < c.r + R)
+    || PHOTO_DEFS.some((c) => c.obstacle && Math.hypot(x - c.x, y - c.y) < c.r + R);
+}
+
+export const ACTIONS = Object.freeze(['collect', 'analyze', 'transmit', 'photo', 'scan']);
+const nearest = (m, list) => [...list].sort((a, b) => dist(m.rover, a) - dist(m.rover, b));
+
+// Qué haría la acción ahora: objetivo, coste y duración (o el motivo exacto por el que no se puede).
+function plan(m, type) {
+  const st = m.stats;
+  if (type === 'collect') {
+    const free = m.samples.filter((s) => s.state === 'available' && s.revealed);
+    if (m.samples.some((s) => s.state === 'available' && !s.revealed && dist(m.rover, s) <= RULES.collectRange * 3))
+      return { reason: 'Los sensores detectan algo bajo el regolito cerca de aquí: usa el escáner (R) para localizarlo.' };
+    if (!free.length) {
+      const hid = m.samples.some((s) => s.state === 'available' && !s.revealed);
+      return { reason: hid ? 'Quedan muestras sin detectar: usa el escáner (R) cerca de zonas inexploradas.' : 'No quedan muestras por recoger.' };
+    }
+    const n = nearest(m, free)[0];
+    if (dist(m.rover, n) > RULES.collectRange) return { reason: `Acércate a una muestra (menos de ${RULES.collectRange} px). La más cercana está a ${Math.round(dist(m.rover, n))} px.` };
+    return { target: n, kind: 'sample', duration: RULES.collectTime, energy: RULES.collectEnergy, from: 'available', to: 'collected', label: 'Recolección' };
+  }
+  if (type === 'analyze') {
+    const t = m.inventory.map((id) => m.samples.find((s) => s.id === id)).find((s) => s && s.state === 'collected');
+    if (!t) return { reason: m.inventory.length ? 'Todas las muestras recogidas ya están analizadas.' : 'Primero recoge una muestra.' };
+    return { target: t, kind: 'sample', duration: st.analysisTime, energy: st.analysisEnergy, from: 'collected', to: 'analyzed', label: 'Análisis' };
+  }
+  if (type === 'transmit') {
+    const smp = m.samples.find((s) => s.state === 'analyzed');
+    if (smp) return { target: smp, kind: 'sample', duration: st.txTime, energy: st.txEnergy, from: 'analyzed', to: 'transmitted', label: 'Transmisión' };
+    const ph = m.photos.find((p) => p.state === 'captured');
+    if (ph) return { target: ph, kind: 'photo', duration: st.photoTxTime, energy: st.photoTxEnergy, from: 'captured', to: 'transmitted', label: 'Transmisión' };
+    return { reason: 'No hay análisis ni fotos pendientes de transmitir.' };
+  }
+  if (type === 'photo') {
+    const free = m.photos.filter((p) => p.state === 'available');
+    if (!free.length) return { reason: 'Ya fotografiaste todos los puntos de interés.' };
+    const n = nearest(m, free)[0], d = Math.max(0, dist(m.rover, n) - n.r);
+    if (d > RULES.photoRange) return { reason: `Acércate a un punto de interés (menos de ${RULES.photoRange} px). El más cercano, «${n.name}», está a ${Math.round(d)} px.` };
+    return { target: n, kind: 'photo', duration: st.photoTime, energy: st.photoEnergy, from: 'available', to: 'captured', label: 'Fotografía' };
+  }
+  if (type === 'scan') return { target: null, kind: 'area', duration: RULES.scanTime, energy: RULES.scanEnergy, label: 'Escaneo de subsuelo' };
+  return { reason: 'Acción desconocida.' };
 }
 
 // ¿Se puede iniciar esta acción ahora? Devuelve el motivo exacto si no.
 export function availability(m, type) {
   if (m.phase !== 'explore') return { ok: false, reason: m.phase === 'landing' ? 'Aterrizaje en curso.' : 'La misión ha terminado.' };
   if (m.action) return { ok: false, reason: 'Ya hay una acción en curso.' };
-  const need = (cost) => (m.battery < cost ? `Energía insuficiente: necesitas ${fmt(cost)} u y tienes ${fmt(m.battery)} u. Espera la recarga solar.` : null);
-  let target = null; let cost = 0;
-  if (type === 'collect') {
-    const free = m.samples.filter((s) => s.state === 'available');
-    if (!free.length) return { ok: false, reason: 'No quedan muestras por recoger.' };
-    free.sort((a, b) => dist(m.rover, a) - dist(m.rover, b));
-    if (dist(m.rover, free[0]) > RULES.collectRange) return { ok: false, reason: `Acércate a una muestra (menos de ${RULES.collectRange} px). La más cercana está a ${Math.round(dist(m.rover, free[0]))} px.` };
-    target = free[0]; cost = RULES.collectEnergy;
-  } else if (type === 'analyze') {
-    target = m.inventory.map((id) => m.samples.find((s) => s.id === id)).find((s) => s && s.state === 'collected');
-    if (!target) return { ok: false, reason: m.inventory.length ? 'Todas las muestras recogidas ya están analizadas.' : 'Primero recoge una muestra.' };
-    cost = m.stats.analysisEnergy;
-  } else if (type === 'transmit') {
-    target = m.samples.find((s) => s.state === 'analyzed');
-    if (!target) return { ok: false, reason: 'No hay análisis pendientes de transmitir.' };
-    cost = m.stats.txEnergy;
-  } else return { ok: false, reason: 'Acción desconocida.' };
-  const e = need(cost);
-  if (e) return { ok: false, reason: e };
-  return { ok: true, target, cost };
+  const p = plan(m, type);
+  if (p.reason) return { ok: false, reason: p.reason };
+  if (m.battery < p.energy) return { ok: false, reason: `Energía insuficiente: necesitas ${fmt(p.energy)} u y tienes ${fmt(m.battery)} u. Espera la recarga solar.` };
+  return { ok: true, target: p.target, cost: p.energy };
 }
-const ACTION_INFO = {
-  collect: (m) => ({ duration: RULES.collectTime, energy: RULES.collectEnergy, from: 'available', to: 'collected', label: 'Recolección' }),
-  analyze: (m) => ({ duration: m.stats.analysisTime, energy: m.stats.analysisEnergy, from: 'collected', to: 'analyzed', label: 'Análisis' }),
-  transmit: (m) => ({ duration: m.stats.txTime, energy: m.stats.txEnergy, from: 'analyzed', to: 'transmitted', label: 'Transmisión' }),
-};
 export function startAction(m, type) {
   const av = availability(m, type);
   if (!av.ok) return av;
-  const info = ACTION_INFO[type](m);
-  m.action = { type, sampleId: av.target.id, progress: 0, duration: info.duration, drawPerSec: info.energy / info.duration, label: info.label };
-  return { ok: true, target: av.target };
+  const p = plan(m, type);
+  m.action = { type, kind: p.kind, targetId: p.target ? p.target.id : null, progress: 0, duration: p.duration, drawPerSec: p.energy / p.duration, label: p.label, from: p.from, to: p.to };
+  return { ok: true, target: p.target };
 }
 export function cancelAction(m, why) {
   if (!m.action) return null;
-  const a = m.action; m.action = null; // la muestra conserva su estado: no se retira ni se cuenta nada
-  return { type: 'action-failed', action: a.type, sampleId: a.sampleId, reason: why };
+  const a = m.action; m.action = null; // el objetivo conserva su estado: no se retira ni se cuenta nada
+  return { type: 'action-failed', action: a.type, targetId: a.targetId, reason: why };
 }
 
 // Avanza la simulación `dt` segundos. `input` = { dx, dy } en [-1,1]. Devuelve la lista de eventos ocurridos.
 export function step(m, input, dt) {
   const events = [];
-  if (m.phase === 'success' || m.phase === 'failed') return events;
   dt = clamp(Number(dt) || 0, 0, RULES.maxDt);
+  for (const id of Object.keys(m.acks)) if (m.acks[id] < 1) m.acks[id] = Math.min(1, m.acks[id] + dt / RULES.ackTime); // confirmación de la Tierra
+  if (m.phase === 'success' || m.phase === 'failed') return events;
   if (m.phase === 'landing') {
     m.t += dt;
     if (m.t >= RULES.landingTime) { m.phase = 'explore'; events.push({ type: 'landed' }); }
@@ -232,7 +274,7 @@ export function step(m, input, dt) {
   const dx = clamp((input && input.dx) || 0, -1, 1), dy = clamp((input && input.dy) || 0, -1, 1);
   const wants = dx !== 0 || dy !== 0;
   if (wants && m.action) {
-    const ev = cancelAction(m, 'El rover se movió: la acción se canceló y la muestra no cambió.');
+    const ev = cancelAction(m, 'El rover se movió: la acción se canceló y nada cambió.');
     if (ev) events.push(ev);
   }
   let moved = false, blocked = false;
@@ -262,24 +304,32 @@ export function step(m, input, dt) {
   if (blocked) draw += RULES.bumpDraw * m.stats.bumpMul;
   if (m.action) draw += m.action.drawPerSec;
   const gen = moved || blocked ? 0 : m.stats.solar;
-  const before = m.battery;
-  m.battery = clamp(before + (gen - draw) * dt, 0, m.stats.capacity);
+  m.battery = clamp(m.battery + (gen - draw) * dt, 0, m.stats.capacity);
   m.energyUsed += Math.max(0, (draw - gen) * dt);
   m.minBattery = Math.min(m.minBattery, m.battery);
 
   if (m.action) {
     if (m.battery <= 0) {
-      events.push(cancelAction(m, 'Sin energía: la acción falló y la muestra no cambió.'));
+      events.push(cancelAction(m, 'Sin energía: la acción falló y nada cambió.'));
     } else {
       m.action.progress += dt / m.action.duration;
       if (m.action.progress >= 1) {
         const a = m.action; m.action = null;
-        const info = ACTION_INFO[a.type](m);
-        const s = m.samples.find((x) => x.id === a.sampleId);
-        if (s && s.state === info.from) { // protege contra doble conteo: solo la transición válida cuenta
-          s.state = info.to;
-          if (a.type === 'collect') m.inventory.push(s.id);
-          events.push({ type: a.type === 'collect' ? 'collected' : a.type === 'analyze' ? 'analyzed' : 'transmitted', sampleId: s.id });
+        if (a.type === 'scan') {
+          const found = m.samples.filter((s) => !s.revealed && s.state === 'available' && dist(m.rover, s) <= RULES.scanRange);
+          for (const s of found) s.revealed = true;
+          m.scans++;
+          events.push({ type: 'scanned', found: found.map((s) => s.id) });
+        } else {
+          const list = a.kind === 'photo' ? m.photos : m.samples;
+          const obj = list.find((x) => x.id === a.targetId);
+          if (obj && obj.state === a.from) { // protege contra doble conteo: solo la transición válida cuenta
+            obj.state = a.to;
+            if (a.type === 'collect') m.inventory.push(obj.id);
+            if (a.to === 'transmitted') m.acks[obj.id] = 0;
+            const type = { collect: 'collected', analyze: 'analyzed', transmit: 'transmitted', photo: 'photographed' }[a.type];
+            events.push({ type, targetId: obj.id, kind: a.kind });
+          }
         }
       }
     }
@@ -287,6 +337,33 @@ export function step(m, input, dt) {
   if (progress(m).transmitted >= RULES.sampleGoal) { m.phase = 'success'; m.endReason = 'objetivo'; events.push({ type: 'success' }); }
   else if (m.elapsed >= RULES.timeLimit) { m.phase = 'failed'; m.endReason = 'tiempo'; events.push({ type: 'failed', reason: 'tiempo' }); }
   return events;
+}
+// ¿La Tierra ya confirmó todo lo transmitido? (la interfaz espera esto antes de mostrar resultados)
+export const allAcked = (m) => Object.values(m.acks).every((v) => v >= 1);
+
+// Paquetes de datos para el centro de datos: cada muestra y foto con su etapa y porcentaje 0–100.
+export function dataPackets(m) {
+  const out = [];
+  for (const s of m.samples) {
+    if (s.state === 'available') continue;
+    const a = m.action && m.action.targetId === s.id ? m.action : null;
+    const act = a ? Math.round(clamp(a.progress, 0, 1) * 100) : 0;
+    let stage, pct, overall;
+    if (s.state === 'collected') { stage = a && a.type === 'analyze' ? 'Analizando' : 'Esperando análisis'; pct = a ? act : 0; overall = 25 + pct * 0.25; }
+    else if (s.state === 'analyzed') { stage = a && a.type === 'transmit' ? 'Transmitiendo' : 'Listo para enviar'; pct = a ? act : 0; overall = 50 + pct * 0.25; }
+    else { const k = Math.round((m.acks[s.id] === undefined ? 1 : m.acks[s.id]) * 100); stage = k >= 100 ? 'Recibido en la Tierra' : 'Recibiendo confirmación'; pct = k; overall = 75 + k * 0.25; }
+    out.push({ id: s.id, kind: 'sample', title: s.kind, stage, pct, overall: Math.round(overall), state: s.state, active: !!a });
+  }
+  for (const p of m.photos) {
+    if (p.state === 'available') continue;
+    const a = m.action && m.action.targetId === p.id ? m.action : null;
+    const act = a ? Math.round(clamp(a.progress, 0, 1) * 100) : 0;
+    let stage, pct, overall;
+    if (p.state === 'captured') { stage = a && a.type === 'transmit' ? 'Transmitiendo' : 'Foto lista para enviar'; pct = a ? act : 0; overall = 50 + pct * 0.25; }
+    else { const k = Math.round((m.acks[p.id] === undefined ? 1 : m.acks[p.id]) * 100); stage = k >= 100 ? 'Recibida en la Tierra' : 'Recibiendo confirmación'; pct = k; overall = 75 + k * 0.25; }
+    out.push({ id: p.id, kind: 'photo', title: p.name, stage, pct, overall: Math.round(overall), state: p.state, active: !!a });
+  }
+  return out;
 }
 
 // ---------- Evaluación (determinista) ----------
@@ -296,57 +373,85 @@ export function evaluate(m) {
   const science = Math.round(m.samples.filter((s) => s.state === 'analyzed' || s.state === 'transmitted')
     .reduce((a, s) => a + 100 * st.quality * s.value, 0));
   const data = Math.round(p.transmitted * 60 * st.dataMul);
+  const photos = Math.round(p.photosTransmitted * 40 * st.dataMul);
+  const discoveries = p.discovered * 15;
   const energyPct = st.capacity ? Math.round((m.battery / st.capacity) * 100) : 0;
   const bonusEnergy = ok ? Math.round(energyPct * 0.5) : 0;
   const bonusTime = ok ? Math.max(0, Math.round((1 - m.elapsed / RULES.timeLimit) * 100)) : 0;
   const bonusBudget = ok ? Math.max(0, Math.floor((LIMITS.credits - st.cost) / 10)) : 0;
   const penalty = Math.min(40, m.bumps * 5);
-  const score = Math.max(0, science + data + bonusEnergy + bonusTime + bonusBudget - penalty);
-  const rating = !ok ? 'X' : score >= 750 ? 'A' : score >= 600 ? 'B' : 'C';
+  const score = Math.max(0, science + data + photos + discoveries + bonusEnergy + bonusTime + bonusBudget - penalty);
+  const rating = !ok ? 'X' : score >= 900 ? 'A' : score >= 720 ? 'B' : 'C';
   const breakdown = [
     { label: 'Ciencia (muestras analizadas)', points: science },
     { label: 'Datos transmitidos', points: data },
+    { label: 'Fotos transmitidas', points: photos },
+    { label: 'Muestras descubiertas con el escáner', points: discoveries },
     { label: 'Energía restante', points: bonusEnergy },
     { label: 'Tiempo restante', points: bonusTime },
     { label: 'Presupuesto sin gastar', points: bonusBudget },
     { label: 'Choques', points: -penalty },
+  ];
+  const objectives = [
+    { label: `Transmitir ${RULES.sampleGoal} muestras analizadas`, done: p.transmitted >= RULES.sampleGoal, main: true },
+    { label: 'Fotografiar y transmitir 2 puntos de interés', done: p.photosTransmitted >= 2 },
+    { label: 'Descubrir una muestra oculta con el escáner', done: p.discovered >= 1 },
+    { label: 'Terminar sin choques', done: ok && m.bumps === 0 },
+    { label: 'Terminar con al menos 50 % de batería', done: ok && energyPct >= 50 },
   ];
   const suggestions = [];
   if (!ok && m.endReason === 'tiempo') suggestions.push('Se acabó el tiempo: planifica una ruta más corta o elige un chasis/ruedas más rápidos.');
   if (m.minBattery < st.capacity * 0.1) suggestions.push(`La batería llegó a ${fmt(m.minBattery)} u de ${st.capacity} u: usa una batería mayor o un panel más potente, y espera la recarga entre tareas.`);
   if (m.bumps > 2) suggestions.push(`Hubo ${m.bumps} choques (−${penalty} puntos): ruedas todoterreno o chasis reforzado reducen su coste de energía.`);
   if (ok && m.elapsed > RULES.timeLimit * 0.7) suggestions.push('Terminaste con poco margen de tiempo: un chasis más rápido o menos paradas mejorarían el bono de tiempo.');
+  if (p.photosTransmitted < 2) suggestions.push('Fotografiar y transmitir puntos de interés suma puntos extra; una cámara HD los vale 50 % más.');
+  if (p.discovered === 0) suggestions.push('No usaste el escáner: las muestras ocultas (S3 y S4) solo aparecen al escanear a menos de ' + RULES.scanRange + ' px.');
   if (LIMITS.credits - st.cost >= 200) suggestions.push(`Sobraron ${LIMITS.credits - st.cost} créditos: un instrumento de más calidad o una cámara HD aumentarían la puntuación.`);
   if (ok && !suggestions.length) suggestions.push('Configuración y ruta muy equilibradas: prueba otra combinación para superar tu puntuación.');
   const explanation = ok
     ? `Misión completada: analizaste y transmitiste ${p.transmitted} muestras únicas en ${fmt(m.elapsed, 0)} s, con ${energyPct} % de batería restante. Puntuación ${score} (calificación ${rating}).`
     : `Misión no completada: se transmitieron ${p.transmitted} de ${RULES.sampleGoal} muestras necesarias (${p.analyzed} analizadas, ${p.collected} recogidas). Puntuación parcial ${score}.`;
-  return { success: ok, score, rating, breakdown, suggestions, explanation, progress: p, energyPct, elapsed: m.elapsed, bumps: m.bumps, stats: st };
+  return { success: ok, score, rating, breakdown, objectives, suggestions, explanation, progress: p, energyPct, elapsed: m.elapsed, bumps: m.bumps, stats: st, packets: dataPackets(m) };
 }
 
 // ---------- Guardado ----------
 
 export function snapshot(m) {
   return {
-    v: 1, build: m.build, phase: m.phase, t: m.t, elapsed: m.elapsed, rover: { x: m.rover.x, y: m.rover.y, facing: m.rover.facing },
-    battery: m.battery, minBattery: m.minBattery, energyUsed: m.energyUsed, bumps: m.bumps, distance: m.distance,
-    inventory: [...m.inventory], samples: m.samples.map((s) => ({ id: s.id, state: s.state })),
+    v: 2, build: m.build, phase: m.phase, t: m.t, elapsed: m.elapsed, rover: { x: m.rover.x, y: m.rover.y, facing: m.rover.facing },
+    battery: m.battery, minBattery: m.minBattery, energyUsed: m.energyUsed, bumps: m.bumps, distance: m.distance, scans: m.scans,
+    inventory: [...m.inventory], samples: m.samples.map((s) => ({ id: s.id, state: s.state, revealed: s.revealed })),
+    photos: m.photos.map((p) => ({ id: p.id, state: p.state })),
   };
 }
 // Devuelve una misión válida o null si el guardado está dañado / es de otra versión.
 export function restoreMission(snap) {
   try {
-    if (!snap || snap.v !== 1 || !validateBuild(snap.build).ok) return null;
+    if (!snap || ![1, 2].includes(snap.v) || !validateBuild(snap.build).ok) return null;
+    const legacy = snap.v === 1;
     if (snap.phase !== 'landing' && snap.phase !== 'explore') return null;
     const m = createMission(snap.build);
     const nums = [snap.t, snap.elapsed, snap.battery, snap.minBattery, snap.energyUsed, snap.bumps, snap.distance, snap.rover && snap.rover.x, snap.rover && snap.rover.y];
     if (!nums.every(num) || !Array.isArray(snap.samples) || snap.samples.length !== m.samples.length) return null;
+    if (!legacy && (!num(snap.scans) || !Array.isArray(snap.photos) || snap.photos.length !== m.photos.length)) return null;
+    const sampleIds = new Set();
     for (const s of snap.samples) {
       const target = m.samples.find((x) => x.id === s.id);
-      if (!target || !SAMPLE_STATES.includes(s.state)) return null;
+      if (!target || sampleIds.has(s.id) || !SAMPLE_STATES.includes(s.state)) return null;
+      sampleIds.add(s.id);
       target.state = s.state;
+      target.revealed = !target.hidden || s.revealed === true || s.state !== 'available';
     }
-    m.phase = snap.phase; m.t = Math.max(0, snap.t); m.elapsed = Math.max(0, snap.elapsed);
+    const photoIds = new Set();
+    for (const p of legacy ? [] : snap.photos) {
+      const target = m.photos.find((x) => x.id === p.id);
+      if (!target || photoIds.has(p.id) || !PHOTO_STATES.includes(p.state)) return null;
+      photoIds.add(p.id);
+      target.state = p.state;
+      if (p.state === 'transmitted') m.acks[p.id] = 1;
+    }
+    for (const s of m.samples) if (s.state === 'transmitted') m.acks[s.id] = 1;
+    m.phase = snap.phase; m.t = Math.max(0, snap.t); m.elapsed = Math.max(0, snap.elapsed); m.scans = legacy ? 0 : Math.max(0, Math.floor(snap.scans));
     m.rover.x = clamp(snap.rover.x, 0, WORLD.w); m.rover.y = clamp(snap.rover.y, 0, WORLD.h);
     if (blockedAt(m.rover.x, m.rover.y)) { m.rover.x = START.x; m.rover.y = START.y; }
     m.rover.facing = snap.rover.facing === -1 ? -1 : 1;

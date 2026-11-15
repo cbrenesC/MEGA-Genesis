@@ -1,5 +1,5 @@
 // Builder layout and component readouts adapted from feature/launch's rover constructor.
-import { CATEGORIES, COMPONENTS, LIMITS, validateBuild } from '../../games/rover/js/rules.js';
+import { CATEGORIES, COMPONENTS, LIMITS, PHOTO_DEFS, RULES, validateBuild } from '../../games/rover/js/rules.js';
 import { esc } from './launchStationUI.js';
 
 export const ROVER_GROUPS = {
@@ -16,8 +16,8 @@ export function renderRoverStation(part, build, { translate, number }) {
     battery: c => tr('roverFact.battery', { capacity: c.capacity }),
     solar: c => tr('roverFact.solar', { gen: n(c.gen, 1) }),
     instrument: c => tr('roverFact.instrument', { time: c.analysisTime, energy: c.analysisEnergy, quality: n(c.quality, 1) }),
-    camera: c => tr('roverFact.camera', { draw: n(c.draw, 2), data: n(c.dataMul, 1) }),
-    comms: c => tr('roverFact.comms', { time: n(c.txTime, 1), energy: c.txEnergy }),
+    camera: c => tr('roverFact.camera', { draw: n(c.draw, 2), data: n(c.dataMul, 1), time: n(c.photoTime, 1), energy: n(c.photoEnergy, 1) }),
+    comms: c => tr('roverFact.comms', { time: n(c.txTime, 1), energy: n(c.txEnergy, 1), photoTime: n(c.txTime * RULES.photoTxMultiplier, 2), photoEnergy: n(c.txEnergy * RULES.photoTxMultiplier, 1) }),
   };
   const cats = CATEGORIES.filter(c => ROVER_GROUPS[part].includes(c.id)).map(({ id }) => `
     <section class="panel" aria-labelledby="station-category-${id}">
@@ -47,7 +47,13 @@ export function renderRoverStation(part, build, { translate, number }) {
       <div class="bar ${state}" aria-hidden="true"><i style="width:${Math.min(100, ratio * 100)}%"></i></div></div>`;
   };
   const stat = (key, val) => `<span>${tr(`roverUI.${key}`)}</span><b>${val}</b>`;
-  return `<div class="build"><div class="cats">${cats}</div>
+  const scienceHelp = tr('roverScienceHelp', {
+    count: n(PHOTO_DEFS.length), photoRange: n(RULES.photoRange), scanRange: n(RULES.scanRange),
+    time: n(RULES.scanTime), energy: n(RULES.scanEnergy),
+  });
+  const commsHelp = tr('roverCommsHelp', { goal: n(RULES.sampleGoal), ack: n(RULES.ackTime, 1) });
+  const help = part === 'science' ? scienceHelp : part === 'comms' ? commsHelp : '';
+  return `<div class="build"><div class="cats">${cats}${help ? `<section class="panel"><h3>${tr(`roverUI.${part}Guide`)}</h3><p class="detail">${help}</p></section>` : ''}</div>
     <aside class="side">
       <section class="panel"><h3>${tr('roverUI.preview')}</h3><div class="preview" data-rover-preview></div></section>
       <section class="panel"><h3>${tr('roverUI.resources')}</h3>
@@ -58,7 +64,9 @@ export function renderRoverStation(part, build, { translate, number }) {
           ${stat('draw', stats.moveDraw ? `${n(stats.moveDraw + stats.idleDraw, 2)} u/s` : '—')}
           ${stat('speed', stats.speed ? `${n(stats.speed, 1)} px/s` : '—')}
           ${stat('analysis', stats.analysisTime ? `${stats.analysisTime} s · ${stats.analysisEnergy} u` : '—')}
-          ${stat('transmit', stats.txTime ? `${n(stats.txTime, 1)} s · ${stats.txEnergy} u` : '—')}
+          ${stat('transmit', stats.txTime ? `${n(stats.txTime, 1)} s · ${n(stats.txEnergy, 1)} u` : '—')}
+          ${part === 'science' ? stat('photo', stats.photoTime ? `${n(stats.photoTime, 1)} s · ${n(stats.photoEnergy, 1)} u` : '—') : ''}
+          ${part === 'comms' ? stat('photoTransmit', stats.photoTxTime ? `${n(stats.photoTxTime, 2)} s · ${n(stats.photoTxEnergy, 1)} u` : '—') : ''}
         </div>
         <div class="reason ${ok ? 'ok' : 'bad'}" role="status">${ok ? tr('readyRover') : warnings.join('<br>')}</div>
         <div class="station-actions">

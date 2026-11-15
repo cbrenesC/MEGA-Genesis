@@ -5,7 +5,7 @@ import { STATIONS } from '../src/map/controlRoomLayout.js';
 import { newFlightPlan, reviewFlightPlan } from '../src/missions/flightPlan.js';
 import { missionUrl, readMissionPlan } from '../src/missions/missionTransfer.js';
 import { FlightSim, vehicleFor } from '../games/launch/js/flight.js';
-import { RECOMMENDED_BUILD, validateBuild, createMission } from '../games/rover/js/rules.js';
+import { RECOMMENDED_BUILD, validateBuild, createMission, startAction, availability, RULES } from '../games/rover/js/rules.js';
 import en from '../src/i18n/en.json' with { type: 'json' };
 import es from '../src/i18n/es.json' with { type: 'json' };
 
@@ -124,4 +124,37 @@ test('Rover stations restore component cards, tradeoffs and live resource totals
   assert.match(incomplete, /Recharge \+1.2 u\/s while stopped/);
   assert.match(incomplete, /class="reason bad"/);
   assert.doesNotMatch(incomplete, /station\.trade\./);
+});
+
+test('Science and comms consoles expose the camera, scanner and data-link stats actually used by the rover', async () => {
+  const { renderRoverStation } = await import('../src/missions/roverStationUI.js');
+  const render = (part, plan, dictionary) => renderRoverStation(part, plan, {
+    translate: (key, params = {}) => (dictionary[key] ?? key).replace(/\{(\w+)\}/g, (_, param) => params[param]),
+    number: (n, digits) => n.toFixed(digits),
+  });
+  const build = { ...RECOMMENDED_BUILD, camera: 'hd', comms: 'baja' };
+  const url = new URL(missionUrl('rover', 'en', build), 'https://example.org');
+  const m = createMission(readMissionPlan(url.hash));
+  m.phase = 'explore';
+  const poi = m.photos[1];
+  Object.assign(m.rover, { x: poi.x, y: poi.y });
+  assert.equal(startAction(m, 'photo').ok, true);
+  const photoSeconds = m.action.duration.toFixed(1);
+  const photoEnergy = (m.action.drawPerSec * m.action.duration).toFixed(1);
+  const science = render('science', m.build, en);
+  assert.ok(science.includes(`Photo capture</span><b>${photoSeconds} s · ${photoEnergy} u`));
+  assert.ok(science.includes(`${m.photos.length} points of interest (C) within ${RULES.photoRange} px`));
+  assert.ok(render('science', m.build, es).includes(`hasta ${RULES.scanRange} px`));
+  m.action = null;
+  assert.equal(availability(m, 'scan').cost, RULES.scanEnergy);
+  assert.ok(science.includes(`takes ${RULES.scanTime} s and ${RULES.scanEnergy} u per scan`));
+  poi.state = 'captured';
+  assert.equal(startAction(m, 'transmit').ok, true);
+  const txSeconds = m.action.duration.toFixed(2);
+  const txEnergy = (m.action.drawPerSec * m.action.duration).toFixed(1);
+  const comms = render('comms', m.build, en);
+  assert.ok(comms.includes(`Photo uplink</span><b>${txSeconds} s · ${txEnergy} u`));
+  assert.ok(comms.includes(`Earth confirms each packet after ${RULES.ackTime.toFixed(1)} s`));
+  assert.match(render('comms', m.build, es), /Enlace con la Tierra/);
+  for (const console of [science, comms]) assert.doesNotMatch(console, /data-launch|undefined/);
 });

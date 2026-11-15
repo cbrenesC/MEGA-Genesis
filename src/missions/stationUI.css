@@ -156,8 +156,9 @@ input[type=range] { width: 100%; accent-color: var(--cyan); }
 .opt.is-selected { border: 2px solid var(--mint); background: rgba(31, 143, 132, .22); padding: 11px 11px 11px 13px; box-shadow: 0 0 0 1px #0a3b37 inset; }
 .opt.is-selected .tag { display: inline-block; }
 .opt .nums { display: flex; flex-wrap: wrap; gap: 4px 6px; }
-.opt .facts { color: var(--muted); font-size: .86rem; }
+.opt .facts { display: block; color: var(--muted); font-size: .86rem; }
 .opt .trade { font-size: .88rem; }
+.panel .detail { margin: 0; color: var(--muted); font-size: .92rem; line-height: 1.55; }
 .side { position: sticky; top: 0; display: grid; gap: 14px; min-width: 0; }
 .preview { display: grid; place-items: center; padding: 10px; background: linear-gradient(#0a1a30, #101c2c); border: 1px solid var(--line); border-radius: 10px; min-height: 150px; }
 .preview canvas { width: 100%; max-width: 300px; height: auto; image-rendering: pixelated; }
