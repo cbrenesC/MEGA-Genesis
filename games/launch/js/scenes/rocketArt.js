@@ -465,8 +465,12 @@ export function landmarkSprite(kind) {
 // Nubes (3 formas)
 // ---------------------------------------------------------------------------
 
-export function cloudSprite(kind) {
-  return memo(`cloud|${kind}`, () => {
+// Tonos de nube: de día blancas, con cielo cubierto grises, de noche azul oscuro.
+const CLOUD_TONES = { day: ['#ffffff', '#d7e4f4', '#aebfd8'], gray: ['#c9d0d8', '#a3adb8', '#7c8794'], night: ['#56617a', '#3c465c', '#2a3246'], storm: ['#8a929e', '#666f7c', '#474f5c'] };
+
+export function cloudSprite(kind, tone = 'day') {
+  const [c0, c1, c2] = CLOUD_TONES[tone] ?? CLOUD_TONES.day;
+  return memo(`cloud|${kind}|${tone}`, () => {
     const blobs = [
       [[8, 12, 7], [15, 9, 8], [23, 11, 7], [29, 13, 5], [13, 13, 6], [20, 13, 7]],
       [[10, 13, 8], [20, 10, 9], [31, 9, 8], [41, 12, 7], [49, 14, 5], [16, 15, 7], [28, 15, 8], [38, 15, 7]],
@@ -478,7 +482,7 @@ export function cloudSprite(kind) {
       if (x * x + y * y > br * br + br * 0.4) continue;
       const yy = by + (kind === 2 ? Math.round(y * 0.55) : y);
       const lit = y < -br * 0.25 || (x < -br * 0.45 && y < br * 0.3);
-      g.set(bx + x, yy, lit ? '#ffffff' : y > br * 0.4 ? '#aebfd8' : '#d7e4f4');
+      g.set(bx + x, yy, lit ? c0 : y > br * 0.4 ? c2 : c1);
     }
     return { canvas: g.build(null), w: W + 2, h: H + 2 };
   });

@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { PHYS, FlightSim, vehicleFor, runAutopilot, orbitElements, circularSpeed, withPilotMargin, orbitGoalMet, COAST_DV } from '../js/flight.js';
+import { PHYS, FlightSim, vehicleFor, runAutopilot, orbitElements, circularSpeed, withPilotMargin, orbitGoalMet, COAST_DV, fuelSummary, FUEL_RANGE } from '../js/flight.js';
+import { parseOpenMeteo, typicalWeather, sunElevationDeg, weatherUrl, windEastMs } from '../js/weather.js';
 import { surfaceAt, globeView, globeSample, OCEAN, SAND, ICE } from '../js/scenes/earth.js';
 import {
   phaseOf, cameraScale, anchorFraction, FlightCamera, skyProgress, makeDebris, stepDebris, cullReason,
@@ -337,4 +338,46 @@ test('23 · mapa del mundo: los continentes están donde deben y el sitio de lan
   const lat = Math.asin(y) / D; const lon = (v.lon0 + Math.atan2(x, z)) / D;
   assert.ok(Math.abs(lat - 28.5) < 2 && Math.abs(lon - (-80.6)) < 6, `sitio en ${lat}, ${lon}`);
   assert.equal(globeSample(0, 0, 0, v.lon0) & 7, at(0, 9.4), 'el centro del disco mira 90° al este del sitio');
+});
+
+test('24 · clima real: se lee la respuesta de Open-Meteo y, sin conexión, se usa día/noche real y clima típico', () => {
+  const w = parseOpenMeteo({ current: { time: '2026-11-15T21:45', temperature_2m: 23.4, is_day: 0, precipitation: 1.6, rain: 1.6, snowfall: 0, cloud_cover: 92, wind_speed_10m: 18.2, wind_direction_10m: 270, weather_code: 63 } });
+  assert.equal(w.source, 'real'); assert.equal(w.isDay, false); assert.equal(w.label, 'lluvia');
+  assert.ok(Math.abs(w.cloud - 0.92) < 1e-9 && w.rainMmH === 1.6 && w.localTime === '21:45');
+  assert.ok(windEastMs(w) > 4, 'viento del oeste empuja hacia el este');
+  assert.equal(parseOpenMeteo({ current: { weather_code: 96, is_day: 1, precipitation: 0 } }).thunder, true);
+  assert.equal(parseOpenMeteo({ current: { weather_code: 0, is_day: 1, cloud_cover: 5 } }).label, 'despejado');
+  assert.equal(parseOpenMeteo({ current: { weather_code: 73, is_day: 1, snowfall: 0.4 } }).snow, true);
+  assert.equal(parseOpenMeteo({}), null);
+  assert.ok(weatherUrl('kourou').includes('latitude=5.24') && weatherUrl('kourou').includes('longitude=-52.77'));
+  // posición real del Sol: mediodía y medianoche en Cabo Cañaveral (UTC−5) un 21 de junio
+  assert.ok(sunElevationDeg(28.57, -80.65, new Date(Date.UTC(2026, 5, 21, 17, 20))) > 75);
+  assert.ok(sunElevationDeg(28.57, -80.65, new Date(Date.UTC(2026, 5, 21, 5, 20))) < -30);
+  const night = typicalWeather('ksc', new Date(Date.UTC(2026, 5, 21, 5, 20)), 42);
+  const day = typicalWeather('ksc', new Date(Date.UTC(2026, 5, 21, 17, 20)), 42);
+  assert.equal(night.isDay, false); assert.equal(day.isDay, true); assert.equal(day.source, 'typical');
+  // la frecuencia de días lluviosos sigue al clima típico: Kourou en mayo llueve mucho más que Vandenberg en julio
+  const rainy = (site, month) => { let n = 0; for (let s = 1; s <= 400; s++) if (typicalWeather(site, new Date(Date.UTC(2026, month, 10, 15)), s * 7919).rainMmH > 0) n++; return n / 400; };
+  assert.ok(rainy('kourou', 4) > 0.6 && rainy('vsfb', 6) < 0.08);
+});
+
+test('25 · masas reales: cada cohete pesa lo publicado y el combustible elegido cambia el peso y el empuje/peso', () => {
+  const real = { electron: 13000, falcon9: 549054, falconheavy: 1420788, sls: 2608000, ariane64: 860000 };
+  for (const [id, kg] of Object.entries(real)) {
+    const dest = Object.keys(data.calibration.vehicles[id])[0];
+    const vi = vehicleFor(id, dest, data);
+    const full = fuelSummary(vi.vehicle, vi.capacityKg, 1);
+    assert.ok(Math.abs(full.liftoffKg - kg) / kg < 0.002, `${id}: ${Math.round(full.liftoffKg)} kg vs ${kg} kg publicados`);
+    assert.equal(data.launchers.find((l) => l.id === id).liftoffMassKg, kg);
+    // el mismo cohete pesa lo mismo sin importar el destino
+    for (const d of Object.keys(data.calibration.vehicles[id])) assert.equal(data.calibration.vehicles[id][d].liftoffKg, kg);
+    assert.ok(full.twr > 1.05, `${id} despega: empuje/peso ${full.twr}`);
+  }
+  const vi = vehicleFor('falcon9', 'LEO', data);
+  const full = fuelSummary(vi.vehicle, 5000, 1); const less = fuelSummary(vi.vehicle, 5000, 0.8);
+  assert.ok(less.liftoffKg < full.liftoffKg && less.twr > full.twr && Math.abs(less.propKg / full.propKg - 0.8) < 1e-9);
+  assert.equal(fuelSummary(vi.vehicle, 5000, 0.2).fuelFraction, FUEL_RANGE.minPct / 100, 'no se puede cargar menos de lo permitido');
+  // y el simulador despega con esa misma carga
+  const sim = new FlightSim(vi.vehicle, { payloadKg: 5000, fuelFraction: 0.8 });
+  assert.ok(Math.abs(sim.mass - less.liftoffKg) < 1);
 });

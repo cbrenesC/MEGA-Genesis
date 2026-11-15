@@ -2,6 +2,12 @@
   command = "npm run build"
   publish = "dist"
 
+# Función que consulta la Meteomatics Weather API sin exponer las credenciales.
+# Variables de entorno necesarias en Netlify: METEOMATICS_USERNAME y METEOMATICS_PASSWORD.
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

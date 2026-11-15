@@ -883,6 +883,51 @@ export function calibrate(design, destId, capacityKg, flightData) {
   return { stackKg: Math.round(hi), program: final.program, capacityKg };
 }
 
+export const FUEL_RANGE = { minPct: 75, maxPct: 100 }; // cuánto combustible se permite cargar (% del tanque lleno)
+
+/**
+ * Resumen de la carga de combustible elegida: cuánto combustible lleva, cuánto pesa el cohete completo al despegar
+ * y con cuánta fuerza despega (empuje / peso; tiene que ser mayor que 1).
+ */
+export function fuelSummary(vehicle, payloadKg, fuelFraction = 1) {
+  const f = clamp(fuelFraction, FUEL_RANGE.minPct / 100, 1);
+  const fullKg = vehicle.stages.reduce((a, st) => a + st.propKg, 0);
+  const propKg = fullKg * f;
+  const liftoffKg = vehicleMassKg(vehicle, payloadKg) - (fullKg - propKg);
+  const s0 = vehicle.stages[0];
+  const twr = (s0.mdot * s0.ispSl) / liftoffKg;
+  return { fuelFraction: f, fullKg, propKg, liftoffKg, twr };
+}
+
+/** El mismo diseño con motores k veces más (o menos) eficientes. El empuje no cambia: sólo cuánto dura el combustible. */
+export function scaleDesignIsp(design, k = 1) {
+  if (k === 1) return design;
+  return { ...design, stages: design.stages.map((st) => ({ ...st, ispSl: st.ispSl * k, ispVac: st.ispVac * k })) };
+}
+
+/**
+ * Calibración con la MASA REAL del cohete. La masa de las etapas queda fija (peso publicado al despegue menos la
+ * carga y la cofia) y se busca la eficiencia de los motores (ispK) más baja con la que el piloto automático lleva
+ * justo la capacidad del catálogo. Así el cohete pesa lo que pesa de verdad y sube lo que dice el catálogo.
+ */
+export function calibrateIsp(design, destId, capacityKg, liftoffKg, flightData, firstProgram = null) {
+  const programs = flightData.calibration.programCandidates;
+  const stackKg = Math.round(liftoffKg - capacityKg - design.fairingPct * capacityKg);
+  const tryK = (k, list) => autopilotSucceeds(scaleDesignIsp(design, k), stackKg, capacityKg, capacityKg, destId, flightData, list);
+  let best = firstProgram ? [firstProgram, ...programs] : programs;
+  let lo = 0.4; let hi = 0.4; let found = null;
+  for (let k = 0.5; k <= 2.4 && !found; k *= 1.12) { const r = tryK(k, best); if (r.ok) { found = r; hi = k; } else lo = k; }
+  if (!found) return null;
+  best = [found.program, ...programs.filter((p) => p !== found.program)];
+  for (let i = 0; i < 22 && hi / lo > 1.0015; i++) {
+    const mid = Math.sqrt(lo * hi);
+    const r = tryK(mid, best);
+    if (r.ok) { hi = mid; best = [r.program, ...programs.filter((p) => p !== r.program)]; } else lo = mid;
+  }
+  const final = tryK(hi, best);
+  return { stackKg, liftoffKg, ispK: Math.round(hi * 10000) / 10000, program: final.program, capacityKg };
+}
+
 /** Diseño que se usa para un destino: los cohetes chicos agregan una etapa de transferencia en destinos lejanos. */
 export function designForDest(design, destId) {
   const transfer = DEST[destId]?.kind === 'transfer';
@@ -904,9 +949,10 @@ export function vehicleFor(launcherId, destId, data) {
   const designId = data.flight.vehicles[launcherId]?.vehicleOf ?? launcherId;
   const base = data.flight.vehicles[designId];
   if (!base) return null;
-  const design = designForDest({ id: designId, ...base }, destId);
+  const design = scaleDesignIsp(designForDest({ id: designId, ...base }, destId), entry.ispK ?? 1);
   const vehicle = buildVehicle(design, entry.stackKg, entry.capacityKg);
   vehicle.designId = designId;
+  vehicle.liftoffKg = entry.liftoffKg ?? null; // masa real publicada del cohete completo al despegar
   return { vehicle, entry, program: entry.program, capacityKg: entry.capacityKg };
 }
 
