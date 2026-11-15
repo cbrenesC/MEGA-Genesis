@@ -895,44 +895,6 @@ html.sms-reduced-animations #boot .boot-consent {
 #boot .boot-toggle-row input:focus-visible+.boot-switch {
   outline:3px solid #5cc3ec; outline-offset:3px;
 }
-#boot .boot-localizing-dialog {text-align:center; width:min(600px,92vw);}
-#boot .boot-localizing-dialog h2 {font-size:clamp(13px,2vw,19px);}
-#boot .boot-localizing-progress {
-  margin:22px auto 10px; width:100%; height:12px;
-  border:1px solid #bad2e0; background:#eaf4f8;
-  border-radius:8px; overflow:hidden;
-}
-#boot #boot-localizing-fill {
-  display:block; width:0%; height:100%;
-  background:#208eb3; transition:width .2s ease;
-}
-#boot #boot-localizing-label {color:#50718a;min-height:1.2em;}
-
-/* Reuse the original animated preloader during language preparation. */
-#boot .boot-localizing-dialog {
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:clamp(8px,1.5vh,18px); width:min(760px,94vw);
-  padding:clamp(15px,2.5vw,32px);
-}
-#boot .boot-localizing-svg {
-  display:block;
-  width:min(72vw,500px);
-  height:min(35vh,265px);
-  max-width:100%;
-  background:transparent;
-  border:0;
-  flex:0 1 auto;
-  pointer-events:none;
-}
-#boot .boot-localizing-svg img {
-  display:block; width:100%; height:100%; object-fit:contain;
-}
-#boot .boot-localizing-dialog h2 {margin:0;}
-#boot .boot-localizing-progress {margin:4px auto 4px;}
-@media (max-height:500px) {
-  #boot .boot-localizing-svg {height:22vh;width:min(62vw,420px);}
-}
-
 /* Preserve the MEGA Genesis map layout behind original onboarding */
 #app.game-frame{position:fixed;inset:0;padding:0}
 #game-container.game-stage{position:relative;width:100%;height:100%;border:0;box-shadow:none}
@@ -983,3 +945,17 @@ html.sms-reduced-animations #boot .boot-consent {
 .mission-terminal__actions button,.mission-terminal__actions a{padding:11px 15px;background:#173f4c;color:#d5ffff;border:2px solid #6cb8be;text-decoration:none;cursor:pointer;font:16px 'VT323',monospace}
 .mission-terminal__actions [data-launch]{background:#70d8bf;color:#092a2c;border-color:#a8fff0}
 .mission-terminal__actions [hidden]{display:none!important}
+
+#commander-intro-video::cue {
+  color: #fff;
+  background: rgba(0, 0, 0, .8);
+  font: clamp(11px, 2vw, 20px) / 1.25 system-ui, sans-serif;
+}
+#commander-captions {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+  padding: 5px 9px; border: 1px solid #9bc9d9; border-radius: 3px;
+  color: #f2fcff; background: #0a1a2bdf; cursor: pointer;
+  font: clamp(15px, 2vw, 19px) 'VT323', monospace;
+}
+#commander-captions[aria-pressed="false"] { opacity: .7; }
+#settings-dialog { max-height: calc(100dvh - 65px); overflow-y: auto; }

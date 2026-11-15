@@ -1,156 +1,133 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#07111d" />
-    <meta name="description" content="Explora el complejo orbital de Space Mission en Pixel Art." />
+    <meta name="description" content="Explore Mission Control and take on two space engineering simulations in a pixel-art world." data-i18n-content="home.description" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>SPACE MISSION · Complejo orbital</title>
+    <title data-i18n="home.title">Space Mission · MEGA Genesis</title>
   </head>
   <body>
     <main class="game-frame" id="app">
-      <div id="boot" aria-label="Pantalla de bienvenida">
+      <div id="boot" aria-label="Space Mission welcome screen" data-i18n-aria="boot.label">
         <div class="boot-inner">
           <h1 class="boot-game-title">SPACE MISSION</h1>
-          <object class="boot-animation" data="/preloader.svg" type="image/svg+xml" aria-label="Animación de carga de Space Mission">
-            <img src="/preloader.svg" alt="Cargando Space Mission" />
-          </object>
-          <div class="boot-progress" role="progressbar" aria-label="Cargando juego">
+          <img class="boot-animation" src="/preloader.svg" alt="" />
+          <div class="boot-progress" role="progressbar" aria-label="Loading Space Mission" data-i18n-aria="boot.loading">
             <span class="boot-progress__fill"></span>
           </div>
-          <p class="boot-status" aria-live="polite">INITIALIZING MISSION</p>
+          <p class="boot-status" aria-live="polite" data-i18n="boot.initializing">Initializing mission</p>
         </div>
         <section id="boot-setup" class="boot-stage boot-dialog-stage" hidden>
           <div class="boot-dialog">
-            <p class="boot-step">STEP 01 / 02</p>
-            <h2 data-i18n="IDIOMA Y SONIDO">IDIOMA Y SONIDO</h2>
+            <p class="boot-step" data-i18n="boot.stepOne">Step 1 of 2</p>
+            <h2 data-i18n="boot.setup">Language and audio</h2>
             <label class="boot-form-field">
-              <span data-i18n="IDIOMA">IDIOMA</span>
-              <select id="boot-language" name="language">
-                <option value="en" selected>English</option>
-                <option value="es">Español</option>
-                <option value="pt">Português</option>
-                <option value="de">Deutsch</option>
-                <option value="it">Italiano</option>
-                <option value="zh">中文（简体）</option>
-                <option value="ja">日本語</option>
+              <span data-i18n="common.language">Language</span>
+              <select id="boot-language" name="language" data-language-picker>
+                <option value="en" selected lang="en">English</option>
+                <option value="es" lang="es">Español</option>
               </select>
             </label>
             <div class="boot-setup-toggles">
-              <label class="boot-toggle-row"><span data-i18n="AUDIO">AUDIO</span><input type="checkbox" id="setup-audio" checked role="switch" /><span class="boot-switch" aria-hidden="true"><span class="boot-switch-on">ON</span><span class="boot-switch-off">OFF</span></span></label>
-              <label class="boot-toggle-row"><span data-i18n="ANIMACIONES Y VIDEO">ANIMACIONES Y VIDEO</span><input type="checkbox" id="setup-animations" checked role="switch" /><span class="boot-switch" aria-hidden="true"><span class="boot-switch-on">ON</span><span class="boot-switch-off">OFF</span></span></label>
+              <label class="boot-toggle-row"><span data-i18n="common.audio">Audio</span><input type="checkbox" id="setup-audio" checked role="switch" /><span class="boot-switch" aria-hidden="true"><span class="boot-switch-on" data-i18n="common.on">ON</span><span class="boot-switch-off" data-i18n="common.off">OFF</span></span></label>
+              <label class="boot-toggle-row"><span data-i18n="common.animations">Animations and video</span><input type="checkbox" id="setup-animations" checked role="switch" /><span class="boot-switch" aria-hidden="true"><span class="boot-switch-on" data-i18n="common.on">ON</span><span class="boot-switch-off" data-i18n="common.off">OFF</span></span></label>
             </div>
             <label class="boot-form-field boot-range-field">
-              <span><span data-i18n="MÚSICA">MÚSICA</span><output id="setup-music-value">18%</output></span>
+              <span><span data-i18n="common.music">Music</span><output id="setup-music-value">18%</output></span>
               <input type="range" name="musicVolume" min="0" max="100" value="18" />
             </label>
             <label class="boot-form-field boot-range-field">
-              <span><span data-i18n="NOTIFICACIONES Y EFECTOS">NOTIFICACIONES Y EFECTOS</span><output id="setup-effects-value">45%</output></span>
+              <span><span data-i18n="common.effects">Notifications and sound effects</span><output id="setup-effects-value">45%</output></span>
               <input type="range" name="effectsVolume" min="0" max="100" value="45" />
             </label>
-            <button type="button" id="setup-continue" class="boot-primary" data-i18n="CONTINUAR">CONTINUAR</button>
+            <button type="button" id="setup-continue" class="boot-primary" data-i18n="common.continue">Continue</button>
           </div>
         </section>
         <section id="boot-consent" class="boot-stage boot-dialog-stage" hidden>
           <div class="boot-dialog">
-            <p class="boot-step">STEP 02 / 02</p>
-            <h2 data-i18n="GUARDADO, PERMISOS Y TÉRMINOS">GUARDADO, PERMISOS Y TÉRMINOS</h2>
-            <p>Space Mission utiliza almacenamiento local para guardar partidas y preferencias. Una cookie recuerda tu autorización; también puedes jugar sin guardar el progreso.</p>
+            <p class="boot-step" data-i18n="boot.stepTwo">Step 2 of 2</p>
+            <h2 data-i18n="boot.terms">Storage, permissions and terms</h2>
+            <p data-i18n="boot.termsDescription">Space Mission uses browser storage to remember your settings. A cookie records your choice. You can also play without saving.</p>
             <div class="boot-consent__options">
-              <label><input id="consent-terms" type="checkbox" /> Acepto los términos: Space Mission es una simulación de ingeniería espacial. Guardar es opcional; el audio y las animaciones dependen del navegador. Las traducciones se realizan con recursos incluidos o funciones locales disponibles.</label>
+              <label><input id="consent-terms" type="checkbox" /> <span data-i18n="boot.termsAccept">I accept the terms. Space Mission is an educational space engineering simulation. Storage is optional, and audio and video playback depend on your browser.</span></label>
             </div>
             <div class="boot-consent__actions">
-              <button id="consent-accept" type="button" class="boot-primary" data-i18n="ACEPTAR Y CONTINUAR" disabled>ACEPTAR Y CONTINUAR</button>
-              <button id="consent-decline" type="button" disabled data-i18n="CONTINUAR SIN GUARDAR">CONTINUAR SIN GUARDAR</button>
+              <button id="consent-accept" type="button" class="boot-primary" data-i18n="boot.allow" disabled>Allow storage and continue</button>
+              <button id="consent-decline" type="button" disabled data-i18n="boot.decline">Continue without saving</button>
             </div>
           </div>
         </section>
-        <section id="boot-brands" class="boot-stage boot-brands" hidden aria-label="Presentación de Space Mission">
+        <section id="boot-brands" class="boot-stage boot-brands" hidden aria-label="Space Mission presentation" data-i18n-aria="boot.brandIntro">
           <div class="boot-brand-logos">
-            <img src="/logo.svg" alt="Emblema de Space Mission" />
-            <img src="/favicon.svg" alt="Símbolo de Space Mission" />
+            <img src="/logo.svg" alt="Space Mission emblem" data-i18n-alt="boot.emblem" />
+            <img src="/favicon.svg" alt="Space Mission symbol" data-i18n-alt="boot.symbol" />
           </div>
           <div class="boot-recommendations">
-            <div class="boot-recommendation"><span class="boot-recommendation__icon" aria-hidden="true"><svg viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><rect x="5" y="9" width="38" height="25" rx="2"/><path d="M24 34v7m-10 0h20"/></svg></span><span data-i18n="COMPUTADORA RECOMENDADA">COMPUTADORA RECOMENDADA</span></div>
-            <div class="boot-recommendation"><span class="boot-recommendation__icon" aria-hidden="true"><svg viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M9 28v-4a15 15 0 0 1 30 0v4"/><rect x="5" y="26" width="9" height="15" rx="3"/><rect x="34" y="26" width="9" height="15" rx="3"/></svg></span><span data-i18n="AUDÍFONOS RECOMENDADOS">AUDÍFONOS RECOMENDADOS</span></div>
+            <div class="boot-recommendation"><span class="boot-recommendation__icon" aria-hidden="true"><svg viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><rect x="5" y="9" width="38" height="25" rx="2"/><path d="M24 34v7m-10 0h20"/></svg></span><span data-i18n="boot.desktop">Computer recommended</span></div>
+            <div class="boot-recommendation"><span class="boot-recommendation__icon" aria-hidden="true"><svg viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M9 28v-4a15 15 0 0 1 30 0v4"/><rect x="5" y="26" width="9" height="15" rx="3"/><rect x="34" y="26" width="9" height="15" rx="3"/></svg></span><span data-i18n="boot.headphones">Headphones recommended</span></div>
           </div>
-          <p id="boot-rotate-hint" hidden data-i18n="GIRA TU TELÉFONO PARA JUGAR EN HORIZONTAL">GIRA TU TELÉFONO PARA JUGAR EN HORIZONTAL</p>
-          <p class="boot-tagline" data-i18n="UNA MISIÓN ESTÁ POR COMENZAR">UNA MISIÓN ESTÁ POR COMENZAR</p>
+          <p id="boot-rotate-hint" hidden data-i18n="boot.rotate">Rotate your phone to landscape to play</p>
+          <p class="boot-tagline" data-i18n="boot.tagline">A mission is about to begin</p>
         </section>
-        <section id="boot-localizing" class="boot-stage boot-localizing" hidden aria-label="Preparando idioma">
-          <div class="boot-dialog boot-localizing-dialog">
-            <object class="boot-localizing-svg" data="/preloader.svg" type="image/svg+xml" aria-label="Animación de preparación del idioma">
-              <img src="/preloader.svg" alt="Preparando traducciones" />
-            </object>
-            <h2 data-i18n="PREPARANDO TRADUCCIONES">PREPARANDO TRADUCCIONES</h2>
-            <div class="boot-localizing-progress" role="progressbar" aria-label="Preparando traducciones">
-              <span id="boot-localizing-fill"></span>
-            </div>
-            <p id="boot-localizing-label" data-i18n="OPTIMIZANDO TEXTOS DEL JUEGO">OPTIMIZANDO TEXTOS DEL JUEGO</p>
-          </div>
-        </section>
-        <section id="boot-intro" class="boot-stage boot-intro" hidden aria-label="Introducción del logotipo">
-          <video id="logo-intro-video" src="/logo-intro.mp4" muted playsinline preload="auto" aria-label="Video introductorio Space Mission"></video>
+        <section id="boot-intro" class="boot-stage boot-intro" hidden aria-label="Space Mission logo introduction" data-i18n-aria="boot.logoIntro">
+          <video id="logo-intro-video" src="/logo-intro.mp4" muted playsinline preload="auto" aria-label="Space Mission logo introduction" data-i18n-aria="boot.logoIntro"></video>
         </section>
       </div>
 
-      <button id="settings-toggle" type="button" aria-label="Configuración" title="Configuración" aria-expanded="false">⚙</button>
-      <section id="settings-dialog" class="settings-dialog" role="dialog" aria-modal="false" aria-label="Configuración de Space Mission" hidden>
+      <button id="settings-toggle" type="button" aria-label="Settings" data-i18n-aria="settings.title" title="Settings" data-i18n-title="settings.title" aria-expanded="false">⚙</button>
+      <section id="settings-dialog" class="settings-dialog" role="dialog" aria-modal="false" aria-label="Space Mission settings" data-i18n-aria="settings.label" hidden>
         <div class="settings-dialog__heading">
-          <h2>CONFIGURACIÓN</h2>
-          <button type="button" data-action="close-settings" aria-label="Cerrar configuración">✕</button>
+          <h2 data-i18n="settings.title">Settings</h2>
+          <button type="button" data-action="close-settings" aria-label="Close settings" data-i18n-aria="settings.close">✕</button>
         </div>
-        <label class="settings-dialog__option"><span>Audio <small>Music and game sound</small></span><input type="checkbox" name="audio" checked /></label>
-        <label class="settings-dialog__option"><span>Language <small>Choose game language</small></span>
-          <select id="settings-language" name="language"><option value="en">English</option><option value="es">Español</option><option value="pt">Português</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="zh">中文（简体）</option><option value="ja">日本語</option></select>
+        <label class="settings-dialog__option"><span><span data-i18n="common.audio">Audio</span> <small data-i18n="settings.audioHelp">Music and game sound</small></span><input type="checkbox" name="audio" checked /></label>
+        <label class="settings-dialog__option"><span><span data-i18n="common.language">Language</span> <small data-i18n="settings.languageHelp">Choose the language for the entire game</small></span>
+          <select id="settings-language" name="language" data-language-picker><option value="en" lang="en">English</option><option value="es" lang="es">Español</option></select>
         </label>
-        <label class="settings-dialog__option"><span>Animaciones / video <small>Videos y animaciones del juego</small></span><input type="checkbox" name="animations" checked /></label>
-        <label class="settings-dialog__volume"><span>Volumen de música <output data-value="musicVolume">18%</output></span><input type="range" name="musicVolume" min="0" max="100" value="18" /></label>
-        <label class="settings-dialog__volume"><span>Notificaciones y efectos <output data-value="effectsVolume">45%</output></span><input type="range" name="effectsVolume" min="0" max="100" value="45" /></label>
+        <label class="settings-dialog__option"><span><span data-i18n="common.animations">Animations and video</span> <small data-i18n="settings.animationsHelp">Show animations and play videos</small></span><input type="checkbox" name="animations" checked /></label>
+        <label class="settings-dialog__volume"><span><span data-i18n="settings.musicVolume">Music volume</span> <output data-value="musicVolume">18%</output></span><input type="range" name="musicVolume" min="0" max="100" value="18" /></label>
+        <label class="settings-dialog__volume"><span><span data-i18n="common.effects">Notifications and sound effects</span> <output data-value="effectsVolume">45%</output></span><input type="range" name="effectsVolume" min="0" max="100" value="45" /></label>
         <p class="settings-storage-status"></p>
-        <button type="button" class="settings-allow" data-action="allow-storage">PERMITIR GUARDAR PARTIDAS</button>
-        <button type="button" class="settings-clear" data-action="clear-preferences">BORRAR PREFERENCIAS</button>
+        <button type="button" class="settings-allow" data-action="allow-storage" data-i18n="settings.allowStorage">Allow browser storage</button>
+        <button type="button" class="settings-clear" data-action="clear-preferences" data-i18n="settings.clear">Reset preferences</button>
       </section>
 
-      <div class="game-stage" id="game-container" tabindex="-1" aria-label="Mapa explorable del complejo espacial">
-        <header class="hud-top" aria-label="Estado de la expedición">
+      <div class="game-stage" id="game-container" tabindex="-1" aria-label="Explorable Mission Control map" data-i18n-aria="map.label">
+        <header class="hud-top" aria-label="Mission status" data-i18n-aria="map.hud">
           <div class="brand-lockup">
             <img src="/logo.svg" alt="" class="brand-mark" />
-            <div><strong>SPACE<span>MISSION</span></strong><small>COMPLEJO ORBITAL · NIVEL 01</small></div>
+            <div><strong>SPACE<span>MISSION</span></strong><small data-i18n="map.brand">ORBITAL COMPLEX · LEVEL 01</small></div>
           </div>
           <div class="status-cluster">
-            <span class="signal-dot"></span><span>ENLACE ESTABLE</span>
-            <i></i><span class="status-zone" id="zone-label">CENTRO DE CONTROL</span>
+            <span class="signal-dot"></span><span data-i18n="map.signal">CONNECTION STABLE</span>
+            <i></i><span class="status-zone" id="zone-label" data-i18n="map.zone">MISSION CONTROL</span>
           </div>
-          <button class="icon-button fullscreen-button" id="fullscreen-button" aria-label="Pantalla completa" title="Pantalla completa">⛶</button>
+          <button class="icon-button fullscreen-button" id="fullscreen-button" aria-label="Full screen" data-i18n-aria="map.fullscreen" title="Full screen" data-i18n-title="map.fullscreen">⛶</button>
         </header>
 
         <div class="interaction-prompt" id="interaction-prompt" aria-live="polite"></div>
         <div class="door-notice" id="door-notice" aria-live="polite"></div>
 
-        <div class="media-panel is-hidden" id="media-panel" role="dialog" aria-label="Controles de pantalla multimedia">
-          <div class="media-panel-heading"><div><span class="section-tag">MEDIA SCREEN // LCC-01</span><strong>Pantalla de misión</strong></div><button class="media-close" id="media-close" aria-label="Cerrar controles">×</button></div>
-          <p>Contenido reproducido en la pantalla del centro de control.</p>
-          <div class="media-actions"><button id="media-play">▶ Iniciar</button><button id="media-pause">Ⅱ Pausar</button><button id="media-change">↗ Cambiar medio</button></div>
-          <input id="media-file" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" hidden />
+        <div class="media-panel is-hidden" id="media-panel" role="dialog" aria-label="Media display controls" data-i18n-aria="media.label">
+          <div class="media-panel-heading"><div><span class="section-tag" data-i18n="media.tag">MEDIA DISPLAY // LCC-01</span><strong data-i18n="media.title">Mission display</strong></div><button class="media-close" id="media-close" aria-label="Close display controls" data-i18n-aria="media.close">×</button></div>
+          <p data-i18n="media.description">Manage what plays on the Mission Control display.</p>
+          <div class="media-actions"><button id="media-play" data-i18n="media.play">▶ Play</button><button id="media-pause" data-i18n="media.pause">Ⅱ Pause</button><button id="media-change" data-i18n="media.change">↗ Change media</button></div>
+          <input id="media-file" type="file" data-i18n-aria="media.select" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" hidden />
           <small>PNG · JPG · WEBP · MP4 · WEBM</small>
         </div>
 
-        <div class="pause-layer is-hidden" id="pause-layer">
-          <div class="pause-card"><span class="section-tag">SISTEMA EN ESPERA</span><strong>Exploración en pausa</strong><p>El complejo permanece en línea. Tu recorrido se reanudará donde lo dejaste.</p><button id="resume-button">REANUDAR RECORRIDO <span>↗</span></button><small>ESC PARA VOLVER</small></div>
-        </div>
-
-        <div class="mobile-controls" id="mobile-controls" aria-label="Controles táctiles">
-          <div class="dpad"><button data-move="up" aria-label="Arriba">↑</button><button data-move="left" aria-label="Izquierda">←</button><button data-move="down" aria-label="Abajo">↓</button><button data-move="right" aria-label="Derecha">→</button></div>
-          <button class="mobile-action" id="mobile-interact">E<br /><small>USAR</small></button><button class="mobile-pause" id="mobile-pause" aria-label="Pausa">Ⅱ</button>
+        <div class="mobile-controls" id="mobile-controls" aria-label="Touch controls" data-i18n-aria="map.touch">
+          <div class="dpad"><button data-move="up" aria-label="Up" data-i18n-aria="common.up">↑</button><button data-move="left" aria-label="Left" data-i18n-aria="common.left">←</button><button data-move="down" aria-label="Down" data-i18n-aria="common.down">↓</button><button data-move="right" aria-label="Right" data-i18n-aria="common.right">→</button></div>
+          <button class="mobile-action" id="mobile-interact" aria-label="Interact" data-i18n-aria="map.interact">E<br /><small data-i18n="map.use">USE</small></button><button class="mobile-pause" id="mobile-pause" aria-label="Pause" data-i18n-aria="common.pause">Ⅱ</button>
         </div>
 
         <details class="mission-launcher">
-          <summary aria-label="Abrir juegos de misión">☰ <span>JUEGOS</span></summary>
-          <nav aria-label="Juegos de misión">
-            <a href="/games/launch/">01 · Lanzamiento espacial</a>
-            <a href="/games/rover/">02 · Rover lunar</a>
+          <summary aria-label="Open mission games" data-i18n-aria="map.openGames">☰ <span data-i18n="map.games">Games</span></summary>
+          <nav aria-label="Mission games" data-i18n-aria="map.gamesLabel">
+            <a href="/games/launch/" data-locale-link data-i18n="map.launchLink">01 · Rocket launch</a>
+            <a href="/games/rover/" data-locale-link data-i18n="map.roverLink">02 · Lunar rover</a>
           </nav>
         </details>
 

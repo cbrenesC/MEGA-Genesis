@@ -20,3 +20,9 @@ Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para N
 - El menú **Juegos** ofrece acceso directo a ambas misiones.
 
 Las misiones de lanzamiento y rover están en `public/games/launch/` y `public/games/rover/`, respectivamente.
+
+## Idiomas
+
+El juego incluye inglés (predeterminado) y español. Podés cambiar el idioma durante la bienvenida, en Configuración o en cualquiera de las dos misiones. Los enlaces conservan el idioma mediante `?lang=en` o `?lang=es`, incluso si decidís jugar sin guardar. Con tu permiso, el navegador también recuerda la selección para próximas visitas.
+
+Los textos de interfaz, del canvas y los subtítulos viven en `src/i18n/en.json` y `src/i18n/es.json`. Cada texto nuevo debe tener la misma clave en ambos catálogos. Usá `data-i18n` para texto estático, `data-i18n-aria` para etiquetas accesibles y `t()` para mensajes dinámicos. El video del comandante conserva su audio original y usa subtítulos sincronizados en ambos idiomas.

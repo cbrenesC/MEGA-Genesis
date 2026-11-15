@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
@@ -12,5 +13,12 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     assetsInlineLimit: 4096,
+    rollupOptions: {
+      input: {
+        home: resolve('index.html'),
+        launch: resolve('games/launch/index.html'),
+        rover: resolve('games/rover/index.html'),
+      },
+    },
   },
 });

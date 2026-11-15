@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME, ZONES } from '../config.js';
 import { MapManager } from '../map/MapManager.js';
 import { Player } from '../player/Player.js';
+import { localizeDOM, onLanguageChange, t } from '../i18n/index.js';
 
 export class SpaceCenterScene extends Phaser.Scene {
   constructor() { super('SpaceCenterScene'); }
@@ -19,25 +20,25 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.mapManager.build();
     // Two mission launch consoles and eight educational terminals.
     const lessons = [
-      {title:'MISSION OBJECTIVES',text:'Begin with a scientific question. Define measurable goals, mission success criteria, and the data needed to answer that question.',source:'https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf'},
-      {title:'MISSION REQUIREMENTS',text:'Translate objectives into verifiable requirements for performance, safety, cost, schedule, and operations. Identify constraints and major risks.',source:'https://science.nasa.gov/earth-science/programs/flight-programs/mission-phase-definitions/'},
-      {title:'MISSION ARCHITECTURE',text:'Plan four connected segments: launch, space, ground, and users. Define how each segment supports mission objectives.',source:'https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf'},
-      {title:'PRELIMINARY DESIGN',text:'Compare feasible concepts, select instruments, estimate mass and power, design communications, and establish an initial mission plan.',source:'https://science.nasa.gov/learn/basics-of-space-flight/chapter7-1/'},
-      {title:'SYSTEMS ENGINEERING',text:'Integrate propulsion, power, guidance, software, thermal control, communications, and ground operations into one verified mission.',source:'https://science.nasa.gov/wp-content/uploads/2023/04/nasa_systems_engineering_handbook_0.pdf'},
-      {title:'TESTING AND READINESS',text:'Build and integrate subsystems, verify requirements, conduct environmental tests, and complete flight readiness reviews before launch.',source:'https://science.nasa.gov/learn/basics-of-space-flight/chapter7-2/'},
-      {title:'GROUND OPERATIONS',text:'Prepare mission control, communications, tracking, contingency procedures, launch criteria, and operational timelines.',source:'https://www.nasa.gov/reference/jsc-program-management-execution/'},
-      {title:'MISSION OPERATIONS',text:'Operate the spacecraft or rover, collect scientific data, monitor system health, evaluate results, and plan mission closeout.',source:'https://science.nasa.gov/earth-science/programs/flight-programs/mission-phase-definitions/'},
+      {id:'objectives',source:'https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf'},
+      {id:'requirements',source:'https://science.nasa.gov/earth-science/programs/flight-programs/mission-phase-definitions/'},
+      {id:'architecture',source:'https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf'},
+      {id:'design',source:'https://science.nasa.gov/learn/basics-of-space-flight/chapter7-1/'},
+      {id:'systems',source:'https://science.nasa.gov/wp-content/uploads/2023/04/nasa_systems_engineering_handbook_0.pdf'},
+      {id:'testing',source:'https://science.nasa.gov/learn/basics-of-space-flight/chapter7-2/'},
+      {id:'ground',source:'https://www.nasa.gov/reference/jsc-program-management-execution/'},
+      {id:'operations',source:'https://science.nasa.gov/earth-science/programs/flight-programs/mission-phase-definitions/'},
     ];
     const stations = [];
     for (const y of [402,593]) for (const x of [330,494,658,822,986]) stations.push({x,y});
     const missions = new Map([
-      ['494,402',{title:'ROCKET LAUNCH MISSION',text:'Prepare and execute a launch. Plan the launch window, vehicle readiness, ground systems, and flight safety.',mission:'launch'}],
-      ['822,402',{title:'LUNAR ROVER MISSION',text:'Plan a rover delivery to the Moon. Consider payload, communications, surface mobility, energy, and scientific objectives.',mission:'rover'}],
+      ['494,402',{id:'launch',mission:'launch'}],
+      ['822,402',{id:'rover',mission:'rover'}],
     ]);
     stations.forEach(({x,y}) => {
       const item = missions.get(x+','+y) || lessons.shift();
       this.interactables.push({
-        x,y:y+69,radius:92,label:'[E] '+item.title,
+        x,y:y+69,radius:92, label: () => t('map.prompt', { title: t(`lesson.${item.id}.title`) }),
         interact:()=>this.openTerminal(item)
       });
     });
@@ -65,7 +66,19 @@ export class SpaceCenterScene extends Phaser.Scene {
 
     this.createTerminalDialog();
     this.input.keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'E', 'ESC']);
-    this.events.on('shutdown', () => {
+    if (this.inputsBlocked()) this.input.keyboard.disableGlobalCapture();
+    const removeLanguageListener = onLanguageChange(() => {
+      this.findInteractionTarget();
+      this.updateZoneDisplay(true);
+      if (this.activeNotice) this.doorNotice.textContent = t(this.activeNotice.key, this.activeNotice.params);
+    });
+    const stopWhenSettingsOpen = (event) => {
+      if (event.detail.open && this.scene.isActive()) this.stopMovement();
+    };
+    window.addEventListener('sms-settings-toggled', stopWhenSettingsOpen);
+    this.events.once('shutdown', () => {
+      removeLanguageListener();
+      window.removeEventListener('sms-settings-toggled', stopWhenSettingsOpen);
       this.prompt?.classList.remove('visible');
       this.terminalDialog?.remove();
       this.mapManager?.destroy();
@@ -86,7 +99,7 @@ export class SpaceCenterScene extends Phaser.Scene {
   }
 
   inputsBlocked() {
-    return this.gameContainer.inert || this.terminalOpen;
+    return this.gameContainer.inert || this.terminalOpen || !document.getElementById('settings-dialog').hidden;
   }
 
   stopMovement() {
@@ -122,7 +135,8 @@ export class SpaceCenterScene extends Phaser.Scene {
     }
     this.currentTarget = nearest;
     if (nearest) {
-      this.prompt.textContent = nearest.label;
+      const label = nearest.label();
+      if (this.prompt.textContent !== label) this.prompt.textContent = label;
       this.prompt.classList.add('visible');
     } else {
       this.prompt.classList.remove('visible');
@@ -134,15 +148,16 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.findInteractionTarget();
     const target = this.currentTarget;
     if (!target) {
-      this.showNotice('APPROACH A CONSOLE AND PRESS E');
+      this.showNotice('map.approach');
       return;
     }
     target.interact();
   }
 
-  showNotice(message) {
+  showNotice(key, params) {
     if (!this.doorNotice) return;
-    this.doorNotice.textContent = message;
+    this.doorNotice.textContent = t(key, params);
+    this.activeNotice = { key, params };
     this.doorNotice.classList.add('visible');
     this.noticeTimer?.remove(false);
     this.noticeTimer = this.time.delayedCall(2200, () => this.doorNotice?.classList.remove('visible'));
@@ -153,15 +168,9 @@ export class SpaceCenterScene extends Phaser.Scene {
     if (!zone) return;
     if (force || zone.id !== this.lastZoneId) {
       this.lastZoneId = zone.id;
-      if (this.zoneLabel) this.zoneLabel.textContent = zone.shortTitle;
-      const displayTitles = {
-        control: 'Launch<br />Control Center',
-        engineering: 'Construction &amp;<br />Engineering',
-        resources: 'Resource<br />Management',
-        launchpad: 'Rocket Launch<br />Pad',
-      };
-      if (this.roomTitle) this.roomTitle.innerHTML = displayTitles[zone.id] ?? zone.title;
-      if (this.roomSubtitle) this.roomSubtitle.textContent = zone.subtitle;
+      if (this.zoneLabel) this.zoneLabel.textContent = t(zone.shortTitle);
+      if (this.roomTitle) this.roomTitle.textContent = t(zone.title);
+      if (this.roomSubtitle) this.roomSubtitle.textContent = t(zone.subtitle);
       if (this.sectorReadout) this.sectorReadout.textContent = zone.code;
     }
     if (this.coordinateReadout) {
@@ -207,10 +216,10 @@ export class SpaceCenterScene extends Phaser.Scene {
     dialog.id = 'mission-terminal';
     dialog.className = 'mission-terminal';
     dialog.hidden = true;
-    dialog.innerHTML = `<div class="mission-terminal__panel" role="dialog" aria-modal="true" aria-label="Mission console">
-      <div class="mission-terminal__top"><span>◈ MISSION CONTROL // TERMINAL</span><button type="button" data-close aria-label="Close terminal">✕</button></div>
+    dialog.innerHTML = `<div class="mission-terminal__panel" role="dialog" aria-modal="true" data-i18n-aria="terminal.label">
+      <div class="mission-terminal__top"><span data-i18n="terminal.header">◈ MISSION CONTROL // TERMINAL</span><button type="button" data-close data-i18n-aria="terminal.close">✕</button></div>
       <h2 data-title></h2><p data-description></p>
-      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer">NASA SOURCE ↗</a><a data-launch hidden>START MISSION ▶</a><button type="button" data-close>CLOSE</button></div>
+      <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><a data-launch hidden data-i18n="terminal.launch">Start mission ▶</a><button type="button" data-close data-i18n="common.close">Close</button></div>
     </div>`;
     document.getElementById('app').append(dialog);
     dialog.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>this.closeTerminal()));
@@ -222,16 +231,22 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.terminalOpen=true;
     this.stopMovement();
     this.gameContainer.inert = true;
-    dialog.querySelector('[data-title]').textContent=item.title;
-    dialog.querySelector('[data-description]').textContent=item.text;
+    dialog.querySelector('[data-title]').dataset.i18n = `lesson.${item.id}.title`;
+    dialog.querySelector('[data-description]').dataset.i18n = `lesson.${item.id}.text`;
     const link=dialog.querySelector('[data-source]');
     link.hidden=!item.source;
     if(item.source)link.href=item.source;
     const launchLink = dialog.querySelector('[data-launch]');
     const missionUrl = { launch: '/games/launch/', rover: '/games/rover/' }[item.mission];
     launchLink.hidden = !missionUrl;
-    if (missionUrl) launchLink.href = missionUrl;
-    else launchLink.removeAttribute('href');
+    if (missionUrl) {
+      launchLink.href = missionUrl;
+      launchLink.dataset.localeLink = '';
+    } else {
+      launchLink.removeAttribute('href');
+      delete launchLink.dataset.localeLink;
+    }
+    localizeDOM(dialog);
     dialog.hidden=false;
     dialog.querySelector('[data-close]').focus({ preventScroll: true });
   }

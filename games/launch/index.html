@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" data-i18n-content="launch.description" content="Set the initial fuel, thrust, and launch angle. Reach the target altitude without running out of fuel or exceeding safety limits." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../mission.css" />
+  <title data-i18n="launch.pageTitle">Space Mission · Rocket Launch</title>
+</head>
+<body>
+  <header>
+    <div class="mission-header">
+      <a href="/" data-locale-link>← <span data-i18n="common.backControl">Back to Mission Control</span></a>
+      <label><span data-i18n="common.language">Language</span>
+        <select name="language" data-language-picker>
+          <option value="en" lang="en">English</option>
+          <option value="es" lang="es">Español</option>
+        </select>
+      </label>
+    </div>
+    <h1 data-i18n="launch.title">01 · Rocket launch</h1>
+    <p data-i18n="launch.description">Set the initial fuel, thrust, and launch angle. Reach the target altitude without running out of fuel or exceeding safety limits.</p>
+  </header>
+  <main>
+    <canvas id="view" width="640" height="560" aria-label="Rocket launch simulation" data-i18n-aria="launch.canvas"></canvas>
+    <aside>
+      <label class="mission-slider"><span data-i18n="launch.fuelInitial">Initial fuel</span> <output id="fuelValue">85</output>%
+        <input id="fuel" type="range" min="50" max="100" value="85" />
+      </label>
+      <label class="mission-slider"><span data-i18n="launch.thrust">Thrust</span> <output id="thrustValue">85</output>%
+        <input id="thrust" type="range" min="60" max="100" value="85" />
+      </label>
+      <label class="mission-slider"><span data-i18n="launch.angle">Launch angle</span> <output id="angleValue">0</output>°
+        <input id="angle" type="range" min="-15" max="15" value="0" />
+      </label>
+      <button data-i18n="launch.start" id="start" type="button">Start launch</button>
+      <p id="telemetry"></p>
+      <p id="log" role="status">Objective: reach an altitude of 100 km.</p>
+      <button data-i18n="common.reset" id="reset" type="button">Restart</button>
+    </aside>
+  </main>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>

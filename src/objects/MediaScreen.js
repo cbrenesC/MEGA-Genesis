@@ -1,4 +1,5 @@
 import { GAME } from '../config.js';
+import { t } from '../i18n/index.js';
 
 export class MediaScreen {
   constructor(scene, { x, y, config = GAME.media }) {
@@ -13,7 +14,7 @@ export class MediaScreen {
     this.bindControls();
     scene.interactables.push({
       type: 'media', x, y, radius: 152,
-      label: 'E · CONTROLAR PANTALLA',
+      label: () => t('media.prompt'),
       interact: () => this.togglePanel(),
     });
     if (config?.src) this.loadSource(config.src, config.type ?? this.guessType(config.src));
@@ -46,7 +47,7 @@ export class MediaScreen {
       if (!file) return;
       if (file.type.startsWith('image/')) this.loadImage(URL.createObjectURL(file), file.name);
       else if (file.type.startsWith('video/')) this.loadVideo(URL.createObjectURL(file), file.name);
-      else this.scene.showNotice('FORMATO NO COMPATIBLE · USA PNG, JPG, WEBP, MP4 O WEBM');
+      else this.scene.showNotice('media.format');
       event.target.value = '';
     });
   }
@@ -57,7 +58,7 @@ export class MediaScreen {
     panel.classList.toggle('is-hidden');
     if (!panel.classList.contains('is-hidden')) {
       document.getElementById('media-play')?.focus({ preventScroll: true });
-      this.scene.showNotice('CONTROLES DE PANTALLA MULTIMEDIA');
+      this.scene.showNotice('media.controls');
     }
   }
 
@@ -66,11 +67,11 @@ export class MediaScreen {
   loadSource(src, type = this.guessType(src)) {
     this.pause();
     this.currentUrl = src;
-    if (type === 'video') this.loadVideo(src, src.split('/').pop() || 'Video');
-    else this.loadImage(src, src.split('/').pop() || 'Imagen');
+    if (type === 'video') this.loadVideo(src, src.split('/').pop() || t('media.video'));
+    else this.loadImage(src, src.split('/').pop() || t('media.image'));
   }
 
-  loadImage(src, name = 'Imagen') {
+  loadImage(src, name = t('media.image')) {
     const image = new Image();
     image.onload = () => {
       const key = `media-image-${Date.now()}`;
@@ -81,20 +82,20 @@ export class MediaScreen {
       this.display.setVisible(true).setTexture(key).setDisplaySize(326, 117);
       this.imageKey = key;
       this.currentUrl = src;
-      this.scene.showNotice(`MEDIO CARGADO · ${name.slice(0, 32)}`);
+      this.scene.showNotice('media.loaded', { name: name.slice(0, 32) });
     };
-    image.onerror = () => this.scene.showNotice('NO SE PUDO CARGAR ESA IMAGEN');
+    image.onerror = () => this.scene.showNotice('media.imageError');
     image.src = src;
   }
 
-  loadVideo(src, name = 'Video') {
+  loadVideo(src, name = t('media.video')) {
     this.videoObject?.destroy();
     this.videoObject = this.scene.add.video(this.x, this.y);
     this.videoObject.setDisplaySize(326, 117).setDepth(this.y + 15).setMute(true);
     this.display.setVisible(false);
     this.currentUrl = src;
     this.videoObject.loadURL(src, 'loadeddata', false);
-    this.videoObject.once('error', () => this.scene.showNotice('VIDEO NO COMPATIBLE · PRUEBA MP4 O WEBM'));
+    this.videoObject.once('error', () => this.scene.showNotice('media.videoError'));
     this.videoObject.once('created', () => {
       if (this.videoObject?.video) {
         this.videoObject.video.loop = true;
@@ -102,23 +103,23 @@ export class MediaScreen {
         this.videoObject.video.playsInline = true;
       }
     });
-    this.scene.showNotice(`VIDEO LISTO · ${name.slice(0, 32)} · INICIA CON ▶`);
+    this.scene.showNotice('media.videoReady', { name: name.slice(0, 32) });
   }
 
   async play() {
     if (!this.videoObject && this.currentUrl && this.guessType(this.currentUrl) === 'video') this.loadVideo(this.currentUrl);
     if (this.videoObject) {
-      try { await this.videoObject.play(false); this.scene.showNotice('SIMULACIÓN MULTIMEDIA EN REPRODUCCIÓN'); }
-      catch { this.scene.showNotice('PULSA INICIAR OTRA VEZ PARA PERMITIR LA REPRODUCCIÓN'); }
+      try { await this.videoObject.play(false); this.scene.showNotice('media.playing'); }
+      catch { this.scene.showNotice('media.retry'); }
     } else {
       this.display.setVisible(true);
       this.scene.tweens.add({ targets: this.display, alpha: { from: .7, to: 1 }, duration: 240, yoyo: true, repeat: 1 });
-      this.scene.showNotice('PANTALLA DE CONTROL ACTIVA');
+      this.scene.showNotice('media.active');
     }
   }
 
   pause() {
     if (this.videoObject?.video) this.videoObject.video.pause();
-    this.scene?.showNotice?.('REPRODUCCIÓN EN PAUSA');
+    this.scene?.showNotice?.('media.paused');
   }
 }
