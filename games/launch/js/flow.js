@@ -14,7 +14,7 @@ export function missionOptions() {
   const targetAltKm = orbitKind ? (e.fixedOrbit?.altitudeKm ?? inp.orbit.altitudeKm ?? cal.parkingAltKm) : cal.parkingAltKm;
   const lat = Math.abs(e.site.latitudeDeg);
   const incDeg = orbitKind ? (e.fixedOrbit?.inclinationDeg ?? inp.orbit.inclinationDeg ?? lat) : lat;
-  return { payloadKg: e.launchMassKg, destId: dest, targetAltKm, latDeg: lat, incDeg, v0: missionRotationBonus(dest, lat, incDeg, app.data.flight) };
+  return { payloadKg: e.launchMassKg, fuelFraction: app.rocketFuelPct / 100, destId: dest, targetAltKm, latDeg: lat, incDeg, v0: missionRotationBonus(dest, lat, incDeg, app.data.flight) };
 }
 
 /**

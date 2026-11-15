@@ -36,11 +36,11 @@ select, input[type=number] { min-height: 44px; padding: 8px 10px; border-radius:
 .brand b { font-size: 1.05rem; }
 .kicker { font: 700 .72rem/1 ui-monospace, monospace; letter-spacing: .12em; color: var(--cyan); }
 .steps { display: flex; gap: 4px; margin-left: 8px; overflow-x: auto; scrollbar-width: none; flex: 1 1 auto; }
-.steps button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 10px; background: transparent; border-color: #28445a; color: var(--muted); white-space: nowrap; }
-.steps button b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; background: #1b3449; color: var(--white); font-size: .8rem; }
-.steps button.is-active { color: var(--white); border-color: var(--cyan); }
-.steps button.is-active b { background: var(--cyan); color: #092029; }
-.steps button.is-done b { background: var(--green); color: #092029; }
+.steps .step { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 10px; background: transparent; border-color: #28445a; color: var(--muted); white-space: nowrap; }
+.steps .step b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; background: #1b3449; color: var(--white); font-size: .8rem; }
+.steps .step.is-active { color: var(--white); border-color: var(--cyan); }
+.steps .step.is-active b { background: var(--cyan); color: #092029; }
+.steps .step.is-done b { background: var(--green); color: #092029; }
 .res-pills .pills { display: flex; gap: 6px; flex-wrap: nowrap; }
 .pill { display: inline-flex; gap: 4px; align-items: center; padding: 4px 10px; border-radius: 999px; background: #0f2236; border: 1px solid #28445a; font: 700 .82rem ui-monospace, monospace; white-space: nowrap; }
 .badge { font-size: .76rem; padding: 4px 10px; border-radius: 999px; border: 1px solid #8a7433; color: var(--yellow); white-space: nowrap; }
@@ -339,8 +339,8 @@ pre.json { max-height: 320px; overflow: auto; background: #061020; border: 1px s
   .topbar .back span { display: none; }
   .topbar .back { min-width: 36px; justify-content: center; font-size: 1.3rem; }
   .steps { order: 3; flex-basis: 100%; margin-left: 0; }
-  .steps button span { display: none; }
-  .steps button.is-active span { display: inline; }
+  .steps .step span { display: none; }
+  .steps .step.is-active span { display: inline; }
   .res-pills { flex: 1; min-width: 0; }
   .res-pills .pills { gap: 4px; justify-content: flex-end; }
   .pill { padding: 3px 7px; font-size: .74rem; }

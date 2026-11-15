@@ -13,11 +13,10 @@
     <div id="game" aria-hidden="true"></div>
 
     <header class="topbar" id="topbar">
-      <a class="back" href="/" data-locale-link title="Volver a Mission Control">← <span>Complejo</span></a>
+      <a class="back" href="/" data-mission-exit data-locale-link title="Volver a Mission Control">← <span>Complejo</span></a>
       <div class="brand"><span class="kicker">MÓDULO 01</span><b>Lanzamiento</b></div>
       <nav class="steps" id="steps" aria-label="Pasos del juego"></nav>
       <div id="res-pills" class="res-pills" aria-label="Recursos de la misión"></div>
-      <a class="back" href="./practica-ascenso.html" data-locale-link>Práctica</a>
       <span class="badge approx" title="Todas las cifras están redondeadas o simplificadas para el juego.">≈ datos aproximados para el juego</span>
     </header>
 
@@ -32,7 +31,8 @@
         <h1>Preparando la plataforma…</h1>
         <div class="boot-bar"><i></i></div>
         <div class="fact" id="boot-fact"></div>
-        <p class="muted" id="boot-error" hidden></p>
+        <p class="muted" id="boot-error" role="alert" hidden></p>
+        <button type="button" id="boot-back" data-mission-exit data-i18n="common.backControl" hidden>Volver al centro de control</button>
       </div>
     </div>
 

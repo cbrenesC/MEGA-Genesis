@@ -4,7 +4,12 @@ export const DISPLAY = { x: 640, y: 171, width: 728, height: 188, accessX: 640, 
 export const STATIONS = [
   { x: 451, y: 322, id: 'launch', mission: 'launch' },
   { x: 829, y: 322, id: 'rover', mission: 'rover' },
-  ...[[431, ['objectives', 'requirements', 'architecture', 'design']],
-    [573, ['systems', 'testing', 'ground', 'operations']]].flatMap(([y, ids]) =>
-    [259, 451, 829, 1021].map((x, i) => ({ x, y, id: ids[i] }))),
+  { x: 259, y: 431, id: 'objectives', setup: 'launch', part: 'mission' },
+  { x: 451, y: 431, id: 'requirements', setup: 'launch', part: 'payload' },
+  { x: 259, y: 573, id: 'systems', setup: 'launch', part: 'vehicle' },
+  { x: 451, y: 573, id: 'testing', setup: 'launch', part: 'review' },
+  { x: 829, y: 431, id: 'architecture', setup: 'rover', part: 'mobility' },
+  { x: 1021, y: 431, id: 'design', setup: 'rover', part: 'power' },
+  { x: 829, y: 573, id: 'ground', setup: 'rover', part: 'science' },
+  { x: 1021, y: 573, id: 'operations', setup: 'rover', part: 'comms' },
 ];

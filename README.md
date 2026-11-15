@@ -1,6 +1,6 @@
 # Space Mission · MEGA Genesis
 
-Juego web en pixel art con un centro de control explorable hecho en Phaser 3. Ocho consolas explican el diseño de misiones espaciales y enlazan a recursos de la NASA. Las dos consolas principales abren las misiones de lanzamiento y rover lunar.
+Juego web en pixel art con un centro de control explorable hecho en Phaser 3. Ocho consolas explican el diseño de misiones espaciales y enlazan a recursos de la NASA. Las dos consolas amarillas abren las simulaciones de lanzamiento y rover lunar con la configuración preparada en las estaciones del mapa.
 
 ## Ejecutar localmente
 
@@ -20,6 +20,10 @@ Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para N
 - El menú **Juegos** ofrece acceso directo a ambas misiones.
 
 Las misiones de lanzamiento y rover están en `games/launch/` y `games/rover/`, respectivamente.
+
+- **Izquierda · lanzamiento:** misión y presupuesto, carga y combustible, elección de cohete y sitio, y revisión de vuelo. Confirmá el plan en la estación de revisión y luego iniciá en la consola amarilla de lanzamiento.
+- **Derecha · rover:** movilidad, energía, ciencia y comunicaciones. La consola amarilla del rover arranca el aterrizaje cuando el diseño está completo y no excede 145 kg ni 850 créditos.
+- Volver de una simulación conserva tu posición y tus elecciones. Sin permiso de almacenamiento las configuraciones duran lo que dure la visita, sin grabarse en el navegador.
 
 El botón ⛶ abre el centro de control en pantalla completa. En ventanas anchas se encuadra toda la sala. En pantallas compactas, la cámara sigue al astronauta para conservar la legibilidad.
 

@@ -16,6 +16,7 @@ export const RULES = Object.freeze({
   roverRadius: 18,
   bumpDraw: 1.2,        // u/s extra al empujar contra un obstáculo
   maxDt: 0.05,
+  photoTxMultiplier: 0.7, // las fotos ocupan un paquete más pequeño que las muestras
   photoRange: 90,       // distancia máxima para fotografiar un punto de interés
   scanTime: 2, scanEnergy: 5, scanRange: 320, // radar de subsuelo: revela muestras ocultas
   ackTime: 1.2,         // s que tarda la Tierra en confirmar la recepción (visual, determinista)
@@ -121,7 +122,7 @@ export function selectComponent(build, cat, id) {
 export function computeBuild(build) {
   const pick = {};
   const t = { mass: 0, cost: 0, capacity: 0, solar: 0, speed: 0, moveDraw: 0, idleDraw: RULES.idleDraw, bumpMul: 1,
-    analysisTime: 0, analysisEnergy: 0, quality: 0, dataMul: 0, txTime: 0, txEnergy: 0, photoTime: 0, photoEnergy: 0 };
+    analysisTime: 0, analysisEnergy: 0, quality: 0, dataMul: 0, txTime: 0, txEnergy: 0, photoTxTime: 0, photoTxEnergy: 0, photoTime: 0, photoEnergy: 0 };
   for (const cat of CATEGORIES) {
     const comp = getComponent(cat.id, build && build[cat.id]);
     pick[cat.id] = comp;
@@ -137,7 +138,7 @@ export function computeBuild(build) {
   }
   if (camera) { t.idleDraw += camera.draw; t.dataMul = camera.dataMul; t.photoTime = camera.photoTime; t.photoEnergy = camera.photoEnergy; }
   if (instrument) { t.analysisTime = instrument.analysisTime; t.analysisEnergy = instrument.analysisEnergy; t.quality = instrument.quality; }
-  if (comms) { t.txTime = comms.txTime; t.txEnergy = comms.txEnergy; }
+  if (comms) { t.txTime = comms.txTime; t.txEnergy = comms.txEnergy; t.photoTxTime = comms.txTime * RULES.photoTxMultiplier; t.photoTxEnergy = comms.txEnergy * RULES.photoTxMultiplier; }
   t.mass = Math.round(t.mass * 100) / 100;
   t.moveDraw = Math.round(t.moveDraw * 1000) / 1000;
   t.speed = Math.round(t.speed * 100) / 100;
@@ -222,7 +223,7 @@ function plan(m, type) {
     const smp = m.samples.find((s) => s.state === 'analyzed');
     if (smp) return { target: smp, kind: 'sample', duration: st.txTime, energy: st.txEnergy, from: 'analyzed', to: 'transmitted', label: 'Transmisión' };
     const ph = m.photos.find((p) => p.state === 'captured');
-    if (ph) return { target: ph, kind: 'photo', duration: st.txTime * 0.7, energy: st.txEnergy * 0.7, from: 'captured', to: 'transmitted', label: 'Transmisión' };
+    if (ph) return { target: ph, kind: 'photo', duration: st.photoTxTime, energy: st.photoTxEnergy, from: 'captured', to: 'transmitted', label: 'Transmisión' };
     return { reason: 'No hay análisis ni fotos pendientes de transmitir.' };
   }
   if (type === 'photo') {
@@ -426,25 +427,31 @@ export function snapshot(m) {
 // Devuelve una misión válida o null si el guardado está dañado / es de otra versión.
 export function restoreMission(snap) {
   try {
-    if (!snap || snap.v !== 2 || !validateBuild(snap.build).ok) return null;
+    if (!snap || ![1, 2].includes(snap.v) || !validateBuild(snap.build).ok) return null;
+    const legacy = snap.v === 1;
     if (snap.phase !== 'landing' && snap.phase !== 'explore') return null;
     const m = createMission(snap.build);
-    const nums = [snap.t, snap.elapsed, snap.battery, snap.minBattery, snap.energyUsed, snap.bumps, snap.distance, snap.scans, snap.rover && snap.rover.x, snap.rover && snap.rover.y];
-    if (!nums.every(num) || !Array.isArray(snap.samples) || snap.samples.length !== m.samples.length || !Array.isArray(snap.photos) || snap.photos.length !== m.photos.length) return null;
+    const nums = [snap.t, snap.elapsed, snap.battery, snap.minBattery, snap.energyUsed, snap.bumps, snap.distance, snap.rover && snap.rover.x, snap.rover && snap.rover.y];
+    if (!nums.every(num) || !Array.isArray(snap.samples) || snap.samples.length !== m.samples.length) return null;
+    if (!legacy && (!num(snap.scans) || !Array.isArray(snap.photos) || snap.photos.length !== m.photos.length)) return null;
+    const sampleIds = new Set();
     for (const s of snap.samples) {
       const target = m.samples.find((x) => x.id === s.id);
-      if (!target || !SAMPLE_STATES.includes(s.state)) return null;
+      if (!target || sampleIds.has(s.id) || !SAMPLE_STATES.includes(s.state)) return null;
+      sampleIds.add(s.id);
       target.state = s.state;
       target.revealed = !target.hidden || s.revealed === true || s.state !== 'available';
     }
-    for (const p of snap.photos) {
+    const photoIds = new Set();
+    for (const p of legacy ? [] : snap.photos) {
       const target = m.photos.find((x) => x.id === p.id);
-      if (!target || !PHOTO_STATES.includes(p.state)) return null;
+      if (!target || photoIds.has(p.id) || !PHOTO_STATES.includes(p.state)) return null;
+      photoIds.add(p.id);
       target.state = p.state;
       if (p.state === 'transmitted') m.acks[p.id] = 1;
     }
     for (const s of m.samples) if (s.state === 'transmitted') m.acks[s.id] = 1;
-    m.phase = snap.phase; m.t = Math.max(0, snap.t); m.elapsed = Math.max(0, snap.elapsed); m.scans = Math.max(0, Math.floor(snap.scans));
+    m.phase = snap.phase; m.t = Math.max(0, snap.t); m.elapsed = Math.max(0, snap.elapsed); m.scans = legacy ? 0 : Math.max(0, Math.floor(snap.scans));
     m.rover.x = clamp(snap.rover.x, 0, WORLD.w); m.rover.y = clamp(snap.rover.y, 0, WORLD.h);
     if (blockedAt(m.rover.x, m.rover.y)) { m.rover.x = START.x; m.rover.y = START.y; }
     m.rover.facing = snap.rover.facing === -1 ? -1 : 1;
