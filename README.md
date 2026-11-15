@@ -14,12 +14,14 @@ Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para N
 ## Cómo jugar
 
 - **WASD o flechas** para caminar. En móviles, usa el pad táctil.
-- **E** para abrir la consola más cercana. Selecciona **Start Mission** en una consola de misión.
-- **Esc** para cerrar la consola o pausar y reanudar el recorrido.
+- **E** cerca de un personaje para hablar o cerca de una consola para abrirla. En móviles, usá **Usar**. Seleccioná **Start Mission** en una consola de misión.
+- **Esc** para cerrar un diálogo o pausar y reanudar el recorrido.
 - La introducción del comandante se puede saltar y no aparece si desactivas **Animaciones y video**.
 - El menú **Juegos** ofrece acceso directo a ambas misiones.
 
-Las misiones de lanzamiento y rover están en `public/games/launch/` y `public/games/rover/`, respectivamente.
+Las misiones de lanzamiento y rover están en `games/launch/` y `games/rover/`, respectivamente.
+
+El astronauta y los cuatro tripulantes del centro de control (Kade, Ríos, Vega y Sol) usan los sprites cenitales de `demogame`. Cada tripulante ofrece tres consejos sobre su área y un recurso de la NASA.
 
 ## Idiomas
 

@@ -959,3 +959,29 @@ html.sms-reduced-animations #boot .boot-consent {
 }
 #commander-captions[aria-pressed="false"] { opacity: .7; }
 #settings-dialog { max-height: calc(100dvh - 65px); overflow-y: auto; }
+
+.mission-terminal__profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.mission-terminal__profile img {
+  box-sizing: content-box;
+  width: 60px;
+  height: 60px;
+  flex: 0 0 auto;
+  padding: 6px;
+  background: #091925;
+  border: 2px solid #548995;
+  image-rendering: pixelated;
+}
+.mission-terminal__profile img[hidden], .mission-terminal__role[hidden] { display: none; }
+.mission-terminal__profile h2 { margin: 0; }
+.mission-terminal p.mission-terminal__role {
+  margin: 4px 0 0;
+  font-size: 19px;
+  color: #a9c4ce;
+}
+@media (max-width: 500px) {
+  .mission-terminal__profile img { width: 40px; height: 40px; }
+}
