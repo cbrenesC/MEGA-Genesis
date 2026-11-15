@@ -631,3 +631,9 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - **Tierra real** (`scenes/earth.js`): mapa del mundo aproximado (franjas de 5°) con continentes, desiertos, hielo y nubes. El globo se orienta para que el sitio de lanzamiento real quede bajo la plataforma y gira con el suelo. Con la cámara al máximo, el encuadre centra el planeta (`anchorY`).
 - **Sitio de lanzamiento**: losa y foso de llamas, torre de servicio con brazos, cuatro torres pararrayos con cables, torre de agua, tanques, hangar; mar y playa al este; paisaje por sitio (Florida llana con el edificio de ensamblaje, Vandenberg seco con cerros, Kourou selva, Kwajalein arena).
 - **Pruebas**: `tests/world.test.mjs` 23 (mapa y orientación). Arte revisado con una página de prueba temporal en el navegador; no probado dentro del juego (requiere Vite/Node).
+
+## V3.4 · Mapa de órbita en pixel art con la Tierra real (módulo LAUNCH)
+
+- `MapScene.js` se dibuja ahora en el mismo lienzo pequeño que el vuelo (`PixelView`): Tierra de `earth.js` (continentes, hielo, nubes) orientada igual que en el vuelo, atmósfera, círculos a trazos, trayectoria, marcas y cohete en píxeles; etiquetas con la letra monoespaciada del HUD.
+- Nuevas primitivas en `render.js`: `drawGlobe`, `clipDisc`, `ring` (recortadas a la pantalla, sirven con cualquier zoom).
+- Revisado con una página de prueba (Phaser simulado); no probado dentro del juego (requiere Vite/Node).

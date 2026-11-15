@@ -72,12 +72,64 @@ export function line(ctx, x0, y0, x1, y1, color) {
   const dx = Math.abs(x1 - x0); const dy = -Math.abs(y1 - y0);
   const sx = x0 < x1 ? 1 : -1; const sy = y0 < y1 ? 1 : -1;
   let err = dx + dy;
-  for (let i = 0; i < 400; i++) {
+  for (let i = 0; i < 1600; i++) {
     ctx.fillRect(x0, y0, 1, 1);
     if (x0 === x1 && y0 === y1) break;
     const e2 = 2 * err;
     if (e2 >= dy) { err += dy; x0 += sx; }
     if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+/** Disco relleno recortado a la pantalla (sirve aunque el radio sea enorme). */
+export function clipDisc(ctx, cx, cy, r, W, H, color) {
+  ctx.fillStyle = color;
+  for (let y = Math.max(0, Math.floor(cy - r)); y < Math.min(H, Math.ceil(cy + r)); y++) {
+    const q = r * r - (y + 0.5 - cy) * (y + 0.5 - cy); if (q <= 0) continue;
+    const h = Math.sqrt(q); const x0 = Math.max(0, Math.round(cx - h)); const x1 = Math.min(W, Math.round(cx + h));
+    if (x1 > x0) ctx.fillRect(x0, y, x1 - x0, 1);
+  }
+}
+
+/** Circunferencia de 1 px recortada a la pantalla; `dash` > 0 la dibuja a trazos (número de trazos por vuelta). */
+export function ring(ctx, cx, cy, r, W, H, color, dash = 0) {
+  ctx.fillStyle = color;
+  const on = (x, y) => !dash || Math.floor(((Math.atan2(y - cy, x - cx) / (2 * Math.PI)) + 1) * dash * 2) % 2 === 0;
+  for (let y = Math.max(0, Math.floor(cy - r)); y < Math.min(H, Math.ceil(cy + r) + 1); y++) {
+    const q = r * r - (y - cy) * (y - cy); if (q < 0) continue;
+    const h = Math.sqrt(q);
+    for (const x of [Math.round(cx - h), Math.round(cx + h)]) if (x >= 0 && x < W && on(x, y)) ctx.fillRect(x, y, 1, 1);
+  }
+  for (let x = Math.max(0, Math.floor(cx - r)); x < Math.min(W, Math.ceil(cx + r) + 1); x++) {
+    const q = r * r - (x - cx) * (x - cx); if (q < 0) continue;
+    const h = Math.sqrt(q);
+    for (const y of [Math.round(cy - h), Math.round(cy + h)]) if (y >= 0 && y < H && on(x, y)) ctx.fillRect(x, y, 1, 1);
+  }
+}
+
+const GLOBE_PAL = { 0: 0x1f5fae, 1: 0x3f8f4a, 2: 0xc2a465, 3: 0xeef4fa };
+/**
+ * La Tierra como globo pixel art (continentes, hielo y nubes de earth.js), recortada a la pantalla.
+ * (cx, cy) centro y `rpx` radio en píxeles del lienzo; `rot` giro horario del disco; `lon0` longitud del centro de la vista.
+ */
+export function drawGlobe(ctx, W, H, cx, cy, rpx, rot, lon0) {
+  const shadeOn = rpx < 900;
+  for (let y = Math.max(0, Math.floor(cy - rpx)); y < Math.min(H, Math.ceil(cy + rpx)); y++) {
+    const dyN = (cy - (y + 0.5)) / rpx;
+    const halfN = 1 - dyN * dyN; if (halfN <= 0) continue;
+    const half = Math.sqrt(halfN) * rpx;
+    const x0 = Math.max(0, Math.ceil(cx - half)); const x1 = Math.min(W, Math.floor(cx + half) + 1);
+    let runStart = x0; let runCol = -1;
+    for (let x = x0; x <= x1; x++) {
+      let col = -2;
+      if (x < x1) {
+        const dxN = (x + 0.5 - cx) / rpx;
+        const g = globeSample(dxN, dyN, rot, lon0);
+        col = g & CLOUD ? 0xf4f8fc : GLOBE_PAL[g & 7];
+        if (shadeOn) { const z2 = 1 - dxN * dxN - dyN * dyN; if (z2 < 0.12) col = lerpColor(col, 0x0b2a55, 0.35); else if (z2 < 0.3 && ((x + y) & 1)) col = lerpColor(col, 0x0b2a55, 0.3); }
+      }
+      if (col !== runCol) { if (runCol >= 0) { ctx.fillStyle = css(runCol); ctx.fillRect(runStart, y, x - runStart, 1); } runStart = x; runCol = col; }
+    }
   }
 }
 
