@@ -7,6 +7,7 @@ import { getPreferences } from './welcome/core/consent.js';
 import { localizeDOM, t } from './i18n/index.js';
 import { installCommanderCaptions } from './welcome/ui/commanderCaptions.js';
 import './ui/app.css';
+import { playClick, stopGameplayMusic } from './welcome/core/gameAudio.js';
 
 localizeDOM();
 
@@ -37,6 +38,9 @@ const game = new Phaser.Game({
   },
   scene: [BootScene, SpaceCenterScene, PauseScene],
 });
+
+game.input.on('gameobjectdown', playClick);
+window.addEventListener('pagehide', stopGameplayMusic);
 
 const commanderOverlay = document.createElement('section');
 commanderOverlay.id = 'commander-intro';

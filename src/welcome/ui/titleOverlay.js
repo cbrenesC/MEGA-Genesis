@@ -1,4 +1,5 @@
 import { getPreferences } from '../core/consent.js';
+import { startGameplayMusic } from '../core/gameAudio.js';
 import { assetUrl } from '../core/assetLoader.js';
 import { localizeDOM } from '../../i18n/index.js';
 
@@ -113,6 +114,7 @@ export function mountTitleOverlay(scene) {
       if (button.dataset.titleAction === 'start') {
         remove();
       }
+      if (button.dataset.titleAction === 'start') startGameplayMusic();
       actions[button.dataset.titleAction]?.(event);
     });
   }

@@ -1,0 +1,92 @@
+import { getPreferences } from './consent.js';
+
+const music = new Audio('/game-music.mp3');
+music.loop = true;
+music.preload = 'auto';
+const thruster = new Audio('/thruster.mp3');
+thruster.loop = true;
+thruster.preload = 'auto';
+let wantsMusic = false;
+let thrusterPower = 0;
+
+function preferences() {
+  return getPreferences();
+}
+
+function syncMusic() {
+  const prefs = preferences();
+  if (!wantsMusic || !prefs.audio) {
+    music.pause();
+    return;
+  }
+  music.volume = Math.max(0, Math.min(1, prefs.musicVolume ?? 0.18));
+  void music.play().catch(() => {});
+}
+
+function syncThruster() {
+  const prefs = preferences();
+  if (thrusterPower <= 0.02 || !prefs.audio) {
+    thruster.pause();
+    return;
+  }
+  thruster.volume = Math.max(0, Math.min(1, (prefs.effectsVolume ?? 0.45) * (0.2 + 0.8 * thrusterPower)));
+  if (thruster.paused) void thruster.play().catch(() => {});
+}
+
+window.addEventListener('sms-preferences-changed', () => {
+  syncMusic();
+  syncThruster();
+});
+window.addEventListener('sms-consent-changed', () => {
+  syncMusic();
+  syncThruster();
+});
+window.addEventListener('pointerdown', () => {
+  syncMusic();
+  syncThruster();
+}, { capture: true });
+window.addEventListener('keydown', () => {
+  syncMusic();
+  syncThruster();
+}, { capture: true });
+
+document.addEventListener('click', event => {
+  if (event.target.closest?.('button, [role="button"], input[type="button"], input[type="submit"]')) {
+    playClick();
+  }
+}, true);
+
+export function playClick() {
+  const prefs = preferences();
+  if (!prefs.audio) return;
+  const sound = new Audio('/click.mp3');
+  sound.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
+  void sound.play().catch(() => {});
+}
+
+export function playEffect(name) {
+  const prefs = preferences();
+  if (!prefs.audio) return;
+  const files = { 'stage-separation': '/stage-separation.mp3' };
+  const src = files[name];
+  if (!src) return;
+  const sound = new Audio(src);
+  sound.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
+  void sound.play().catch(() => {});
+}
+
+export function setThruster(power) {
+  thrusterPower = Math.max(0, Math.min(1, Number(power) || 0));
+  syncThruster();
+}
+
+export function startGameplayMusic() {
+  wantsMusic = true;
+  syncMusic();
+}
+
+export function stopGameplayMusic() {
+  wantsMusic = false;
+  music.pause();
+  setThruster(0);
+}
