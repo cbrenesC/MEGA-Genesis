@@ -301,8 +301,11 @@ export class SpaceCenterScene extends Phaser.Scene {
     localizeDOM(panel);
     panel.querySelector('[data-guide-action]').addEventListener('click', () => {
       const step = this.currentGuideStep();
-      if (step) this.completeGuideStep(step.id);
-      else {
+      if (step) {
+        this.completedGuideSteps.add(step.id);
+        this.preparation.completeGuideStep(step.id);
+        this.renderCrewGuide();
+      } else {
         this.preparation.resetGuide();
         this.completedGuideSteps.clear();
         this.renderCrewGuide();
