@@ -76,7 +76,10 @@
         </section>
       </div>
 
+      <div class="corner-controls" role="group" aria-label="Display controls">
       <button id="settings-toggle" type="button" aria-label="Settings" data-i18n-aria="settings.title" title="Settings" data-i18n-title="settings.title" aria-expanded="false">⚙</button>
+          <button class="icon-button fullscreen-button" id="fullscreen-button" aria-label="Full screen" data-i18n-aria="map.fullscreen" title="Full screen" data-i18n-title="map.fullscreen">⛶</button>
+      </div>
       <section id="settings-dialog" class="settings-dialog" role="dialog" aria-modal="false" aria-label="Space Mission settings" data-i18n-aria="settings.label" hidden>
         <div class="settings-dialog__heading">
           <h2 data-i18n="settings.title">Settings</h2>
@@ -96,15 +99,11 @@
 
       <div class="game-stage" id="game-container" tabindex="-1" aria-label="Explorable Mission Control map" data-i18n-aria="map.label">
         <header class="hud-top" aria-label="Mission status" data-i18n-aria="map.hud">
-          <div class="brand-lockup">
-            <img src="/logo.svg" alt="" class="brand-mark" />
-            <div><strong>SPACE<span>MISSION</span></strong><small data-i18n="map.brand">ORBITAL COMPLEX · LEVEL 01</small></div>
-          </div>
           <div class="status-cluster">
             <span class="signal-dot"></span><span data-i18n="map.signal">CONNECTION STABLE</span>
             <i></i><span class="status-zone" id="zone-label" data-i18n="map.zone">MISSION CONTROL</span>
           </div>
-          <button class="icon-button fullscreen-button" id="fullscreen-button" aria-label="Full screen" data-i18n-aria="map.fullscreen" title="Full screen" data-i18n-title="map.fullscreen">⛶</button>
+
         </header>
 
         <div class="interaction-prompt" id="interaction-prompt" aria-live="polite"></div>
@@ -115,13 +114,6 @@
           <button class="mobile-action" id="mobile-interact" aria-label="Interact" data-i18n-aria="map.interact">E<br /><small data-i18n="map.use">USE</small></button><button class="mobile-pause" id="mobile-pause" aria-label="Pause" data-i18n-aria="common.pause">Ⅱ</button>
         </div>
 
-        <details class="mission-launcher">
-          <summary aria-label="Open mission games" data-i18n-aria="map.openGames">☰ <span data-i18n="map.games">Games</span></summary>
-          <nav aria-label="Mission games" data-i18n-aria="map.gamesLabel">
-            <a href="/games/launch/" data-locale-link data-i18n="map.launchLink">01 · Rocket launch</a>
-            <a href="/games/rover/" data-locale-link data-i18n="map.roverLink">02 · Lunar rover</a>
-          </nav>
-        </details>
 
       </div>
       <dialog class="display-console" id="media-panel" aria-labelledby="media-title">

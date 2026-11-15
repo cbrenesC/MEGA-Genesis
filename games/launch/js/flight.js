@@ -175,7 +175,8 @@ export class FlightSim {
     this.lastSeparation = null; // datos físicos de la última pieza soltada (ver separateStage)
     this.throttle = 0;
     this.stage = 0;
-    this.fuel = vehicle.stages.map((s) => s.propKg);
+    const fuelFraction = Number.isFinite(opts.fuelFraction) ? clamp(opts.fuelFraction, 0.75, 1) : 1;
+    this.fuel = vehicle.stages.map((s) => s.propKg * fuelFraction);
     this.fairing = true;
     this.mode = 'manual'; // 'manual' | 'prograde' (quemada de transferencia)
     this.status = 'pad'; // pad | flying | ended

@@ -1,8 +1,8 @@
 # Módulo lunar (rover) — informe de cambios
 
-En `main`, la consola lunar abre `/games/rover/` y enlaza a la práctica bilingüe anterior. El simulador nuevo está en español, usa el Phaser de `package.json` e incluye sus pruebas en `npm test`.
+La consola amarilla lunar abre `/games/rover/` con el equipo elegido en las cuatro estaciones de preparación del mapa. El simulador usa el Phaser de `package.json` e incluye sus pruebas en `npm test`.
 
-## Hallazgo previo
+## Origen del prototipo
 El módulo descrito en el encargo (briefing + constructor con 145 kg / 850 créditos + Phaser) **no existía en ninguna rama**
 del repositorio. `public/games/rover/index.html` era un canvas 2D de ~40 líneas (sin construcción, sin análisis ni transmisión).
 Se reconstruyó sobre Phaser conservando lo útil: 4 cráteres (reescalados), 3 objetivos de muestras, WASD/flechas, cruceta táctil,
@@ -11,7 +11,7 @@ batería y reinicio. **Si tienes otra copia con el módulo original, estos cambi
 ## Estructura
 - `js/rules.js` — reglas deterministas (sin DOM/Phaser/azar): catálogo, límites, energía, muestras, evaluación, guardado.
 - `js/art.js` — pixel art por código (rover según configuración, terreno, muestras); lo usan la vista previa y Phaser.
-- `js/main.js` — escenas Phaser (fondo, exploración) + pantallas HTML (briefing, construcción, HUD, resultados).
+- `js/main.js` — escenas Phaser (fondo, exploración) + pantallas HTML (HUD, pausa, resultados).
 - `tests/index.html` — 19 pruebas de reglas (en `npm test` o en desarrollo, `/games/rover/tests/index.html`).
 
 ## Errores corregidos / decisiones
@@ -46,10 +46,11 @@ batería y reinicio. **Si tienes otra copia con el módulo original, estos cambi
   chamuscada de aterrizaje, huellas de ruedas, polvo y viñeta. Fondo de briefing/resultados con Tierra, Vía Láctea y horizonte.
 - **Nuevas actividades**: `C` fotografiar 4 puntos de interés (módulo, bandera, monolito, borde del cráter Aurora; valor ×
   cámara) y `R` escanear con radar de subsuelo (320 px) para revelar las muestras ocultas S3 y S4. Objetivos secundarios,
-  bonificaciones de puntuación y sugerencias en resultados. Guardado v2 (los guardados v1 se descartan).
+  bonificaciones de puntuación y sugerencias en resultados. Guardado v2 compatible con el equipo y el progreso de muestras de los guardados v1.
 - **Centro de datos** (HUD): tarjeta «Enlace Tierra» y un paquete por muestra/foto con barra 0–100 % (marcas 25/50/75 %:
   recogida → análisis → envío → recibido). La Tierra confirma cada envío (barra de recepción) y el informe final lista todos.
-- Pruebas de reglas: 26 casos (`games/rover/tests/`), incluyendo escáner, fotos, paquetes 0–100 %, acuses y guardado v2.
+- Las consolas de **Ciencia** y **Comunicaciones** muestran, en inglés y español, el tiempo y consumo de captura y envío,
+  el alcance del escáner y la confirmación de paquetes. El constructor no se vuelve a mostrar en la simulación.
+- Incluye pruebas de escáner, fotos, paquetes 0–100 %, acuses, guardado v1/v2 y transferencia de equipo desde las consolas.
 
-No verificado: `npm run build` (sin Node en este equipo; se probó con Phaser local y sin los imports de npm/i18n), render
-con el renderer Canvas de producción en dispositivos reales, ni balance de dificultad con jugadores.
+El balance de dificultad y el render en dispositivos reales quedan fuera de las pruebas automatizadas.

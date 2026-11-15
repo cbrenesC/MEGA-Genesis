@@ -19,15 +19,15 @@ export function buildControlRoom(scene, collision) {
 
   prop('lcc-main-desk', 640, 311, [365, 23], 285);
   const localizedLabels = [];
-  for (const { x, y, mission } of STATIONS) {
+  for (const { x, y, mission, setup, part } of STATIONS) {
     prop(mission ? 'lcc-lead-station' : 'lcc-station', x, y, [138, 44]);
     // Tucked under the workstation, but kept out of the approach path.
     prop('lcc-chair', x - 32, y + 28, [24, 14]);
-    if (mission) {
-      const key = `room.station.${mission}`;
+    if (mission || setup) {
+      const key = mission ? `room.station.${mission}` : `station.short.${part}`;
       const identifier = scene.add.text(x + 11, y + 28, t(key), {
         fontFamily: 'monospace', fontSize: '11px', fontStyle: 'bold',
-        color: '#ffead2', backgroundColor: '#243445',
+        color: mission ? '#ffead2' : setup === 'launch' ? '#a6e5ff' : '#c2f9bd', backgroundColor: '#243445',
         padding: { x: 5, y: 3 },
       }).setOrigin(.5).setDepth(y + 40);
       localizedLabels.push([identifier, key]);

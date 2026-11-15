@@ -8,19 +8,17 @@
   <link rel="icon" type="image/svg+xml" href="/logo.svg">
   <link rel="stylesheet" href="./styles.css">
 </head>
-<body data-screen="briefing">
+<body data-screen="waiting">
   <div class="shell">
     <div id="game" aria-hidden="true"></div>
 
     <header class="topbar">
-      <a class="back" href="/" data-locale-link title="Volver al complejo">← <span>Complejo</span></a>
-      <a class="back" href="./practica-rover.html" data-locale-link>Práctica</a>
+      <a class="back" href="/" data-mission-exit data-locale-link title="Volver al complejo">← <span>Complejo</span></a>
       <div class="brand"><span class="kicker">MÓDULO 02</span><b>Rover lunar</b></div>
       <nav class="steps" id="steps" aria-label="Pasos de la misión"></nav>
     </header>
 
-    <main class="screen" id="screen-briefing" data-screen-id="briefing"></main>
-    <main class="screen" id="screen-build" data-screen-id="build" hidden></main>
+    <main class="screen" id="screen-waiting" data-screen-id="waiting" role="status"></main>
     <main class="screen" id="screen-results" data-screen-id="results" hidden></main>
 
     <section class="hud" id="hud" data-screen-id="explore" hidden aria-label="Telemetría de la misión">
@@ -56,7 +54,7 @@
         <div class="stack">
           <button type="button" class="primary" data-cmd="resume">Continuar</button>
           <button type="button" data-cmd="restart">Reiniciar misión</button>
-          <button type="button" data-cmd="rebuild">Volver a construcción</button>
+          <button type="button" data-cmd="exit">Volver al centro de control</button>
         </div>
       </div>
     </div>
