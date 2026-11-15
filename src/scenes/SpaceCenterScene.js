@@ -48,8 +48,6 @@ export class SpaceCenterScene extends Phaser.Scene {
     }
 
     this.crew = placeCrew(this, this.mapManager.collision.solids);
-    this.guideStepIndex = 0;
-    this.createCrewGuide();
     this.interactionSignal = new InteractionSignal(this);
     this.motionClock = 0;
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -92,6 +90,8 @@ export class SpaceCenterScene extends Phaser.Scene {
 
     this.createTerminalDialog();
     this.preparation = new StationPreparation(this);
+    this.completedGuideSteps = new Set(this.preparation.guideProgress);
+    this.createCrewGuide();
     this.input.keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'E', 'ESC']);
     if (this.inputsBlocked()) this.input.keyboard.disableGlobalCapture();
     const removeLanguageListener = onLanguageChange(() => {
@@ -263,6 +263,30 @@ export class SpaceCenterScene extends Phaser.Scene {
     context.fillStyle = '#65f4e7'; context.fillRect(playerX - 3, playerY - 3, 7, 7);
     context.fillStyle = '#fff8d5'; context.fillRect(playerX - 1, playerY - 1, 3, 3);
   }
+  currentGuideStep() {
+    return CREW_GUIDE.find(step => !this.completedGuideSteps.has(step.id)) ?? null;
+  }
+
+  completeGuideStep(id) {
+    const step = this.currentGuideStep();
+    if (!step || step.id !== id || !this.preparation.hasGuideConversation(step.talkKey)) return false;
+    this.completedGuideSteps.add(id);
+    this.preparation.completeGuideStep(id);
+    this.renderCrewGuide();
+    return true;
+  }
+
+  onStationConfigurationChanged(item) {
+    const step = this.currentGuideStep();
+    if (!step || step.stationId !== item?.id || !this.preparation.hasGuideConversation(step.talkKey)) return;
+    if (this.preparation.guideStationReady(step)) this.completeGuideStep(step.id);
+  }
+
+  onMissionCompleted(mission) {
+    const step = this.currentGuideStep();
+    if (step?.mission === mission && this.preparation.hasGuideConversation(step.talkKey)) this.completeGuideStep(step.id);
+  }
+
   createCrewGuide() {
     const panel = document.createElement('aside');
     panel.id = 'crew-guide';
@@ -272,13 +296,17 @@ export class SpaceCenterScene extends Phaser.Scene {
     panel.dataset.i18nAria = 'guide.title';
     panel.innerHTML = `<div class="crew-guide__top"><span data-i18n="guide.title">Crew guide</span><span data-count></span></div>
       <h2 data-name></h2><p data-task></p><p class="crew-guide__hint" data-hint></p>
-      <button type="button" data-guide-action data-i18n="guide.skip">Skip this guide</button>`;
+      <button type="button" data-guide-action data-i18n="guide.skip">Skip this step</button>`;
     document.getElementById('app').append(panel);
     localizeDOM(panel);
     panel.querySelector('[data-guide-action]').addEventListener('click', () => {
-      if (this.guideStepIndex >= CREW_GUIDE.length) this.guideStepIndex = 0;
-      else this.guideStepIndex += 1;
-      this.renderCrewGuide();
+      const step = this.currentGuideStep();
+      if (step) this.completeGuideStep(step.id);
+      else {
+        this.preparation.resetGuide();
+        this.completedGuideSteps.clear();
+        this.renderCrewGuide();
+      }
     });
     this.guidePanel = panel;
     this.renderCrewGuide();
@@ -286,18 +314,21 @@ export class SpaceCenterScene extends Phaser.Scene {
 
   renderCrewGuide() {
     if (!this.guidePanel) return;
-    const step = CREW_GUIDE[this.guideStepIndex];
+    const step = this.currentGuideStep();
     const name = this.guidePanel.querySelector('[data-name]');
     const task = this.guidePanel.querySelector('[data-task]');
     const hint = this.guidePanel.querySelector('[data-hint]');
     const count = this.guidePanel.querySelector('[data-count]');
     const action = this.guidePanel.querySelector('[data-guide-action]');
     if (step) {
-      const member = CREW.find((person) => person.id === step.crewId);
-      count.textContent = t('guide.counter', { current: this.guideStepIndex + 1, total: CREW_GUIDE.length });
+      const member = CREW.find(person => person.id === step.crewId);
+      count.textContent = t('guide.counter', { current: this.completedGuideSteps.size + 1, total: CREW_GUIDE.length });
       name.textContent = member?.name ?? '';
       task.textContent = t(step.taskKey);
-      hint.textContent = t('guide.hint', { name: member?.name ?? '' });
+      const talked = this.preparation.hasGuideConversation(step.talkKey);
+      hint.textContent = talked
+        ? t('guide.openConsole', { console: t(step.stationNameKey) })
+        : t('guide.talkFirst', { name: member?.name ?? '' });
       action.textContent = t('guide.skip');
       this.crew?.setGuideTarget(step.crewId);
     } else {
@@ -322,6 +353,9 @@ export class SpaceCenterScene extends Phaser.Scene {
         <div><h2 id="mission-terminal-title" data-title></h2><p data-role class="mission-terminal__role" hidden></p></div>
       </div>
       <p data-description></p>
+      <section class="mission-terminal__guide" data-guide-next hidden>
+        <strong data-i18n="guide.dialogLabel">YOUR NEXT STEP</strong><p data-guide-instruction></p>
+      </section>
       <div data-preparation></div>
       <div class="mission-terminal__actions"><a data-source target="_blank" rel="noopener noreferrer" data-i18n="terminal.source">NASA resource ↗</a><button type="button" data-launch hidden data-i18n="terminal.launch">Start mission ▶</button><button type="button" data-close data-i18n="common.close">Close</button></div>
     </div>`;
@@ -372,6 +406,18 @@ export class SpaceCenterScene extends Phaser.Scene {
     }
     const topic = isCrew ? 'crew' : 'lesson';
     dialog.querySelector('[data-description]').dataset.i18n = `${topic}.${item.id}.text`;
+    const nextGuide = dialog.querySelector('[data-guide-next]');
+    const instruction = dialog.querySelector('[data-guide-instruction]');
+    const step = this.currentGuideStep();
+    const isActiveGuide = isCrew && step?.crewId === item.id;
+    nextGuide.hidden = !isActiveGuide;
+    if (isActiveGuide) {
+      this.preparation.markGuideConversation(step.talkKey);
+      instruction.textContent = t('guide.dialogInstruction', {
+        console: t(step.stationNameKey),
+        task: t(step.taskKey),
+      });
+    } else instruction.textContent = '';
     const link=dialog.querySelector('[data-source]');
     link.hidden=!item.source;
     if(item.source)link.href=item.source;
@@ -379,11 +425,8 @@ export class SpaceCenterScene extends Phaser.Scene {
     dialog.hidden=false;
     dialog.querySelector('.mission-terminal__panel').scrollTop = 0;
     void this.preparation.render(item);
+    this.renderCrewGuide();
     dialog.querySelector('[data-close]').focus({ preventScroll: true });
-    if (isCrew && CREW_GUIDE[this.guideStepIndex]?.crewId === item.id) {
-      this.guideStepIndex += 1;
-      this.renderCrewGuide();
-    }
   }
   closeTerminal() {
     this.terminalOpen=false;
