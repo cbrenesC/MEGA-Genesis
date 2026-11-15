@@ -5,9 +5,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PHYS, FlightSim, vehicleFor, runAutopilot, orbitElements, circularSpeed, withPilotMargin, orbitGoalMet, COAST_DV } from '../js/flight.js';
+import { surfaceAt, globeView, globeSample, OCEAN, SAND, ICE } from '../js/scenes/earth.js';
 import {
   phaseOf, cameraScale, anchorFraction, FlightCamera, skyProgress, makeDebris, stepDebris, cullReason,
-  angleFromVertical, toCameraFrame, groundDistance, thrustAccelG, focusEnvelope, CAMERA,
+  angleFromVertical, toCameraFrame, groundDistance, thrustAccelG, focusEnvelope, CAMERA, anchorY,
 } from '../js/world.js';
 
 const load = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../data/${name}.json`, import.meta.url)), 'utf8'));
@@ -304,11 +305,36 @@ test('22 · zoom del jugador: suave, con límites, y permite volver a ver la Tie
   }
   for (let i = 0; i < 300; i++) cam.update(250000, 0, 1 / 60);
   assert.ok(Math.abs(cam.mpp - CAMERA.maxMpp) / CAMERA.maxMpp < 1e-3, 'tope: la Tierra entera cabe en pantalla');
-  assert.ok(PHYS.RE / cam.mpp < 40 && cam.zoomOut > 100);
+  assert.ok(PHYS.RE / cam.mpp < 70 && cam.zoomOut > 100);
+  // con la Tierra entera en pantalla, el encuadre centra el planeta (y sin zoom no cambia nada)
+  assert.ok(Math.abs(anchorY(250000, cam.mpp, 200) + (PHYS.RE + 250000) / cam.mpp - 100) < 1);
+  assert.equal(anchorY(250000, 625, 200), 200 * anchorFraction(250000));
   for (let i = 0; i < 80; i++) cam.zoom(1); // acercar todo
   for (let i = 0; i < 300; i++) cam.update(250000, 0, 1 / 60);
   assert.ok(Math.abs(cam.mpp - CAMERA.mpp0) < 1e-3, 'tope: el cohete de cerca');
   cam.resetZoom();
   for (let i = 0; i < 300; i++) cam.update(250000, 0, 1 / 60);
   assert.ok(Math.abs(cam.mpp - base) / base < 1e-3, 'vuelve a la vista normal');
+});
+
+test('23 · mapa del mundo: los continentes están donde deben y el sitio de lanzamiento queda en el borde del globo', () => {
+  const D = Math.PI / 180;
+  const at = (lat, lon) => surfaceAt(lat * D, lon * D);
+  assert.equal(at(0, -30), OCEAN, 'Atlántico');
+  assert.equal(at(0, -160), OCEAN, 'Pacífico');
+  assert.notEqual(at(-10, -55), OCEAN, 'Brasil');
+  assert.notEqual(at(40, -100), OCEAN, 'Estados Unidos');
+  assert.equal(at(23, 10), SAND, 'Sahara');
+  assert.notEqual(at(50, 30), OCEAN, 'Europa');
+  assert.notEqual(at(60, 100), OCEAN, 'Siberia');
+  assert.notEqual(at(-25, 135), OCEAN, 'Australia');
+  assert.equal(at(-82, 20), ICE, 'Antártida');
+  assert.equal(at(75, -40), ICE, 'Groenlandia');
+  // el sitio (Cabo Cañaveral) cae en el borde del disco, en el ángulo que usa el dibujo
+  const v = globeView('ksc', 28.5);
+  const x = Math.sin(v.siteAngle) * 0.999; const y = Math.cos(v.siteAngle) * 0.999;
+  const z = Math.sqrt(Math.max(0, 1 - x * x - y * y));
+  const lat = Math.asin(y) / D; const lon = (v.lon0 + Math.atan2(x, z)) / D;
+  assert.ok(Math.abs(lat - 28.5) < 2 && Math.abs(lon - (-80.6)) < 6, `sitio en ${lat}, ${lon}`);
+  assert.equal(globeSample(0, 0, 0, v.lon0) & 7, at(0, 9.4), 'el centro del disco mira 90° al este del sitio');
 });

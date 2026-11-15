@@ -13,17 +13,17 @@ import Phaser from 'phaser';
 import {
   PHYS, DEG, DEST, applyAutopilot, autopilotStep, orbitGoalMet, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
 } from '../flight.js';
-import { app, inputs, reducedMotion } from '../store.js';
+import { app, inputs, current, reducedMotion } from '../store.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
 import { toast } from '../ui.js';
 import {
-  phaseOf, PHASE_LABEL, FlightCamera, anchorFraction, CAMERA, makeDebris, stepDebris, cullReason, groundDistance, thrustAccelG,
+  phaseOf, PHASE_LABEL, FlightCamera, anchorY, CAMERA, makeDebris, stepDebris, cullReason, groundDistance, thrustAccelG,
 } from '../world.js';
 import { ParticleSystem } from '../particles.js';
 import { PixelView, FlightRenderer } from './render.js';
-import { stageSprite, fairingSprite, rocketDims } from './rocketArt.js';
+import { stageDebris, fairingSprite, rocketDims } from './rocketArt.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -92,7 +92,7 @@ export class FlightScene extends Phaser.Scene {
     // lienzo pixel art + dibujo + cámara
     this.view = new PixelView(this, 'flightView');
     this.view.fit(this.scale.width, this.scale.height);
-    this.renderer = new FlightRenderer(this.vehicle);
+    this.renderer = new FlightRenderer(this.vehicle, { id: current().site?.id, latDeg: current().site?.latitudeDeg });
     this.cam = new FlightCamera(this.dMax());
     this.onResize = () => { this.view.fit(this.scale.width, this.scale.height); this.cam.dMax = this.dMax(); this.cam.reset(Math.max(0, this.sim.altitude)); };
     this.scale.on('resize', this.onResize);
@@ -239,7 +239,8 @@ export class FlightScene extends Phaser.Scene {
       return makeDebris({ ...sep, x: sep.x + ax * along - ay * (extra.lateral ?? 0) * mpp, y: sep.y + ay * along + ax * (extra.lateral ?? 0) * mpp }, { side: extra.side ?? 0, index: sep.index });
     };
     if (sep.kind === 'stage') {
-      this.debris.push(make(stageSprite(this.vehicle, sep.index), {}));
+      // una etapa entera, o los dos propulsores laterales (cada uno se abre hacia su lado)
+      for (const piece of stageDebris(this.vehicle, sep.index)) this.debris.push(make(piece, { side: piece.side, lateral: piece.lateral }));
       this.cam.kick(0.5);
       if (this.sim.altitude > 1500) this.cam.kickFocus(6);
       this.hud.event(`ETAPA ${sep.index + 1} SEPARADA`, 'ok');
@@ -569,7 +570,7 @@ export class FlightScene extends Phaser.Scene {
     const S = {
       time: performance.now() / 1000,
       reduced: this.reduced,
-      alt, mpp, baseY: H * anchorFraction(alt) - this.cam.lag, groundS,
+      alt, mpp, baseY: anchorY(alt, mpp, H) - this.cam.lag, groundS,
       starShift: (Math.PI / 2 - sim.angle) * 600,
       stage: Math.min(sim.stage, this.vehicle.stages.length), fairing: sim.fairing,
       throttle, engineOn: Boolean(this.ignition) || (sim.status === 'flying' && !sim.engineOut),

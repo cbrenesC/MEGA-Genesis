@@ -47,7 +47,7 @@ export function phaseOf(alt, { grounded = false, prev = null } = {}) {
 //     así que la Tierra sigue bajando y sale de la pantalla: en el espacio sólo se ven el cohete y las estrellas;
 //   · para volver a ver el planeta (entero, como una esfera) el jugador aleja la cámara con el zoom.
 // Escala (metros por píxel) = h / D(h): continua y nunca decrece.
-export const CAMERA = { mpp0: 1.4, dMaxFrac: 0.36, freezeAlt: 45000, maxMpp: PHYS.RE / 28, zoomStep: 1.35 };
+export const CAMERA = { mpp0: 1.4, dMaxFrac: 0.36, freezeAlt: 45000, maxMpp: PHYS.RE / 60, zoomStep: 1.35 };
 
 /** Metros por píxel del lienzo pequeño a esa altura (sin el zoom del jugador). */
 export function cameraScale(alt, dMax = 72, mpp0 = CAMERA.mpp0) {
@@ -66,6 +66,18 @@ export function anchorFraction(alt) {
   const t = clamp(alt / 1500, 0, 1);
   const s = t * t * (3 - 2 * t);
   return 0.8 - 0.26 * s;
+}
+
+/**
+ * Altura en pantalla (px) de la base del cohete. Normalmente depende sólo de la altura de vuelo; cuando la cámara
+ * está tan alejada que la Tierra cabe entera, el encuadre pasa suavemente a centrar el planeta.
+ */
+export function anchorY(alt, mpp, viewH) {
+  const normal = viewH * anchorFraction(alt);
+  const rPx = PHYS.RE / mpp;
+  const t = clamp((viewH * 2.5 - rPx) / (viewH * 2.0), 0, 1);
+  const k = t * t * (3 - 2 * t);
+  return normal + (viewH / 2 - (PHYS.RE + Math.max(0, alt)) / mpp - normal) * k;
 }
 
 const FOCUS_IN = 0.7; const FOCUS_HOLD = 1.6; const FOCUS_OUT = 2.4; const FOCUS_TOTAL = FOCUS_IN + FOCUS_HOLD + FOCUS_OUT;
@@ -163,11 +175,13 @@ export const DEBRIS_BALLISTIC = { stage: 2600, fairing: 90 };
 export function makeDebris(sep, opts = {}) {
   const [ax, ay] = sep.axis;
   let vx = sep.vx; let vy = sep.vy;
-  if (sep.kind === 'fairing' && opts.side) {
-    // las mitades se abren hacia los lados (perpendicular al eje) con un poco de empuje hacia atrás
+  if (opts.side) {
+    // las mitades de la cofia y los propulsores laterales se abren hacia los lados (perpendicular al eje)
     const px = ay; const py = -ax; // "derecha" del eje
-    vx += opts.side * PHYS.FAIRING_SPEED * px - 0.35 * ax;
-    vy += opts.side * PHYS.FAIRING_SPEED * py - 0.35 * ay;
+    const lat = sep.kind === 'fairing' ? PHYS.FAIRING_SPEED : PHYS.SEP_SPEED;
+    const back = sep.kind === 'fairing' ? 0.35 : 0;
+    vx += opts.side * lat * px - back * ax;
+    vy += opts.side * lat * py - back * ay;
   }
   return {
     id: opts.id ?? 0,

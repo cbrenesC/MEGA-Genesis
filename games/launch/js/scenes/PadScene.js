@@ -25,7 +25,7 @@ export class PadScene extends Phaser.Scene {
     this.vehicle = vehicleFor(current().launcherId, inputs().orbit.type, app.data)?.vehicle ?? GENERIC;
     this.view = new PixelView(this, 'padView');
     this.view.fit(this.scale.width, this.scale.height);
-    this.renderer = new FlightRenderer(this.vehicle);
+    this.renderer = new FlightRenderer(this.vehicle, { id: current().site?.id, latDeg: current().site?.latitudeDeg });
     this.particles = new ParticleSystem();
     this.onResize = () => this.view.fit(this.scale.width, this.scale.height);
     this.scale.on('resize', this.onResize);

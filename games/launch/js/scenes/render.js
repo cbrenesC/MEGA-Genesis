@@ -7,7 +7,8 @@
 import { PHYS } from '../flight.js';
 import { CAMERA, angleFromVertical, toCameraFrame, skyProgress, starVisibility } from '../world.js';
 import { ParticleSystem } from '../particles.js';
-import { rocketSprite, stageSprite, fairingSprite, flameSprite, padSprite, cloudSprite, rocketDims } from './rocketArt.js';
+import { rocketSprite, stageSprite, fairingSprite, flameSprite, padSprite, landmarkSprite, cloudSprite, rocketDims } from './rocketArt.js';
+import { globeView, globeSample, OCEAN, GREEN, SAND, ICE, CLOUD } from './earth.js';
 import { lerpColor } from './gfx.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -111,13 +112,31 @@ function skyCanvas(W, H, prog) {
   return c;
 }
 
+// Paisaje de cada sitio de lanzamiento. Todos están en la costa: el mar queda al este (a la derecha), como en la realidad
+// se lanza sobre el océano. coastE = metros desde la plataforma hasta la playa.
+const SITE_LOOK = {
+  ksc: { coastE: 190, land: 0x3c8a46, grass: '#79d36b', trees: 0.35, landmark: 'vab', hills: 0.25 }, // Florida: llano y pantanoso
+  wallops: { coastE: 170, land: 0x4a8f4a, grass: '#84d672', trees: 0.4, landmark: 'control', hills: 0.2 },
+  vsfb: { coastE: 220, land: 0x8f8a52, grass: '#b7b06a', trees: 0.75, landmark: 'control', hills: 1.6 }, // California: seco y con cerros
+  kourou: { coastE: 230, land: 0x2c7a3a, grass: '#5fc45a', trees: 0.08, landmark: 'control', hills: 0.5 }, // selva
+  mahia: { coastE: 120, land: 0x4f9a4a, grass: '#8fdc78', trees: 0.7, landmark: 'control', hills: 1.3 }, // acantilados verdes
+  sdsc: { coastE: 180, land: 0x4a8a44, grass: '#86cf6c', trees: 0.3, landmark: 'control', hills: 0.3 },
+  kwaj: { coastE: 90, land: 0xcdbb7a, grass: '#e6d79a', trees: 0.8, landmark: 'control', hills: 0 }, // atolón: arena y mar
+  default: { coastE: 190, land: 0x3c8a46, grass: '#79d36b', trees: 0.35, landmark: 'control', hills: 0.4 },
+};
+const SEA = 0x2368b0; const BEACH = 0xd9c98a;
+const GLOBE_COLORS = { [OCEAN]: 0x1f5fae, [GREEN]: 0x3f8f4a, [SAND]: 0xc2a465, [ICE]: 0xeef4fa };
+
 // ---------------------------------------------------------------------------
 // El renderizador
 // ---------------------------------------------------------------------------
 
 export class FlightRenderer {
-  constructor(vehicle) {
+  /** @param site { id, latDeg } sitio de lanzamiento real: orienta el globo y elige el paisaje */
+  constructor(vehicle, site = {}) {
     this.vehicle = vehicle;
+    this.site = { ...(SITE_LOOK[site.id] ?? SITE_LOOK.default), id: site.id ?? 'ksc' };
+    this.globe = globeView(site.id, site.latDeg);
     this.dims = rocketDims(vehicle);
     this.stars = Array.from({ length: 170 }, (_, i) => ({ x: hash(i, 1), y: hash(i, 2), b: 0.35 + 0.65 * hash(i, 3), big: hash(i, 4) > 0.93, p: hash(i, 5) * 6.28 }));
     this.clouds = Array.from({ length: 64 }, (_, i) => {
@@ -226,31 +245,65 @@ export class FlightRenderer {
       for (let x = 0; x < W; x++) {
         const y = yAt(x, 0); if (y >= H) continue;
         const e = S.groundS + (x - cx) * mpp;
-        const hm = 16 * (Math.sin(e / 1100) + 0.6 * Math.sin(e / 420 + 2) + 1.7) * near;
+        if (e > this.site.coastE - 60 || this.site.hills <= 0) continue;
+        const hm = 16 * this.site.hills * (Math.sin(e / 1100) + 0.6 * Math.sin(e / 420 + 2) + 1.7) * near * clamp((this.site.coastE - 60 - e) / 400, 0, 1) * clamp((Math.abs(e) - 120) / 300, 0, 1);
         const hp = Math.round(hm / mpp);
         if (hp > 0) { ctx.fillStyle = '#34706a'; ctx.fillRect(x, Math.floor(y) - hp, 1, hp + 1); if (hp > 3) { ctx.fillStyle = '#3f8478'; ctx.fillRect(x, Math.floor(y) - hp, 1, 1); } }
       }
     }
-    // superficie
-    const landBias = clamp(1 - alt / 220000, 0, 1) * 1.4;
-    for (let x = 0; x < W; x++) {
-      const y = yAt(x, 0); if (y >= H) continue;
-      const yi = Math.max(0, Math.floor(y));
-      const e = S.groundS + (x - cx) * mpp; const u = e / R;
-      const n = Math.sin(u * 5.1 + 1.1) * 0.5 + Math.sin(u * 12.7 + 2.3) * 0.3 + Math.sin(u * 27 + 0.5) * 0.2 + landBias - 0.15;
-      const land = n > 0.18;
-      const dry = Math.sin(u * 9 + 4) > 0.35;
-      const base = land ? (dry ? lerpColor(0x8a7a48, 0x6e6a52, sky) : lerpColor(0x3c8a46, 0x36704a, sky)) : lerpColor(0x2368b0, 0x1d5496, sky);
-      ctx.fillStyle = css(base);
-      const yb = Math.ceil(yEnd(x, 0, y)); if (yb <= 0) continue;
-      ctx.fillRect(x, yi, 1, Math.max(1, yb - yi));
-      // borde: hierba o neblina de la atmósfera
-      const rim = alt > 12000 ? '#bfe3ff' : land ? '#79d36b' : '#8fd0ff';
-      ctx.fillStyle = rim; ctx.fillRect(x, yi, 1, 1);
-      if (alt > 20000) { ctx.fillStyle = 'rgba(160,210,255,0.55)'; ctx.fillRect(x, yi + 1, 1, 1); }
+    // superficie: cerca del suelo, el paisaje del sitio (tierra, playa y mar al este); desde arriba, el mapa del mundo
+    const site = this.site;
+    const localAt = (e) => (e > site.coastE + 26 ? SEA : e > site.coastE ? BEACH : site.land);
+    const tGlobe = smooth(6000, 26000, alt);
+    if (tGlobe <= 0) {
+      for (let x = 0; x < W; x++) {
+        const y = yAt(x, 0); if (y >= H) continue;
+        const yi = Math.max(0, Math.floor(y));
+        const e = S.groundS + (x - cx) * mpp;
+        const c = localAt(e);
+        ctx.fillStyle = css(c);
+        ctx.fillRect(x, yi, 1, H - yi);
+        ctx.fillStyle = c === SEA ? '#8fd0ff' : c === BEACH ? '#f1e6b4' : site.grass; ctx.fillRect(x, yi, 1, 1);
+      }
+    } else {
+      // globo: cada píxel del disco mira un punto real de la Tierra (el sitio de lanzamiento queda en el borde, bajo la plataforma)
+      const Rpx = R / mpp;
+      const yc = baseY + (alt + R) / mpp;
+      const rot = -S.groundS / R - this.globe.siteAngle;
+      const lon0 = this.globe.lon0;
+      const shadeOn = Rpx < 900;
+      const yStart = Math.max(0, Math.floor(yc - Rpx));
+      const yStop = Math.min(H, Math.ceil(yc + Rpx));
+      for (let y = yStart; y < yStop; y++) {
+        const dyN = (yc - (y + 0.5)) / Rpx;
+        const halfN = 1 - dyN * dyN; if (halfN <= 0) continue;
+        const half = Math.sqrt(halfN) * Rpx;
+        const x0 = Math.max(0, Math.ceil(cx - half)); const x1 = Math.min(W, Math.floor(cx + half) + 1);
+        let runStart = x0; let runCol = -1;
+        for (let x = x0; x <= x1; x++) {
+          let col = -2;
+          if (x < x1) {
+            const dxN = (x + 0.5 - cx) / Rpx;
+            const useGlobe = tGlobe >= 1 || BAYER[(x & 3) + ((y & 3) << 2)] / 16 < tGlobe;
+            if (useGlobe) {
+              const g = globeSample(dxN, dyN, rot, lon0);
+              col = g & CLOUD ? 0xf4f8fc : GLOBE_COLORS[g & 7];
+              if (shadeOn) { const z2 = 1 - dxN * dxN - dyN * dyN; if (z2 < 0.12) col = lerpColor(col, 0x0b2a55, 0.35); else if (z2 < 0.3 && ((x + y) & 1)) col = lerpColor(col, 0x0b2a55, 0.3); }
+            } else col = localAt(S.groundS + (x - cx) * mpp);
+          }
+          if (col !== runCol) { if (runCol >= 0) { ctx.fillStyle = css(runCol); ctx.fillRect(runStart, y, x - runStart, 1); } runStart = x; runCol = col; }
+        }
+      }
+      // borde iluminado por la atmósfera
+      for (let x = 0; x < W; x++) {
+        const y = yAt(x, 0); if (y >= H || y < -1) continue;
+        const yi = Math.floor(y);
+        ctx.fillStyle = '#bfe3ff'; ctx.fillRect(x, yi, 1, 1);
+        if (alt > 20000) { ctx.fillStyle = 'rgba(160,210,255,0.5)'; ctx.fillRect(x, yi + 1, 1, 1); }
+      }
     }
     // textura del suelo: bloques de campo/ nubes pequeñas que se mueven al volar (da sensación de velocidad)
-    this.drawGroundDetail(ctx, W, H, cx, baseY, S, alt, mpp, yAt);
+    if (alt < 26000) this.drawGroundDetail(ctx, W, H, cx, baseY, S, alt, mpp, yAt);
     // árboles y arbustos junto a la plataforma
     if (alt < 320) this.drawTrees(ctx, W, cx, baseY, S, alt, mpp);
   }
@@ -269,7 +322,7 @@ export class FlightRenderer {
         const e = Math.floor((S.groundS + (x - cx) * mpp) / (cell * mpp * 3));
         const r = hash(e, Math.floor(dy / cell) + Math.floor(alt / 800));
         if (r < 0.3) { ctx.fillStyle = r < 0.15 ? 'rgba(0,30,20,0.16)' : 'rgba(255,255,255,0.09)'; ctx.fillRect(x, yy, cell, cell); }
-        else if (sky > 0.55 && alt > 30000 && r > 0.93) { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(x, yy, cell, 2); } // nubes vistas desde arriba
+
       }
     }
   }
@@ -283,9 +336,9 @@ export class FlightRenderer {
     const first = Math.floor(e0 / spacing) - 1;
     const last = Math.ceil((S.groundS + (W - cx) * mpp) / spacing) + 1;
     for (let i = first; i <= last; i++) {
-      const r = hash(i, 77); if (r < 0.35) continue;
+      const r = hash(i, 77); if (r < this.site.trees) continue;
       const e = i * spacing + r * 20;
-      if (Math.abs(e) < 34) continue; // deja libre la plataforma
+      if (Math.abs(e) < 150 || e > this.site.coastE - 12) continue; // deja libre el complejo de lanzamiento y la playa
       const x = Math.round(cx + (e - S.groundS) / mpp);
       const h = Math.max(2, Math.round((7 + r * 8) * k));
       const w = Math.max(2, Math.round(h * 0.55));
@@ -298,6 +351,13 @@ export class FlightRenderer {
   drawPad(ctx, cx, baseY, S, alt, mpp) {
     const k = CAMERA.mpp0 / mpp;
     if (k < 0.07) return;
+    // edificio lejano del sitio (al oeste, tierra adentro)
+    if (this.site.landmark) {
+      const lm = landmarkSprite(this.site.landmark);
+      const lw = Math.round(lm.w * k); const lh = Math.round(lm.h * k);
+      const lx = Math.round(cx + (-330 - S.groundS) / mpp - lm.cx * k);
+      if (lw >= 3 && lx < ctx.canvas.width && lx + lw > 0) ctx.drawImage(lm.canvas, lx, Math.round(baseY + alt / mpp - lm.groundY * k), lw, lh);
+    }
     const pad = padSprite(this.vehicle);
     const dw = Math.round(pad.w * k); const dh = Math.round(pad.h * k);
     if (dw < 3) return;
@@ -388,10 +448,10 @@ export class FlightRenderer {
     const thr = S.throttle;
     if (S.engineOn && thr > 0.03 && S.stage < this.vehicle.stages.length) {
       const d = spr.dims;
-      const nozzleY = 1 + spr.tops[S.stage] + d.stageH[S.stage] + d.bell;
+      const nozzleY = spr.nozzleY;
       const vac = S.airFade < 0.12;
       const len = Math.round((3 + 22 * thr) * (vac ? 0.8 : 1) * (S.reduced ? 1 : 0.88 + 0.24 * S.flicker));
-      const fl = flameSprite(Math.max(1, Math.round(d.hw * (0.5 + 0.35 * thr))), len, this.flameFrame, vac);
+      const fl = flameSprite(Math.max(1, Math.round(spr.flameHw * (0.5 + 0.35 * thr))), len, this.flameFrame, vac);
       ctx.drawImage(fl.canvas, -fl.cx, nozzleY - spr.cy);
     }
     ctx.drawImage(spr.canvas, -spr.cx, -spr.cy);
@@ -404,7 +464,7 @@ export class FlightRenderer {
     if (x < -60 || y < -60 || x > ctx.canvas.width + 60 || y > ctx.canvas.height + 60) return;
     // cuando ya se alejó poco y a esta escala se confunde con el cohete, no se dibuja (se sigue simulando)
     if (d.age > 8 && !S.focus && Math.hypot(x - cx, y - baseY + this.dims.total / 2) < this.dims.total * 0.7) return;
-    const spr = d.kind === 'fairing' ? fairingSprite(this.vehicle, d.side) : stageSprite(this.vehicle, d.index);
+    const spr = d.kind === 'fairing' ? fairingSprite(this.vehicle, d.side) : stageSprite(this.vehicle, d.index, d.side);
     const ang = angleFromVertical(d.axis, S.rx, S.ry); // orientación fija en el mundo → ángulo respecto a la vertical local
     ctx.save();
     ctx.translate(x, y);

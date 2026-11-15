@@ -624,3 +624,10 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - **Zoom en el vuelo**: rueda del mouse, pellizco con dos dedos, botones − / + del HUD y teclas − / + (0 = vista normal). Desde "cohete de cerca" hasta "la Tierra entera" (se dibuja como disco completo; el cohete pasa a ser una marca).
 - **Zoom en el mapa**: los mismos controles; al acercar, el mapa se centra en el cohete (0,25× a 40×).
 - **Pruebas**: `tests/world.test.mjs` 4 y 22. No probado dentro del juego (requiere Vite/Node).
+
+## V3.3 · Cohetes reconocibles, Tierra real y complejo de lanzamiento (módulo LAUNCH)
+
+- **Cada cohete es distinto** (`rocketArt.js → STYLES`): Falcon 9 (inter-etapa negra, patas, aletas de rejilla), Falcon Heavy (tres núcleos), Electron (negro), Alpha (carbono + cofia blanca), Pegasus (ala delta), PSLV (franjas granate y propulsores pequeños), Vega C (cofia ancha), Ariane 6 (propulsores sólidos), SLS (núcleo naranja, propulsores blancos, torre de escape). En Falcon Heavy, Ariane 6 y SLS la «etapa 0» se dibuja como propulsores laterales y al separarse salen dos piezas, una por lado.
+- **Tierra real** (`scenes/earth.js`): mapa del mundo aproximado (franjas de 5°) con continentes, desiertos, hielo y nubes. El globo se orienta para que el sitio de lanzamiento real quede bajo la plataforma y gira con el suelo. Con la cámara al máximo, el encuadre centra el planeta (`anchorY`).
+- **Sitio de lanzamiento**: losa y foso de llamas, torre de servicio con brazos, cuatro torres pararrayos con cables, torre de agua, tanques, hangar; mar y playa al este; paisaje por sitio (Florida llana con el edificio de ensamblaje, Vandenberg seco con cerros, Kourou selva, Kwajalein arena).
+- **Pruebas**: `tests/world.test.mjs` 23 (mapa y orientación). Arte revisado con una página de prueba temporal en el navegador; no probado dentro del juego (requiere Vite/Node).
