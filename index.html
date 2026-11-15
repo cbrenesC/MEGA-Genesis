@@ -76,7 +76,10 @@
         </section>
       </div>
 
+      <div class="corner-controls" role="group" aria-label="Display controls">
       <button id="settings-toggle" type="button" aria-label="Settings" data-i18n-aria="settings.title" title="Settings" data-i18n-title="settings.title" aria-expanded="false">⚙</button>
+          <button class="icon-button fullscreen-button" id="fullscreen-button" aria-label="Full screen" data-i18n-aria="map.fullscreen" title="Full screen" data-i18n-title="map.fullscreen">⛶</button>
+      </div>
       <section id="settings-dialog" class="settings-dialog" role="dialog" aria-modal="false" aria-label="Space Mission settings" data-i18n-aria="settings.label" hidden>
         <div class="settings-dialog__heading">
           <h2 data-i18n="settings.title">Settings</h2>
@@ -100,7 +103,7 @@
             <span class="signal-dot"></span><span data-i18n="map.signal">CONNECTION STABLE</span>
             <i></i><span class="status-zone" id="zone-label" data-i18n="map.zone">MISSION CONTROL</span>
           </div>
-          <button class="icon-button fullscreen-button" id="fullscreen-button" aria-label="Full screen" data-i18n-aria="map.fullscreen" title="Full screen" data-i18n-title="map.fullscreen">⛶</button>
+
         </header>
 
         <div class="interaction-prompt" id="interaction-prompt" aria-live="polite"></div>
