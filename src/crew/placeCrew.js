@@ -3,9 +3,8 @@ import { CREW } from './roster.js';
 
 const STOP_DISTANCE = 86;
 const WALK_SPEED = 30;
-let guideTargetId = null;
-
 export function placeCrew(scene, solids) {
+  let guideTargetId = null;
   const group = scene.physics.add.group({
     allowGravity: false, immovable: true, collideWorldBounds: true,
   });
@@ -43,6 +42,7 @@ export function placeCrew(scene, solids) {
     let rest = 1250 + index * 420;
     let facing = 'down';
     let stepClock = 0;
+    let wasGuiding = false;
 
     return (delta, animate, player, time = 0) => {
       const guiding = guideTargetId === id;
@@ -91,7 +91,10 @@ export function placeCrew(scene, solids) {
       const pulse = animate ? 1 + Math.sin(time / 180) * .08 : 1;
       guideHalo.setPosition(sprite.x, sprite.y + 10).setDepth(sprite.y + 1)
         .setScale(pulse).setVisible(guiding);
-      nameplate.setColor(guiding ? '#fff2b2' : accent).setFontSize(guiding ? '14px' : '12px');
+      if (guiding !== wasGuiding) {
+        nameplate.setColor(guiding ? '#fff2b2' : accent).setFontSize(guiding ? '14px' : '12px');
+        wasGuiding = guiding;
+      }
     };
   });
 
