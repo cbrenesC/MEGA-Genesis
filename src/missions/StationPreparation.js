@@ -618,7 +618,8 @@ export class StationPreparation {
     this.frameMission = mission;
     this.frame = el('iframe', '', 'mission-simulation');
     this.frame.title = t(mission === 'launch' && plan.scenarioId !== PRIMARY_MISSION ? `station.scenario.${plan.scenarioId}` : `lesson.${mission}.title`);
-    this.frame.src = missionUrl(mission, getLanguage(), plan, options);
+    const url = missionUrl(mission, getLanguage(), plan, options);
+    this.frame.src = options?.testReturn ? url.replace('#', '&testReturn=1#') : url;
     document.getElementById('app').append(this.frame);
     this.frame.focus();
     const frame = this.frame;
