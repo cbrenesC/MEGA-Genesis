@@ -1,19 +1,13 @@
-import en from './en.json' with { type: 'json' };
-import es from './es.json' with { type: 'json' };
 import { getPreferences, updatePreferences } from '../welcome/core/consent.js';
 
-const catalogs = { en, es };
-const supported = (locale) => Object.prototype.hasOwnProperty.call(catalogs, locale);
-export const normalizeLanguage = (locale) => supported(locale) ? locale : 'en';
+import { message, normalizeLanguage, setCatalogLanguage, supported } from './catalog.js';
+export { normalizeLanguage };
 const requestedLanguage = new URL(location.href).searchParams.get('lang');
 let language = supported(requestedLanguage) ? requestedLanguage : normalizeLanguage(getPreferences().language);
+setCatalogLanguage(language);
 
 export const getLanguage = () => language;
-
-export function t(key, params = {}, locale = language) {
-  const value = catalogs[normalizeLanguage(locale)][key] ?? en[key] ?? key;
-  return value.replace(/\{(\w+)\}/g, (match, name) => Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : match);
-}
+export const t = (key, params = {}, locale = language) => message(key, params, locale);
 
 const numberFormats = new Map();
 export function formatNumber(value, digits = 0) {
@@ -55,6 +49,7 @@ export function localizeDOM(root = document) {
 
 export function setLanguage(locale, { remember = true } = {}) {
   language = normalizeLanguage(locale);
+  setCatalogLanguage(language);
   if (remember) updatePreferences({ language });
   const url = new URL(location.href);
   if (url.searchParams.has('lang')) {

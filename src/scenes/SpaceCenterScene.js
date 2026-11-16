@@ -280,7 +280,7 @@ export class SpaceCenterScene extends Phaser.Scene {
   }
 
   currentGuideStep() {
-    return nextGuideStep(this.completedGuideSteps, this.preparation.completedMissions ?? []);
+    return nextGuideStep(this.completedGuideSteps, this.preparation.completedMissions ?? [], this.preparation.guideCampaign);
   }
 
   confirmStation(item) {

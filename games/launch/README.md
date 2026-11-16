@@ -1,6 +1,6 @@
 # Módulo LAUNCH (lanzamiento) — versión 2: Phaser e interactivo
 
-Prepara la misión en las cuatro estaciones de la izquierda de Mission Control y confirma el plan en Revisión de vuelo. La consola amarilla de lanzamiento abre `/games/launch/` con el plan y arranca la cuenta regresiva. Las estaciones están en inglés y español. El simulador está en español.
+Prepara la misión en las cuatro estaciones de la izquierda de Mission Control y confirma el plan en Revisión de vuelo. La consola amarilla de lanzamiento abre `/games/launch/` con el plan y arranca la cuenta regresiva. Las estaciones y el simulador conservan el idioma seleccionado en el centro de control. En la campaña lunar, el resultado y el diseño de la carga habilitan la operación del rover cuando la entrega es exitosa.
 
 Un juego de Phaser 3 en el que eliges el cohete y revisas la carga en el centro de control. Después **pilotas el lanzamiento** hasta la órbita (vista lateral 2D, empuje, giro, separación de etapas, mapa de la órbita y aceleración del tiempo). Funciona con teclado y con pantalla táctil.
 

@@ -1,3 +1,4 @@
+import { simText } from "../../../../src/i18n/catalog.js";
 import Phaser from 'phaser';
 // Vuelo interactivo: vista lateral 2D en pixel art, controles táctiles y de teclado, telemetría y pistas.
 //
@@ -47,22 +48,22 @@ const SPACE_FRAME_ALT = 180000; // m: arriba de esto el humo ya no vive "sobre e
 const wrapPi = (a) => { let x = a; while (x > Math.PI) x -= 2 * Math.PI; while (x < -Math.PI) x += 2 * Math.PI; return x; };
 const fmtDur = (s) => {
   if (!Number.isFinite(s)) return '—';
-  if (s >= 2 * 86400) return `${(s / 86400).toLocaleString('es', { maximumFractionDigits: 1 })} días`;
-  if (s >= 2 * 3600) return `${Math.round(s / 3600)} horas`;
-  if (s >= 120) return `${Math.round(s / 60)} minutos`;
-  return `${Math.max(0, Math.round(s))} segundos`;
+  if (s >= 2 * 86400) return simText("lunarFlight.0-days", (s / 86400).toLocaleString('es', { maximumFractionDigits: 1 }));
+  if (s >= 2 * 3600) return simText("lunarFlight.0-hours", Math.round(s / 3600));
+  if (s >= 120) return simText("lunarFlight.0-minutes", Math.round(s / 60));
+  return simText("lunarFlight.0-seconds", Math.max(0, Math.round(s)));
 };
 const kmTxt = (m) => `${Math.round(m / 1000).toLocaleString('es')} km`;
 const MILESTONES = [
-  ['tli', '¡RUMBO A LA LUNA!', 'ok'], ['soi', 'ZONA DE INFLUENCIA DE LA LUNA', 'ok'], ['lunarOrbit', '¡ÓRBITA LUNAR!', 'ok'],
-  ['tei', '¡RUMBO A CASA!', 'ok'], ['left', 'DE VUELTA CON LA TIERRA', 'info'], ['entry', 'REENTRADA', 'warn'], ['landed', null, 'ok'],
+  ['tli', simText("lunarFlight.bound-for-the-moon"), 'ok'], ['soi', simText("lunarFlight.moon-s-sphere-of-influence"), 'ok'], ['lunarOrbit', simText("lunarFlight.lunar-orbit-2"), 'ok'],
+  ['tei', simText("lunarFlight.heading-home"), 'ok'], ['left', simText("lunarFlight.back-in-earth-s-sphere-of-influence"), 'info'], ['entry', simText("lunarFlight.reentry-2"), 'warn'], ['landed', null, 'ok'],
 ];
 
 const EVENT_TEXT = {
-  liftoff: ['¡DESPEGUE!', 'ok'],
-  atmosphere: ['TORRE LIBRE · VUELO ATMOSFÉRICO', 'info'],
-  upper: ['ATMÓSFERA SUPERIOR', 'info'],
-  space: ['ESPACIO · SIN AIRE', 'ok'],
+  liftoff: [simText("flight.liftoff-2"), 'ok'],
+  atmosphere: [simText("flight.tower-clear-atmospheric-flight"), 'info'],
+  upper: [simText("flight.upper-atmosphere-2"), 'info'],
+  space: [simText("flight.space-vacuum"), 'ok'],
 };
 
 export class FlightScene extends Phaser.Scene {
@@ -143,7 +144,7 @@ export class FlightScene extends Phaser.Scene {
       finish: () => this.finish(),
       jumpApo: () => this.doJump(),
       warp: (n) => { this.warp = n; this.autoWarp = null; },
-      autopilot: (on) => { app.autopilotUsed = app.autopilotUsed || on; if (on) toast('Piloto automático encendido. Puedes apagarlo cuando quieras.', 'info'); },
+      autopilot: (on) => { app.autopilotUsed = app.autopilotUsed || on; if (on) toast(simText("flight.autopilot-is-on-you-can-turn-it-off"), 'info'); },
       prograde: (on) => this.sim.setMode(on ? 'prograde' : 'manual'),
       attitude: (mode) => { if (this.sim.burn && !this.sim.burn.done) this.cancelBurn(); this.sim.setMode(mode); },
       chute: () => this.doChute(),
@@ -220,8 +221,8 @@ export class FlightScene extends Phaser.Scene {
     this.paused = false;
     this.ignition = { t: 0 };
     this.spool = 0;
-    this.hud.message('Encendido de motores… el cohete sigue sujeto a la plataforma.', 'info');
-    this.hud.event('ENCENDIDO', 'info');
+    this.hud.message(simText("flight.engines-igniting-the-rocket-is-still-held-on"), 'info');
+    this.hud.event(simText("flight.ignition"), 'info');
   }
 
   togglePause() {
@@ -233,8 +234,8 @@ export class FlightScene extends Phaser.Scene {
     const ov = document.getElementById('overlay');
     if (this.paused) {
       ov.hidden = false;
-      ov.innerHTML = `<div class="tutorial" role="dialog" aria-label="Pausa"><span class="kicker">PAUSA</span><h2>Vuelo en pausa</h2><p>Tu cohete espera. Los motores y el tiempo están congelados.</p>
-        <div class="actions"><button id="p-exit">Volver al centro de control</button>${this.lunar && this.sim.mission.leo && this.sim.status === 'flying' ? '<button id="p-end" title="Termina el vuelo donde está la nave ahora y muestra el resultado">Terminar la misión aquí</button>' : ''}<button class="primary big" id="p-resume">▶ Seguir volando</button></div></div>`;
+      ov.innerHTML = `<div class="tutorial" role="dialog" aria-label="${simText("flight.pause")}"><span class="kicker">${simText("flight.paused")}</span><h2>${simText("flight.flight-paused")}</h2><p>${simText("flight.the-rocket-is-holding-engines-and-the-clock")}</p>
+        <div class="actions"><button id="p-exit">${simText("flight.return-to-mission-control")}</button>${this.lunar && this.sim.mission.leo && this.sim.status === 'flying' ? `<button id="p-end" title="${simText("lunarFlight.end-the-flight-at-the-spacecraft-s-current")}">${simText("lunarFlight.end-mission-here")}</button>` : ''}<button class="primary big" id="p-resume">${simText("flight.resume-flight")}</button></div></div>`;
       document.getElementById('p-resume').onclick = () => this.togglePause();
       const end = document.getElementById('p-end');
       if (end) end.onclick = () => { this.togglePause(); this.finish(); };
@@ -292,12 +293,12 @@ export class FlightScene extends Phaser.Scene {
       for (const piece of stageDebris(this.vehicle, sep.index)) this.debris.push(make(piece, { side: piece.side, lateral: piece.lateral }));
       this.cam.kick(0.5);
       if (this.sim.altitude > 1500) this.cam.kickFocus(6);
-      this.hud.event(this.vehicle.stages[sep.index]?.service ? 'MÓDULO DE SERVICIO SEPARADO' : `ETAPA ${sep.index + 1} SEPARADA`, 'ok');
+      this.hud.event(this.vehicle.stages[sep.index]?.service ? simText("lunarFlight.service-module-separated") : simText('flight.stage-0-separated', sep.index + 1), 'ok');
     } else {
       for (const side of [-1, 1]) this.debris.push(make(fairingSprite(this.vehicle, side), { side, lateral: side * (this.dims.hw / 2 + 0.5) }));
       this.cam.kick(0.25);
       if (this.sim.altitude > 1500) this.cam.kickFocus(4);
-      this.hud.event('COFIA SOLTADA', 'ok');
+      this.hud.event(simText("flight.fairing-released"), 'ok');
     }
     while (this.debris.length > MAX_DEBRIS) this.debris.shift();
     // destello y gases en el punto de separación
@@ -307,9 +308,9 @@ export class FlightScene extends Phaser.Scene {
   }
 
   doJump() {
-    if (this.sim.status !== 'flying' || this.sim.throttle > 0.01) { this.hud.message('Apaga el motor para saltar en el tiempo.', 'warn'); return; }
+    if (this.sim.status !== 'flying' || this.sim.throttle > 0.01) { this.hud.message(simText('flight.cut-the-engines-before-skipping-ahead'), 'warn'); return; }
     if (this.lunar && this.sim.mission.leo) {
-      if (!(this.jumpEta > WARP_LEAD + 4)) { toast('No hay nada que esperar: es momento de actuar.', 'info'); return; }
+      if (!(this.jumpEta > WARP_LEAD + 4)) { toast(simText("lunarFlight.there-is-nothing-to-wait-for-it-is"), 'info'); return; }
       this.autoWarp = 'plan';
       return;
     }
@@ -416,7 +417,7 @@ export class FlightScene extends Phaser.Scene {
       this.sim.ignite();
       // los motores ya estaban rugiendo: la física parte desde ese empuje y decide cuándo supera al peso
       this.sim.throttle = Math.min(this.hud.controls.throttle, SPOOL_END);
-      this.hud.message('Motores al máximo. El cohete se suelta cuando el empuje supere su peso.', 'ok');
+      this.hud.message(simText("flight.engines-at-full-thrust-the-rocket-lifts-off"), 'ok');
     }
   }
 
@@ -430,7 +431,7 @@ export class FlightScene extends Phaser.Scene {
       const c = applyAutopilot(sim, this.ap);
       ctl = { throttle: c.throttle, betaTarget: sim.mode === 'prograde' ? null : c.betaTarget };
       follow = c.throttle;
-      if (c.done) { hud.toggleAuto(false); this.hud.message('El piloto automático terminó. ¡Revisa tu órbita y pulsa «Terminar vuelo»!', 'ok'); }
+      if (c.done) { hud.toggleAuto(false); this.hud.message(simText("flight.autopilot-has-finished-review-your-orbit-and-select"), 'ok'); }
     } else {
       ctl = { steer: hud.steer, throttle: hud.controls.throttle };
     }
@@ -472,11 +473,11 @@ export class FlightScene extends Phaser.Scene {
       if (sim.altitude < 1500 && sim.throttle > 0.05) this.cam.kick(0.12 + 0.3 * sim.throttle * (1 - sim.altitude / 1500));
       if (q > PHYS.Q_WARN * 0.8) this.cam.kick(0.2 + 0.4 * smooth(PHYS.Q_WARN, PHYS.Q_LIMIT, q));
     }
-    if (!this.maxQAnnounced && sim.stats.entryT == null && q > 8000 && q < sim.stats.maxQ * 0.9) { this.maxQAnnounced = true; this.hud.event('MAX-Q SUPERADO', 'ok'); }
-    if (sim.orbitReached && !this.orbitAnnounced) { this.orbitAnnounced = true; this.hud.event('¡ÓRBITA!', 'ok'); }
+    if (!this.maxQAnnounced && sim.stats.entryT == null && q > 8000 && q < sim.stats.maxQ * 0.9) { this.maxQAnnounced = true; this.hud.event(simText('flight.max-q-passed'), 'ok'); }
+    if (sim.orbitReached && !this.orbitAnnounced) { this.orbitAnnounced = true; this.hud.event(simText('flight.orbit-reached'), 'ok'); }
     if (sim.mission) {
-      for (const [key, text, kind] of MILESTONES) if (sim.mission[key] && !this.seenMilestone[key]) { this.seenMilestone[key] = true; this.hud.event(text ?? (this.onWater() ? '¡AMERIZAJE!' : '¡ATERRIZAJE!'), kind); if (!this.reduced && key !== 'left') this.cam.kick(0.3); }
-      if (sim.chute && !this.seenMilestone.chute) { this.seenMilestone.chute = true; this.hud.event(sim.chute.torn ? 'PARACAÍDAS ROTOS' : 'PARACAÍDAS ABIERTOS', sim.chute.torn ? 'bad' : 'ok'); if (!this.reduced) this.cam.kick(0.5); }
+      for (const [key, text, kind] of MILESTONES) if (sim.mission[key] && !this.seenMilestone[key]) { this.seenMilestone[key] = true; this.hud.event(text ?? (this.onWater() ? simText("lunarFlight.splashdown-2") : simText("lunarFlight.touchdown")), kind); if (!this.reduced && key !== 'left') this.cam.kick(0.3); }
+      if (sim.chute && !this.seenMilestone.chute) { this.seenMilestone.chute = true; this.hud.event(sim.chute.torn ? simText("lunarFlight.parachutes-torn") : simText("lunarFlight.parachutes-deployed"), sim.chute.torn ? 'bad' : 'ok'); if (!this.reduced) this.cam.kick(0.5); }
       // reentrada: la cápsula vibra con el frenado
       if (!this.reduced && sim.gNow > 1.5 && sim.stats.entryT != null) this.cam.kick(Math.min(0.7, sim.gNow / 12));
     }
@@ -536,7 +537,7 @@ export class FlightScene extends Phaser.Scene {
       const eta = this.jumpEta ?? 0;
       if (!(eta > WARP_LEAD + 0.5) || burning) { this.autoWarp = null; this.warp = 1; hud.setWarp(1); } else phys = Math.min(dt * PHYS.COMPRESSION * WARP_JUMP, Math.max(eta - WARP_LEAD, phys), Math.max(60, eta * 0.2));
     } else if (this.warp > 5 && Number.isFinite(horizon)) {
-      if (horizon <= WARP_LEAD) { this.warp = 1; hud.setWarp(1); phys = dt * PHYS.COMPRESSION; toast('Tiempo normal: se acerca un momento importante.', 'info'); } else phys = Math.min(phys, horizon - WARP_LEAD);
+      if (horizon <= WARP_LEAD) { this.warp = 1; hud.setWarp(1); phys = dt * PHYS.COMPRESSION; toast(simText("lunarFlight.normal-speed-restored-a-key-event-is-approaching"), 'info'); } else phys = Math.min(phys, horizon - WARP_LEAD);
     }
     if (inAir && phys > dt * PHYS.COMPRESSION * 5.01) phys = dt * PHYS.COMPRESSION * 5;
     const t0 = sim.t;
@@ -554,31 +555,31 @@ export class FlightScene extends Phaser.Scene {
   doManeuver() {
     const sim = this.sim;
     if (this.paused || sim.status !== 'flying' || !sim.mission.leo) return;
-    if (this.hud.controls.autopilot) { toast('El piloto automático está al mando. Apágalo (P) para maniobrar tú.', 'info'); return; }
-    if (sim.burn && !sim.burn.done) { this.cancelBurn(); toast('Maniobra detenida.', 'info'); return; }
+    if (this.hud.controls.autopilot) { toast(simText("lunarFlight.autopilot-is-in-control-turn-it-off-p"), 'info'); return; }
+    if (sim.burn && !sim.burn.done) { this.cancelBurn(); toast(simText("lunarFlight.maneuver-stopped"), 'info'); return; }
     const plan = lunarPlan(sim, this.guide);
     if (sim.capsuleOnly) return;
-    if (sim.engineOut) { toast(sim.stage < sim.stageCount - 1 ? 'Esta etapa no tiene combustible: sepárala (Espacio) y vuelve a intentarlo.' : 'El módulo de servicio se quedó sin combustible.', 'warn'); return; }
+    if (sim.engineOut) { toast(sim.stage < sim.stageCount - 1 ? simText("lunarFlight.this-stage-has-no-fuel-separate-it-space") : simText("lunarFlight.the-service-module-ran-out-of-propellant"), 'warn'); return; }
     let kind = null; let extra = {};
-    const wait = (what) => toast(`Todavía no: ${what} en ${fmtDur(plan.eta)}. Pulsa ⏩ Saltar para ir a ese momento.`, 'info');
+    const wait = (what) => toast(simText("lunarFlight.not-yet-0-in-1-select-skip-ahead", what, fmtDur(plan.eta)), 'info');
     switch (plan.phase) {
       case 'parking':
         if (sim.fairing) sim.dropFairing();
-        if (plan.window && !plan.window.open) { wait('la ventana para ir a la Luna se abre'); return; }
+        if (plan.window && !plan.window.open) { wait(simText("lunarFlight.the-lunar-transfer-window-opens")); return; }
         kind = 'tli'; break;
       case 'toMoon': kind = 'mcc'; extra = { goal: 'moon' }; break;
       case 'approach':
-        if (plan.action === 'waitLoi' && plan.eta > 45) { wait('hay que frenar al pasar por el punto más bajo,'); return; }
+        if (plan.action === 'waitLoi' && plan.eta > 45) { wait(simText("lunarFlight.brake-at-the-lowest-point")); return; }
         kind = 'loi'; break;
       case 'lunarOrbit':
-        if (plan.action === 'waitTei' && plan.eta > 20) { wait('la ventana de regreso se abre'); return; }
+        if (plan.action === 'waitTei' && plan.eta > 20) { wait(simText("lunarFlight.the-return-window-opens")); return; }
         kind = 'tei'; break;
       case 'departing': case 'toEarth': kind = 'mcc'; extra = { goal: 'earth' }; break;
       default: return;
     }
     startBurn(sim, kind, extra);
     this.autoWarp = null; this.warp = 1; this.hud.setWarp(1);
-    this.hud.event({ tli: 'INYECCIÓN TRANSLUNAR', loi: 'FRENADO EN LA LUNA', tei: 'INYECCIÓN DE REGRESO', mcc: 'CORRECCIÓN DE RUMBO' }[kind], 'info');
+    this.hud.event({ tli: simText("lunarFlight.translunar-injection-2"), loi: simText("lunarFlight.lunar-orbit-insertion"), tei: simText("lunarFlight.return-burn"), mcc: simText("lunarFlight.course-correction") }[kind], 'info');
   }
 
   cancelBurn() {
@@ -597,11 +598,11 @@ export class FlightScene extends Phaser.Scene {
     this.guide.pred = null;
     if (b.kind === 'mcc') { if (b.goal === 'moon') this.guide.mccMoon = (this.guide.mccMoon ?? 0) + 1; else { this.guide.mccEarth = (this.guide.mccEarth ?? 0) + 1; this.guide.mccEarthAlt = sim.altitude; } }
     const msg = {
-      tli: { ok: '¡Inyección translunar lista! La trayectoria ya pasa junto a la Luna.', low: 'Inyección hecha, pero la trayectoria pasa demasiado cerca de la Luna: habrá que corregir el rumbo.', noEncounter: 'El encendido terminó, pero la trayectoria no se encuentra con la Luna: se encendió fuera de la ventana.' },
-      loi: { ok: '¡Frenado completo! Estás en órbita lunar.', empty: 'Se acabó el combustible antes de terminar el frenado.', left: 'La nave salió de la zona de la Luna antes de frenar.' },
-      tei: { ok: '¡Inyección de regreso lista! La trayectoria cae hacia la Tierra.', over: 'Te pasaste un poco: habrá que corregir el rumbo de vuelta.', empty: 'Se acabó el combustible durante la inyección de regreso.' },
-      mcc: { ok: 'Rumbo corregido.', empty: 'Se acabó el combustible durante la corrección.', lost: 'No se encontró una corrección que sirva desde aquí.' },
-    }[b.kind]?.[b.result] ?? 'Maniobra terminada.';
+      tli: { ok: simText("lunarFlight.translunar-injection-complete-the-trajectory-now-passes-near"), low: simText("lunarFlight.translunar-injection-complete-but-the-trajectory-passes-too"), noEncounter: simText("lunarFlight.the-burn-finished-but-its-timing-left-the") },
+      loi: { ok: simText("lunarFlight.braking-complete-you-are-in-lunar-orbit"), empty: simText("lunarFlight.fuel-ran-out-before-the-braking-burn-finished"), left: simText("lunarFlight.the-spacecraft-left-the-moon-s-sphere-of") },
+      tei: { ok: simText("lunarFlight.return-burn-complete-the-trajectory-heads-toward-earth"), over: simText("lunarFlight.you-overshot-slightly-correct-the-return-trajectory"), empty: simText("lunarFlight.fuel-ran-out-during-the-return-burn") },
+      mcc: { ok: simText("lunarFlight.course-corrected"), empty: simText("lunarFlight.fuel-ran-out-during-the-course-correction"), lost: simText("lunarFlight.no-suitable-correction-is-available-from-here") },
+    }[b.kind]?.[b.result] ?? simText("lunarFlight.maneuver-complete");
     this.hud.message(msg, b.result === 'ok' ? 'ok' : 'warn');
     this.noticeUntil = performance.now() + 5000;
     this.hud.setAttitude('prograde'); // queda mirando hacia adelante
@@ -610,7 +611,7 @@ export class FlightScene extends Phaser.Scene {
   doChute() {
     if (this.paused || this.sim.status !== 'flying') return;
     const r = this.sim.deployChute();
-    if (r === 'attached') toast('Primero suelta el módulo de servicio: los paracaídas están en la punta de la cápsula.', 'warn');
+    if (r === 'attached') toast(simText("lunarFlight.release-the-service-module-first-the-parachutes-are"), 'warn');
   }
 
   onPhase(next) {
@@ -675,14 +676,14 @@ export class FlightScene extends Phaser.Scene {
     const bad = wasDestroyed(sim);
     if (bad) {
       this.explode();
-      this.hud.message(sim.log.at(-1)?.text ?? 'El cohete se perdió.', 'bad');
+      this.hud.message(sim.log.at(-1)?.text ?? simText('flight.the-rocket-was-lost'), 'bad');
     } else if (sim.landing) {
       // amerizaje: salpicadura y la cápsula flotando mientras llega el barco
       if (!this.spaceFrame && this.onWater()) this.particles.splash({ x: this.groundS(), y: 0, n: this.reduced ? 14 : 46 });
       if (!this.reduced) this.cam.kick(0.5);
       playEffect('rocket-land');
-      this.hud.message(`${this.onWater() ? '¡Amerizaje' : '¡Aterrizaje'} a ${sim.landing.speed.toFixed(1)} m/s! La tripulación está de vuelta en casa.`, 'ok');
-    } else this.hud.message(sim.orbitReached ? '¡Vuelo terminado! Vamos a ver cómo te fue…' : 'Vuelo terminado.', 'ok');
+      this.hud.message(simText("lunarFlight.0-at-1-m-s-the-crew-is", this.onWater() ? simText("lunarFlight.splashdown-3") : simText("lunarFlight.touchdown-2"), sim.landing.speed.toFixed(1)), 'ok');
+    } else this.hud.message(sim.orbitReached ? simText('flight.flight-complete-let-s-see-how-you-did') : simText('flight.flight-complete'), 'ok');
   }
 
   explode() {
@@ -714,13 +715,13 @@ export class FlightScene extends Phaser.Scene {
     const phase = this.shadow.phase;
     let msg = null; let kind = 'hint';
     const warnings = [];
-    if (sim.lastQ > PHYS.Q_LIMIT) warnings.push(['¡Demasiada presión del aire! Baja el empuje ya.', 'bad']);
-    else if (sim.lastQ > PHYS.Q_WARN) warnings.push(['Mucha presión del aire (Max-Q): baja un poco el empuje.', 'warn']);
-    if (lastEmpty && !sim.orbitReached && sim.status === 'flying') warnings.push(['Te quedaste sin combustible y todavía no estás en órbita.', 'bad']);
+    if (sim.lastQ > PHYS.Q_LIMIT) warnings.push([simText("flight.dynamic-pressure-is-too-high-reduce-thrust-now"), 'bad']);
+    else if (sim.lastQ > PHYS.Q_WARN) warnings.push([simText("flight.high-dynamic-pressure-max-q-reduce-thrust-slightly"), 'warn']);
+    if (lastEmpty && !sim.orbitReached && sim.status === 'flying') warnings.push([simText("flight.you-ran-out-of-fuel-before-reaching-orbit"), 'bad']);
     // en la plataforma con poco empuje: el cohete pesa más de lo que empuja
     if (sim.status === 'flying' && sim.grounded && !this.ignition) {
       const twNow = sim.thrustToWeight(Math.max(hud.controls.throttle, sim.throttle * 0.999));
-      if (hud.controls.throttle > 0.02 && twNow < 1) warnings.push([`El empuje (${twNow.toFixed(2)} veces su peso) no alcanza: ¡sube la palanca de empuje para despegar!`, 'warn']);
+      if (hud.controls.throttle > 0.02 && twNow < 1) warnings.push([simText("flight.thrust-0-times-the-rocket-s-weight-is", twNow.toFixed(2)), 'warn']);
     }
 
     // recomendaciones (más detalladas en fácil, solo pistas visuales en normal)
@@ -737,28 +738,28 @@ export class FlightScene extends Phaser.Scene {
     }
     if (level === 'facil') {
       const diffDeg = ctx.recommendBetaDeg != null ? ctx.recommendBetaDeg - sim.beta / DEG : 0;
-      if (empty) msg = '¡Ahora separa la etapa! (barra espaciadora)';
-      else if (ctx.pulseFairing) msg = '¡Suelta la cofia (📦)! Ya casi no hay aire.';
-      else if (tr?.active) msg = 'Transferencia en marcha: el cohete sigue su camino. Espera a que termine.';
+      if (empty) msg = simText("flight.separate-the-stage-now-space-bar");
+      else if (ctx.pulseFairing) msg = simText("flight.release-the-fairing-the-air-is-thin-enough");
+      else if (tr?.active) msg = simText("flight.transfer-burn-in-progress-wait-for-the-maneuver");
       else if (ctx.canTransfer && transfer) {
         const w = transferWindow(sim);
-        msg = w && w.waitS <= w.burnS / 2 + 4 ? '¡AHORA! Pulsa «Encender transferencia».' : `Ventana de transferencia en ${mmss(w?.waitS ?? 0)}. Pulsa ⏩ Saltar y espera la marca.`;
+        msg = w && w.waitS <= w.burnS / 2 + 4 ? simText("flight.now-select-start-transfer-burn") : simText("flight.transfer-window-in-0-skip-ahead-and-wait", mmss(w?.waitS ?? 0));
         ctx.pulseTransfer = Boolean(w && w.waitS <= w.burnS / 2 + 4);
-      } else if (ctx.canFinish && transfer && tr && !tr.active) msg = '¡Transferencia lista! Pulsa «Terminar vuelo».';
-      else if (phase === 'coast' && sim.throttle > 0.02) msg = `¡Apaga el motor (X)! Tu punto más alto ya llegó a ${Math.round(tAlt / 1000)} km.`;
-      else if (phase === 'coast') msg = 'Deja que suba solo hasta el punto más alto. Pulsa ⏩ Saltar para ir más rápido.';
-      else if (phase === 'circ' && !circular) msg = sim.mode === 'prograde' ? 'Pulsa 🧭 (R) para soltar «Mirar adelante» y sigue la flecha amarilla.' : `¡Ahora empuja${out.throttle < 0.98 ? ` con ${Math.round(out.throttle * 100)} % de fuerza (la marca «sugerido»)` : ' al 100 %'} siguiendo la flecha amarilla! Yo te aviso cuando la órbita quede redonda.`;
-      else if (circular && sim.throttle > 0.02) msg = '¡Órbita redonda! Apaga el motor (X) y pulsa «Terminar vuelo».';
-      else if (circular) msg = '¡Órbita lograda! Pulsa «Terminar vuelo».';
+      } else if (ctx.canFinish && transfer && tr && !tr.active) msg = simText("flight.transfer-complete-select-finish-flight");
+      else if (phase === 'coast' && sim.throttle > 0.02) msg = simText("flight.cut-the-engines-x-your-highest-point-has", Math.round(tAlt / 1000));
+      else if (phase === 'coast') msg = simText("flight.coast-to-the-highest-point-select-skip-ahead");
+      else if (phase === 'circ' && !circular) msg = sim.mode === 'prograde' ? simText("flight.press-r-to-turn-off-prograde-lock-then") : simText("flight.apply-thrust-0-and-follow-the-yellow-arrow", out.throttle < 0.98 ? simText("flight.at-0-the-suggested-mark", Math.round(out.throttle * 100)) : simText("flight.at-100"));
+      else if (circular && sim.throttle > 0.02) msg = simText("flight.your-orbit-is-circular-cut-the-engines-x");
+      else if (circular) msg = simText("flight.orbit-reached-select-finish-flight");
       else if (phase === 'ascent' && ctx.recommendBetaDeg != null) {
-        if (sim.altitude < 1500) msg = 'Sube derecho unos segundos. Pronto te diré cuándo inclinar.';
-        else if (Math.abs(diffDeg) > 3) msg = `¡Ahora inclina ${Math.round(Math.abs(diffDeg))}° a la ${diffDeg > 0 ? 'derecha' : 'izquierda'}!`;
-        else msg = 'Vas muy bien: mantén ese ángulo.';
+        if (sim.altitude < 1500) msg = simText("flight.keep-climbing-vertically-for-a-few-seconds-the");
+        else if (Math.abs(diffDeg) > 3) msg = simText("flight.tilt-0-to-the-1-now", Math.round(Math.abs(diffDeg)), diffDeg > 0 ? simText("flight.right-2") : simText("flight.left-2"));
+        else msg = simText("flight.great-hold-that-angle");
       }
     } else if (level === 'normal') {
-      if (empty) msg = 'Una etapa se quedó sin combustible.';
-      else if (phase === 'coast' && sim.throttle > 0.02) msg = 'Tu punto más alto ya llegó a la altura pedida: puedes apagar el motor.';
-      else if (circular) msg = '¡Tu órbita es redonda! Apaga el motor y termina el vuelo.';
+      if (empty) msg = simText("flight.a-stage-ran-out-of-fuel");
+      else if (phase === 'coast' && sim.throttle > 0.02) msg = simText("flight.your-highest-point-has-reached-the-target-altitude");
+      else if (circular) msg = simText("flight.your-orbit-is-circular-cut-the-engines-and");
     }
     if (warnings.length) { [msg, kind] = warnings[0]; }
     // si hay un aviso reciente de la simulación, se deja unos segundos
@@ -794,76 +795,76 @@ export class FlightScene extends Phaser.Scene {
 
     // --- botón de maniobra
     if (flying && !sim.capsuleOnly && !auto) {
-      if (burning) ctx.maneuver = { label: '■ Detener maniobra', ready: true, active: true };
-      else if (ph === 'parking') ctx.maneuver = { label: '🚀 Ir a la Luna', ready: act === 'tli', pulse: hints && act === 'tli' };
-      else if (ph === 'toMoon' && plan.check && !plan.check.fine && act !== 'sepUpper') ctx.maneuver = { label: '🎯 Corregir rumbo', ready: true, pulse: hints && act === 'mcc' };
-      else if (ph === 'approach') ctx.maneuver = { label: '🛑 Frenar en la Luna', ready: act === 'loi', pulse: hints && act === 'loi' };
-      else if (ph === 'lunarOrbit') ctx.maneuver = { label: '🏠 Volver a la Tierra', ready: act === 'tei', pulse: hints && act === 'tei' };
-      else if ((ph === 'toEarth' || ph === 'departing') && plan.check && !plan.check.fine) ctx.maneuver = { label: '🎯 Corregir rumbo', ready: true, pulse: hints && act === 'mcc' };
+      if (burning) ctx.maneuver = { label: simText("lunarFlight.stop-maneuver"), ready: true, active: true };
+      else if (ph === 'parking') ctx.maneuver = { label: simText("lunarFlight.go-to-the-moon"), ready: act === 'tli', pulse: hints && act === 'tli' };
+      else if (ph === 'toMoon' && plan.check && !plan.check.fine && act !== 'sepUpper') ctx.maneuver = { label: simText("lunarFlight.correct-course"), ready: true, pulse: hints && act === 'mcc' };
+      else if (ph === 'approach') ctx.maneuver = { label: simText("lunarFlight.brake-at-the-moon"), ready: act === 'loi', pulse: hints && act === 'loi' };
+      else if (ph === 'lunarOrbit') ctx.maneuver = { label: simText("lunarFlight.return-to-earth"), ready: act === 'tei', pulse: hints && act === 'tei' };
+      else if ((ph === 'toEarth' || ph === 'departing') && plan.check && !plan.check.fine) ctx.maneuver = { label: simText("lunarFlight.correct-course"), ready: true, pulse: hints && act === 'mcc' };
     }
 
     // --- lectura: lo que la trayectoria promete ahora mismo
     const passRead = (km) => {
-      if (km == null) return { label: 'Paso por la Luna', value: 'sin encuentro', kind: 'bad', goal: 'ideal: 110 km' };
+      if (km == null) return { label: simText("lunarFlight.lunar-approach"), value: simText("lunarFlight.no-encounter"), kind: 'bad', goal: 'ideal: 110 km' };
       const alt = Math.abs(km);
-      if (km < 0 && alt < 1) return { label: 'Paso por la Luna', value: 'choca', kind: 'bad', goal: 'ideal: 110 km' };
+      if (km < 0 && alt < 1) return { label: simText("lunarFlight.lunar-approach"), value: 'choca', kind: 'bad', goal: 'ideal: 110 km' };
       const kind = km >= LUNAR.PERI_MIN / 1000 && km <= LUNAR.PERI_MAX / 1000 ? (Math.abs(km - 110) < 40 ? 'good' : 'warn') : 'bad';
-      return { label: 'Paso por la Luna', value: km < 0 ? `${Math.round(alt).toLocaleString('es')} km (lado contrario)` : `${Math.round(km).toLocaleString('es')} km`, kind, goal: 'ideal: 110 km' };
+      return { label: simText("lunarFlight.lunar-approach"), value: km < 0 ? simText("lunarFlight.0-km-far-side-approach", Math.round(alt).toLocaleString('es')) : `${Math.round(km).toLocaleString('es')} km`, kind, goal: 'ideal: 110 km' };
     };
     const periRead = (km) => {
-      if (km == null) return { label: 'Punto más bajo al volver', value: 'no vuelve', kind: 'bad', goal: 'ideal: 60 km' };
+      if (km == null) return { label: simText("lunarFlight.lowest-point-on-return"), value: simText("lunarFlight.no-return"), kind: 'bad', goal: 'ideal: 60 km' };
       const kind = km >= LUNAR.ENTRY_MIN / 1000 && km <= LUNAR.ENTRY_MAX / 1000 ? (Math.abs(km - 60) <= 5 ? 'good' : 'warn') : 'bad';
-      return { label: 'Punto más bajo al volver', value: km < -5000 ? 'se pasa de largo' : `${Math.round(km).toLocaleString('es')} km`, kind, goal: 'ideal: 60 km' };
+      return { label: simText("lunarFlight.lowest-point-on-return"), value: km < -5000 ? simText("lunarFlight.overshoot") : `${Math.round(km).toLocaleString('es')} km`, kind, goal: 'ideal: 60 km' };
     };
     const r = this.burnReadout;
     if (burning && r) {
       if ('passKm' in r) ctx.readout = passRead(r.passKm);
       else if ('perigeeKm' in r) ctx.readout = periRead(r.perigeeKm);
-      else if ('periKm' in r) ctx.readout = { label: 'Órbita lunar', value: r.apoKm == null ? `${Math.round(r.periKm)} km × sin cerrar` : `${Math.round(r.periKm)} × ${Math.round(r.apoKm).toLocaleString('es')} km`, kind: r.apoKm != null && r.apoKm - r.periKm < 80 ? 'good' : 'warn', goal: 'redonda' };
+      else if ('periKm' in r) ctx.readout = { label: simText("lunarFlight.lunar-orbit"), value: r.apoKm == null ? simText("lunarFlight.0-km-unbound", Math.round(r.periKm)) : `${Math.round(r.periKm)} × ${Math.round(r.apoKm).toLocaleString('es')} km`, kind: r.apoKm != null && r.apoKm - r.periKm < 80 ? 'good' : 'warn', goal: 'redonda' };
     } else if (plan.check && flying) ctx.readout = plan.check.goal === 'moon' ? passRead(plan.check.value == null ? null : plan.check.value / 1000) : periRead(plan.check.value == null ? null : plan.check.value / 1000);
-    else if (ph === 'approach' && plan.window) ctx.readout = { label: 'Punto más bajo sobre la Luna', value: plan.window.periAlt < 0 ? 'choca' : kmTxt(plan.window.periAlt), kind: plan.window.periAlt > LUNAR.PERI_MIN ? 'good' : 'bad', goal: `en ${fmtDur(plan.window.eta)}` };
+    else if (ph === 'approach' && plan.window) ctx.readout = { label: simText("lunarFlight.lowest-point-above-the-moon"), value: plan.window.periAlt < 0 ? 'choca' : kmTxt(plan.window.periAlt), kind: plan.window.periAlt > LUNAR.PERI_MIN ? 'good' : 'bad', goal: `en ${fmtDur(plan.window.eta)}` };
     if (ctx.readout) ctx.readout.text = `${ctx.readout.label}|${ctx.readout.value}|${ctx.readout.goal ?? ''}|${ctx.readout.kind ?? ''}`;
 
     // --- mensajes
     let msg = null; let kind = 'hint';
     const warn = [];
-    if (emptyStage && flying) { ctx.pulseSep = hints; warn.push(['Esta etapa se quedó sin combustible: sepárala (Espacio).', 'warn']); }
-    if (act === 'entry' && !sim.capsuleOnly) { ctx.pulseSep = true; warn.push(['¡Suelta el módulo de servicio YA (Espacio)! El escudo térmico tiene que ir por delante.', 'bad']); }
-    if (sim.capsuleOnly && sim.gNow > (sim.craft.gLimit ?? 9)) warn.push([`Frenado muy fuerte: ${sim.gNow.toFixed(1)} veces la gravedad.`, 'warn']);
-    if (ph === 'approach' && plan.window && plan.window.periAlt < LUNAR.PERI_MIN / 2 && !burning) warn.push(['¡Cuidado! La trayectoria pasa demasiado cerca de la Luna (o choca). Gira y empuja hacia afuera, o corrige antes de llegar.', 'bad']);
-    if (auto) msg = ph === 'landed' ? null : `Piloto automático: ${LUNAR_PHASE_LABEL[ph].toLowerCase()}.`;
+    if (emptyStage && flying) { ctx.pulseSep = hints; warn.push([simText("lunarFlight.this-stage-is-out-of-fuel-separate-it"), 'warn']); }
+    if (act === 'entry' && !sim.capsuleOnly) { ctx.pulseSep = true; warn.push([simText("lunarFlight.release-the-service-module-now-space-the-heat"), 'bad']); }
+    if (sim.capsuleOnly && sim.gNow > (sim.craft.gLimit ?? 9)) warn.push([simText("lunarFlight.high-deceleration-0-g", sim.gNow.toFixed(1)), 'warn']);
+    if (ph === 'approach' && plan.window && plan.window.periAlt < LUNAR.PERI_MIN / 2 && !burning) warn.push([simText("lunarFlight.the-trajectory-passes-dangerously-close-to-or-into"), 'bad']);
+    if (auto) msg = ph === 'landed' ? null : simText("lunarFlight.autopilot-0", LUNAR_PHASE_LABEL[ph].toLowerCase());
     else if (burning) {
-      msg = { tli: 'Inyección translunar: el motor empuja hasta que la trayectoria pase junto a la Luna. Se apaga solo.', loi: 'Frenando para quedar en órbita lunar. El motor se apaga solo cuando la órbita quede redonda.', tei: 'Inyección de regreso: el motor empuja hasta que la trayectoria caiga hacia la Tierra. Se apaga solo.', mcc: 'Corrigiendo el rumbo con empujoncitos…' }[sim.burn.kind];
+      msg = { tli: simText("lunarFlight.translunar-injection-the-engines-burn-until-the-trajectory"), loi: simText("lunarFlight.braking-to-reach-lunar-orbit-the-engines-shut"), tei: simText("lunarFlight.return-burn-the-engines-run-until-the-trajectory"), mcc: simText("lunarFlight.correcting-course-with-short-burns") }[sim.burn.kind];
       kind = 'info';
     } else if (hints) {
-      const jump = ' Pulsa ⏩ Saltar para ir a ese momento.';
+      const jump = simText("lunarFlight.select-skip-ahead-to-reach-that-point");
       switch (act) {
-        case 'fairing': ctx.pulseFairing = true; msg = '¡Suelta la cofia (F)! La nave ya está en el espacio.'; break;
-        case 'waitTli': msg = `Estás en la órbita de espera. La ventana para ir a la Luna se abre en ${fmtDur(plan.eta)}.${jump} Mira el mapa (M).`; break;
-        case 'tli': msg = '¡Ventana abierta! Pulsa «🚀 Ir a la Luna»: el cohete enciende y se apaga solo en el momento justo.'; break;
-        case 'sepUpper': ctx.pulseSep = true; msg = 'La etapa superior ya hizo su trabajo: sepárala (Espacio). Desde aquí vuela tu nave con su módulo de servicio.'; break;
-        case 'mcc': msg = plan.goal === 'moon' ? 'El rumbo quedó un poco desviado. Pulsa «🎯 Corregir rumbo» para pasar a 110 km de la Luna.' : 'El rumbo de vuelta necesita un ajuste. Pulsa «🎯 Corregir rumbo» para entrar al aire con el ángulo justo.'; break;
-        case 'waitLoi': msg = `Vas a pasar a ${kmTxt(plan.window.periAlt)} de la Luna. Hay que frenar justo ahí, en ${fmtDur(plan.eta)}.${jump}`; break;
-        case 'loi': msg = plan.late ? '¡Ya pasaste el punto más bajo! Pulsa «🛑 Frenar en la Luna» ahora.' : '¡Ahora! Pulsa «🛑 Frenar en la Luna» para quedar en órbita.'; break;
-        case 'waitTei': msg = `¡Estás en órbita lunar! Disfruta la vista (aleja la cámara con −). La ventana de regreso se abre en ${fmtDur(plan.eta)}.${jump}`; break;
-        case 'tei': msg = '¡Ventana de regreso! Pulsa «🏠 Volver a la Tierra».'; break;
-        case 'sepService': ctx.pulseSep = true; msg = '¡Suelta el módulo de servicio (Espacio)! La cápsula entra sola al aire, con el escudo térmico por delante.'; break;
-        case 'entry': msg = sim.stats.entryT != null ? 'Reentrada: el escudo térmico protege la cápsula mientras el aire la frena. Todavía no abras los paracaídas.' : 'La cápsula cae hacia la atmósfera. No hay nada que hacer hasta que el aire la frene.'; kind = 'info'; break;
-        case 'chute': ctx.pulseChute = true; msg = '¡Abre los paracaídas (C)!'; break;
-        case 'descent': msg = sim.chute?.torn ? 'Los paracaídas se rompieron…' : 'Paracaídas abiertos: la cápsula baja despacio hacia el mar.'; kind = 'info'; break;
+        case 'fairing': ctx.pulseFairing = true; msg = simText("lunarFlight.release-the-fairing-f-the-spacecraft-is-already"); break;
+        case 'waitTli': msg = simText("lunarFlight.you-are-in-parking-orbit-the-lunar-transfer", fmtDur(plan.eta), jump); break;
+        case 'tli': msg = simText("lunarFlight.the-window-is-open-select-go-to-the"); break;
+        case 'sepUpper': ctx.pulseSep = true; msg = simText("lunarFlight.the-upper-stage-is-finished-separate-it-space"); break;
+        case 'mcc': msg = plan.goal === 'moon' ? simText("lunarFlight.the-trajectory-is-slightly-off-target-select-correct") : simText("lunarFlight.the-return-trajectory-needs-an-adjustment-select-correct"); break;
+        case 'waitLoi': msg = simText("lunarFlight.you-will-pass-0-above-the-moon-brake", kmTxt(plan.window.periAlt), fmtDur(plan.eta), jump); break;
+        case 'loi': msg = plan.late ? simText("lunarFlight.you-passed-the-lowest-point-select-brake-at") : simText("lunarFlight.now-select-brake-at-the-moon-to-enter"); break;
+        case 'waitTei': msg = simText("lunarFlight.you-are-in-lunar-orbit-zoom-out-to", fmtDur(plan.eta), jump); break;
+        case 'tei': msg = simText("lunarFlight.the-return-window-is-open-select-return-to"); break;
+        case 'sepService': ctx.pulseSep = true; msg = simText("lunarFlight.release-the-service-module-space-the-capsule-enters"); break;
+        case 'entry': msg = sim.stats.entryT != null ? simText("lunarFlight.the-heat-shield-protects-the-capsule-as-the") : simText("lunarFlight.the-capsule-is-falling-toward-the-atmosphere-wait"); kind = 'info'; break;
+        case 'chute': ctx.pulseChute = true; msg = simText("lunarFlight.deploy-the-parachutes-c-2"); break;
+        case 'descent': msg = sim.chute?.torn ? simText("lunarFlight.the-parachutes-tore") : simText("lunarFlight.parachutes-deployed-the-capsule-is-descending-toward-the"); kind = 'info'; break;
         case 'coast':
-          if (ph === 'toMoon') msg = plan.pred?.encounter ? `Rumbo a la Luna: llegas a su zona de influencia en ${fmtDur(plan.pred.encounter.t - sim.t)}.${jump}` : 'Tu trayectoria no se encuentra con la Luna.';
-          else if (ph === 'departing') msg = `Saliendo de la zona de la Luna (${fmtDur(plan.eta)}).${jump}`;
-          else if (ph === 'toEarth') msg = plan.pred?.entry ? `De vuelta a casa: la reentrada es en ${fmtDur(plan.pred.entry.t - sim.t)}.${jump}` : 'Tu trayectoria no llega a la atmósfera de la Tierra: corrige el rumbo.';
+          if (ph === 'toMoon') msg = plan.pred?.encounter ? simText("lunarFlight.heading-for-the-moon-you-enter-its-sphere", fmtDur(plan.pred.encounter.t - sim.t), jump) : simText("lunarFlight.your-trajectory-does-not-encounter-the-moon");
+          else if (ph === 'departing') msg = simText("lunarFlight.leaving-the-moon-s-sphere-of-influence-0", fmtDur(plan.eta), jump);
+          else if (ph === 'toEarth') msg = plan.pred?.entry ? simText("lunarFlight.heading-home-reentry-is-in-0-1", fmtDur(plan.pred.entry.t - sim.t), jump) : simText("lunarFlight.your-trajectory-misses-earth-s-atmosphere-correct-course");
           kind = 'info'; break;
         default: break;
       }
     } else if (act === 'chute') ctx.pulseChute = false;
     if (level === 'dificil' && !burning && !auto) {
       // sin pistas paso a paso: sólo se avisa qué fase es y los datos (la lectura de arriba sigue visible)
-      if (act === 'waitTli' || act === 'tli') msg = act === 'tli' ? 'Ventana translunar abierta.' : `Ventana translunar en ${fmtDur(plan.eta)}.`;
-      else if (act === 'waitLoi' || act === 'loi') msg = act === 'loi' ? 'Punto de frenado.' : `Punto más bajo en ${fmtDur(plan.eta)}.`;
-      else if (act === 'waitTei' || act === 'tei') msg = act === 'tei' ? 'Ventana de regreso abierta.' : `Ventana de regreso en ${fmtDur(plan.eta)}.`;
+      if (act === 'waitTli' || act === 'tli') msg = act === 'tli' ? simText("lunarFlight.the-translunar-window-is-open") : simText("lunarFlight.translunar-window-in-0", fmtDur(plan.eta));
+      else if (act === 'waitLoi' || act === 'loi') msg = act === 'loi' ? simText("lunarFlight.braking-point") : simText("lunarFlight.lowest-point-in-0", fmtDur(plan.eta));
+      else if (act === 'waitTei' || act === 'tei') msg = act === 'tei' ? simText("lunarFlight.the-return-window-is-open") : simText("lunarFlight.return-window-in-0", fmtDur(plan.eta));
       kind = 'info';
     }
     if (warn.length) [msg, kind] = warn[0];

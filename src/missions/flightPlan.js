@@ -1,5 +1,8 @@
 import { DIFFICULTIES, resolveInputs } from '../../games/launch/js/state.js';
 import { buildRequests, evaluateAll, getDifficulty } from '../../games/launch/js/rules.js';
+import { message } from '../i18n/catalog.js';
+import { validateBuild, COMPONENTS } from '../../games/rover/js/rules.js';
+import { LUNAR_ROVER, lunarRoverScenario } from './lunarCampaign.js';
 import { vehicleFor } from '../../games/launch/js/flight.js';
 
 export const PAYLOAD_FIELDS = {
@@ -16,7 +19,10 @@ export const hasFlight = (launcherId, orbit, data) => Boolean(vehicleFor(launche
 
 export function reviewFlightPlan(data, plan = {}) {
   const defaults = newFlightPlan(data);
-  const scenario = data.mocks.scenarios.find(s => s.id === plan.scenarioId)
+  const campaign = plan.scenarioId === LUNAR_ROVER ? lunarRoverScenario(data) : null;
+  const rover = campaign ? validateBuild(plan.roverBuild) : null;
+  const effectiveData = campaign ? { ...data, mocks: { ...data.mocks, scenarios: [...data.mocks.scenarios, campaign] } } : data;
+  const scenario = campaign ?? data.mocks.scenarios.find(s => s.id === plan.scenarioId)
     ?? data.mocks.scenarios.find(s => s.id === defaults.scenarioId);
   const difficulty = DIFFICULTIES.includes(plan.difficulty) ? plan.difficulty : defaults.difficulty;
   const rules = getDifficulty(data.rules, difficulty);
@@ -24,15 +30,23 @@ export function reviewFlightPlan(data, plan = {}) {
   const spacecraft = { ...scenario.spacecraft };
   const budget = { ...scenario.budget };
   const schedule = { ...scenario.schedule };
-  for (const [key, [min, max]] of Object.entries(PAYLOAD_FIELDS)) {
+  if (campaign) {
+    spacecraft.massKg += rover.stats.mass;
+    budget.committedMUSD += rover.stats.cost;
+    spacecraft.instruments = ['instrument', 'camera'].flatMap(id => {
+      const part = COMPONENTS[id].find(option => option.id === plan.roverBuild?.[id]);
+      return part ? [{ id, name: message(`station.component.${id}.${part.id}`), massKg: part.mass }] : [];
+    });
+  }
+  if (!campaign) for (const [key, [min, max]] of Object.entries(PAYLOAD_FIELDS)) {
     if (inRange(plan.payload?.[key], min, max)) spacecraft[key] = plan.payload[key];
   }
-  if (inRange(plan.budgetMUSD, budget.committedMUSD, 10000)) budget.totalMUSD = plan.budgetMUSD;
+  if (inRange(plan.budgetMUSD, campaign ? 1 : budget.committedMUSD, 10000)) budget.totalMUSD = plan.budgetMUSD;
   if (Number.isInteger(plan.targetMonths) && inRange(plan.targetMonths, 1, 120)) schedule.monthsToTargetDate = plan.targetMonths;
   const validPayload = spacecraft.propellantKg < spacecraft.massKg &&
     spacecraft.propellantKg >= (spacecraft.reservedPropellantKg ?? 0) &&
     spacecraft.massKg - spacecraft.propellantKg >= spacecraft.instruments.reduce((sum, i) => sum + i.massKg, 0);
-  const resolved = resolveInputs(data, {
+  const resolved = resolveInputs(effectiveData, {
     scenarioId: scenario.id, difficulty,
     shared: { spacecraft, budget, schedule, orbit: { target: scenario.orbit } },
   });
@@ -46,13 +60,13 @@ export function reviewFlightPlan(data, plan = {}) {
   const requiredRoles = selected && plan.teamMode === true
     ? [...new Set(['spacecraft', 'mission', ...buildRequests(selected, resolved.inputs).map(r => r.toRole)])]
     : [];
-  const reason = !validPayload ? 'payload' : !selected ? 'launcher' : !selected.compatible ? 'compatibility' : !simulated ? 'simulation' : requiredRoles.some(role => plan.acks?.[role] !== true) ? 'team' : null;
+  const reason = campaign && !rover.ok ? 'lunarRover' : !validPayload ? 'payload' : !selected ? 'launcher' : !selected.compatible ? 'compatibility' : !simulated ? 'simulation' : requiredRoles.some(role => plan.acks?.[role] !== true) ? 'team' : null;
   const rocketFuelPct = inRange(plan.rocketFuelPct, 75, 100) ? plan.rocketFuelPct : 100;
   // ventana de lanzamiento elegida en el planificador de clima: sólo vale para el sitio con el que se evaluó
   const lw = plan.launchWindow;
   const launchWindow = selected && lw && typeof lw === 'object' && lw.siteId === selected.siteId && typeof lw.time === 'string'
     && !Number.isNaN(Date.parse(lw.time)) && ['GO', 'CAUTION', 'NO-GO'].includes(lw.status) && lw.conditions && typeof lw.conditions === 'object'
     && ['meteomatics', 'simulation'].includes(lw.source) ? lw : null;
-  return { resolved, evaluations, options, selected, difficulty, rules, events, rocketFuelPct, launchWindow, requiredRoles, reason,
+  return { campaign, rover, resolved, evaluations, options, selected, difficulty, rules, events, rocketFuelPct, launchWindow, requiredRoles, reason,
     ready: reason === null && plan.approved === true };
 }

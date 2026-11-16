@@ -1,3 +1,4 @@
+import { catalogLanguage, simText } from "../../../src/i18n/catalog.js";
 // Panel de control del vuelo (HTML encima del canvas), compacto y según el momento del vuelo.
 //
 // Lo que se ve siempre: altura, velocidad, combustible y la palanca de empuje. Lo demás aparece sólo cuando sirve:
@@ -10,7 +11,7 @@ import { PHYS } from './flight.js';
 import { esc } from './screens.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const fmt = (v, d = 0) => v.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (v, d = 0) => v.toLocaleString(catalogLanguage() === 'en' ? 'en-US' : 'es', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const TERM = (id, label) => `<button class="term" data-term="${id}" aria-label="${esc(label)}">?</button>`;
 
@@ -33,7 +34,7 @@ export const icon = (name, color = 'currentColor') => {
   return `<svg class="px-ico" viewBox="0 0 8 8" width="16" height="16" fill="${color}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
 };
 
-const PHASE_NAME = { pad: 'En la plataforma', liftoff: 'Despegue', atmosphere: 'Vuelo atmosférico', upper: 'Atmósfera superior', space: 'Espacio' };
+const PHASE_NAME = { get pad() { return simText("flight.on-the-pad"); }, get liftoff() { return simText("flight.liftoff"); }, get atmosphere() { return simText("flight.atmospheric-flight"); }, get upper() { return simText("flight.upper-atmosphere"); }, get space() { return simText("flight.space"); } };
 
 export class Hud {
   /**
@@ -60,69 +61,68 @@ export class Hud {
     this.root.innerHTML = `
     <div class="hud-top">
       <div class="hud-main">
-        <div class="phase-row"><div class="phase-chip" id="phase" aria-live="polite">${icon('stg')}<span id="phase-name">${PHASE_NAME.pad}</span></div>${lunar ? `<ol class="mission-steps" id="msteps" aria-label="Etapas de la misión">${[['leo', 'Órbita'], ['soi', 'A la Luna'], ['lunarOrbit', 'Órbita lunar'], ['left', 'Regreso'], ['entry', 'Reentrada'], ['landed', 'Amerizaje']].map(([k, label], i) => `<li data-k="${k}" title="${i + 1}. ${label}"><b>${i + 1}</b><span>${label}</span></li>`).join('')}</ol>` : ''}</div>
-        <div class="telemetry" id="tele" aria-label="Telemetría">
-          <div class="t-item t-big"><span class="t-label">${icon('alt')} Altura</span><b id="t-alt">0 m</b></div>
-          <div class="t-item t-big"><span class="t-label">${icon('spd')} Velocidad</span><b id="t-speed">0 m/s</b></div>
-          <div class="t-item only-ground"><span class="t-label">${icon('twr')} Empuje/peso ${TERM('throttle', '¿Qué es empuje contra peso?')}</span><b id="t-twr">0,00</b></div>
-          <div class="t-item t-q" id="q-item" hidden><span class="t-label">Presión aire ${TERM('maxq', '¿Qué es Max-Q?')}</span><b id="t-q">0</b><div class="qbar" aria-hidden="true"><i id="t-qbar"></i><u></u><s></s></div></div>
-          <div class="t-item only-orbit"><span class="t-label">Punto más alto ${TERM('apoapsis', '¿Qué es el punto más alto (apoapsis)?')}</span><b id="t-apo">—</b></div>
-          <div class="t-item only-orbit"><span class="t-label">Punto más bajo ${TERM('periapsis', '¿Qué es el punto más bajo (periapsis)?')}</span><b id="t-peri">—</b></div>
-          ${lunar ? `<div class="t-item" id="g-item" hidden><span class="t-label">${icon('gee')} Fuerza g</span><b id="t-g">0,0</b></div>
-          <div class="t-item" id="shield-item" hidden><span class="t-label">${icon('heat')} Escudo térmico</span><b id="t-shield">100 %</b><div class="qbar shield" aria-hidden="true"><i id="t-shieldbar"></i></div></div>` : ''}
+        <div class="phase-row"><div class="phase-chip" id="phase" aria-live="polite">${icon('stg')}<span id="phase-name">${PHASE_NAME.pad}</span></div>${lunar ? `<ol class="mission-steps" id="msteps" aria-label="${simText("lunarFlight.mission-phases")}">${[['leo', simText("lunarFlight.orbit")], ['soi', simText("lunarFlight.to-the-moon")], ['lunarOrbit', simText("lunarFlight.lunar-orbit")], ['left', simText("lunarFlight.return")], ['entry', simText("lunarFlight.reentry")], ['landed', simText("lunarFlight.splashdown")]].map(([k, label], i) => `<li data-k="${k}" title="${i + 1}. ${label}"><b>${i + 1}</b><span>${label}</span></li>`).join('')}</ol>` : ''}</div>
+        <div class="telemetry" id="tele" aria-label="${simText("flight.telemetry")}">
+          <div class="t-item t-big"><span class="t-label">${icon('alt')} ${simText('flight.altitude')}</span><b id="t-alt">0 m</b></div>
+          <div class="t-item t-big"><span class="t-label">${icon('spd')} ${simText('flight.speed')}</span><b id="t-speed">0 m/s</b></div>
+          <div class="t-item only-ground"><span class="t-label">${icon('twr')} ${simText('flight.thrust-weight')} ${TERM('throttle', simText("flight.what-is-thrust-to-weight-ratio"))}</span><b id="t-twr">0,00</b></div>
+          <div class="t-item t-q" id="q-item" hidden><span class="t-label">${simText('flight.pressure')} ${TERM('maxq', simText("flight.what-is-max-q"))}</span><b id="t-q">0</b><div class="qbar" aria-hidden="true"><i id="t-qbar"></i><u></u><s></s></div></div>
+          <div class="t-item only-orbit"><span class="t-label">${simText('flight.highest-point')} ${TERM('apoapsis', simText("flight.what-is-the-highest-orbital-point-apoapsis"))}</span><b id="t-apo">—</b></div>
+          <div class="t-item only-orbit"><span class="t-label">${simText('flight.lowest-point')} ${TERM('periapsis', simText("flight.what-is-the-lowest-orbital-point-periapsis"))}</span><b id="t-peri">—</b></div>
+          ${lunar ? `<div class="t-item" id="g-item" hidden><span class="t-label">${icon('gee')} ${simText('lunarFlight.g-load')}</span><b id="t-g">0,0</b></div>
+          <div class="t-item" id="shield-item" hidden><span class="t-label">${icon('heat')} ${simText('lunarFlight.heat-shield')}</span><b id="t-shield">100 %</b><div class="qbar shield" aria-hidden="true"><i id="t-shieldbar"></i></div></div>` : ''}
         </div>
-
-        <details class="more" id="more"><summary>Más datos</summary>
+        <details class="more" id="more"><summary>${simText("flight.more-data")}</summary>
           <div class="more-body">
-            <div class="t-item"><span class="t-label">Ángulo</span><b id="t-angle">0°</b></div>
-            <div class="t-item"><span class="t-label">Tiempo</span><b id="t-time">T+0:00</b></div>
-            <div class="t-item"><span class="t-label">Presión del aire</span><b id="t-q2">0 kPa</b></div>
-            <div class="t-item"><span class="t-label">Punto más alto</span><b id="t-apo2">—</b></div>
-            <div class="t-item"><span class="t-label">Punto más bajo</span><b id="t-peri2">—</b></div>
-            <div class="fuel" id="fuel" aria-label="Combustible por etapa">${stageNames.map((n, i) => `<div class="f-row" data-stage="${i}"><span>${esc(n)}</span><div class="f-bar"><i></i></div><b>100 %</b></div>`).join('')}</div>
+            <div class="t-item"><span class="t-label">${simText("flight.angle")}</span><b id="t-angle">0°</b></div>
+            <div class="t-item"><span class="t-label">${simText("flight.time")}</span><b id="t-time">T+0:00</b></div>
+            <div class="t-item"><span class="t-label">${simText("flight.dynamic-pressure")}</span><b id="t-q2">0 kPa</b></div>
+            <div class="t-item"><span class="t-label">${simText("flight.highest-point")}</span><b id="t-apo2">—</b></div>
+            <div class="t-item"><span class="t-label">${simText("flight.lowest-point")}</span><b id="t-peri2">—</b></div>
+            <div class="fuel" id="fuel" aria-label="${simText("flight.fuel-by-stage")}">${stageNames.map((n, i) => `<div class="f-row" data-stage="${i}"><span>${esc(n)}</span><div class="f-bar"><i></i></div><b>100 %</b></div>`).join('')}</div>
           </div>
         </details>
       </div>
       <div class="hud-tools">
-        <div class="warp" role="group" aria-label="Velocidad del tiempo">
-          <button data-warp="1" class="is-on" title="Tiempo normal (1)">1×</button><button data-warp="2" title="Doble de rápido (2)">2×</button><button data-warp="5" title="Cinco veces más rápido (3)">5×</button>${lunar ? '<button data-warp="50" class="warp-hi" title="50 veces más rápido: sólo en el espacio y con el motor apagado (4)" hidden>50×</button><button data-warp="500" class="warp-hi" title="500 veces más rápido (5)" hidden>500×</button><button data-warp="5000" class="warp-hi" title="5.000 veces más rápido: los días pasan en segundos (6)" hidden>5000×</button>' : ''}
-          <button id="b-jump" title="Saltar hasta el punto más alto de tu órbita (J)" hidden>⏩ Saltar</button>
+        <div class="warp" role="group" aria-label="${simText("flight.time-speed")}">
+          <button data-warp="1" class="is-on" title="${simText("flight.normal-speed-1")}">1×</button><button data-warp="2" title="${simText("flight.double-speed-2")}">2×</button><button data-warp="5" title="${simText("flight.five-times-faster-3")}">5×</button>${lunar ? `<button data-warp="50" class="warp-hi" title="${simText("lunarFlight.50-speed-only-in-space-with-the-engine")}" hidden>50×</button><button data-warp="500" class="warp-hi" title="${simText("lunarFlight.500-speed-5")}" hidden>500×</button><button data-warp="5000" class="warp-hi" title="${simText("lunarFlight.5-000-speed-days-pass-in-seconds-6")}" hidden>5000×</button>` : ''}
+          <button id="b-jump" title="${simText("flight.skip-to-the-highest-point-of-your-orbit")}" hidden>${simText("flight.skip-ahead")}</button>
         </div>
-        <div class="zoom" role="group" aria-label="Zoom de la cámara"><button id="b-zoom-out" title="Alejar la cámara (−)">−</button><button id="b-zoom-in" title="Acercar la cámara (+)">+</button></div>
-        <button id="b-map" class="tool" title="Ver tu órbita desde arriba (M)">🌍 <span>Mapa</span></button>
-        ${difficulty === 'facil' ? '<button id="b-auto" class="tool" aria-pressed="false" title="Que el piloto automático vuele por ti (P)">🤖 <span class="tl">Piloto automático:</span> <b class="auto-state">no</b></button>' : ''}
-        <button id="b-pause" class="tool" title="Pausa (Esc)">⏸</button>
+        <div class="zoom" role="group" aria-label="${simText("flight.camera-zoom")}"><button id="b-zoom-out" title="${simText("flight.zoom-out")}">−</button><button id="b-zoom-in" title="${simText("flight.zoom-in")}">+</button></div>
+        <button id="b-map" class="tool" title="${simText("flight.view-your-orbit-from-above-m")}">🌍 <span>${simText("flight.map")}</span></button>
+        ${difficulty === 'facil' ? `<button id="b-auto" class="tool" aria-pressed="false" title="${simText("flight.let-autopilot-fly-for-you-p")}">🤖 <span class="tl">${simText("flight.autopilot")}</span> <b class="auto-state">${simText("flight.off")}</b></button>` : ''}
+        <button id="b-pause" class="tool" title="${simText("flight.pause-esc")}">⏸</button>
       </div>
     </div>
     <div class="hud-event" id="hud-event" aria-live="assertive"></div>
     <div class="hud-msg" id="hud-msg" role="status" aria-live="polite"></div>
     <div class="hud-readout" id="hud-readout" hidden></div>
     <div class="hud-left">
-      <div class="th-label">${icon('pwr')}<span>Empuje ${TERM('throttle', '¿Qué es el empuje?')}</span><b id="th-val">0 %</b></div>
-      <div class="throttle" id="throttle" role="slider" aria-label="Empuje" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
-        <div class="tr-fill" id="tr-fill"></div><div class="tr-live" id="tr-live"></div><div class="tr-suggest" id="tr-suggest" hidden><span>sugerido</span></div><div class="tr-knob" id="tr-knob"></div>
+      <div class="th-label">${icon('pwr')}<span>${simText('flight.thrust')} ${TERM('throttle', simText("flight.what-is-thrust"))}</span><b id="th-val">0 %</b></div>
+      <div class="throttle" id="throttle" role="slider" aria-label="${simText("flight.thrust")}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+        <div class="tr-fill" id="tr-fill"></div><div class="tr-live" id="tr-live"></div><div class="tr-suggest" id="tr-suggest" hidden><span>${simText("flight.suggested")}</span></div><div class="tr-knob" id="tr-knob"></div>
         <div class="tr-ticks"><i>100</i><i>50</i><i>0</i></div>
       </div>
-      <div class="th-btns"><button id="th-max" title="Empuje al máximo (Z)">MÁX</button><button id="th-off" title="Apagar motor (X)">APAGAR</button></div>
+      <div class="th-btns"><button id="th-max" title="${simText("flight.maximum-thrust-z")}">${simText("flight.max")}</button><button id="th-off" title="${simText("flight.cut-the-engines-x")}">${simText("flight.cut")}</button></div>
     </div>
     <div class="hud-attitude" id="attitude" aria-hidden="true"><svg viewBox="-50 -50 100 100" shape-rendering="crispEdges"><circle r="44" class="att-ring"/><line x1="-44" y1="0" x2="44" y2="0" class="att-horizon"/><g id="att-hint" hidden><line x1="0" y1="0" x2="0" y2="-40" class="att-ghost"/></g><g id="att-rocket"><path d="M0,-38 L7,-8 L7,22 L-7,22 L-7,-8 Z" class="att-body"/></g></svg><small id="att-label">0°</small></div>
     <div class="hud-bottom">
-      <div class="fuel-compact" id="fuel-compact" aria-label="Combustible">
-        <div class="fc-head">${icon('fuel')}<span>Combustible</span><b id="fc-total">100 %</b></div>
+      <div class="fuel-compact" id="fuel-compact" aria-label="${simText("flight.fuel")}">
+        <div class="fc-head">${icon('fuel')}<span>${simText("flight.fuel")}</span><b id="fc-total">100 %</b></div>
         <div class="f-bar big"><i id="fc-bar"></i></div>
-        <div class="fc-stage">${icon('stg')}<span id="fc-stage">Etapa 1</span><b id="fc-stage-pct">100 %</b></div>
+        <div class="fc-stage">${icon('stg')}<span id="fc-stage">${simText("flight.stage-1")}</span><b id="fc-stage-pct">100 %</b></div>
       </div>
       <div class="hud-actions">
-        <div class="steer" role="group" aria-label="Girar el cohete">
-          <button id="b-left" class="big-btn" aria-label="Girar a la izquierda (A)">◀ <small>Izq.</small></button>
-          <button id="b-right" class="big-btn" aria-label="Girar a la derecha (D)">▶ <small>Der.</small></button>
+        <div class="steer" role="group" aria-label="${simText("flight.steer-the-rocket")}">
+          <button id="b-left" class="big-btn" aria-label="${simText("flight.turn-left-a")}">◀ <small>${simText("flight.left")}</small></button>
+          <button id="b-right" class="big-btn" aria-label="${simText("flight.turn-right-d")}">▶ <small>${simText("flight.right")}</small></button>
         </div>
-        <button id="b-sep" class="big-btn sep" title="Separar la etapa (Espacio)">✂ Separar etapa <small>Espacio</small></button>
-        <button id="b-fairing" class="big-btn" title="Soltar la punta que protege la nave (F)">📦 Soltar cofia <small>F</small></button>
-        <button id="b-prograde" class="big-btn" aria-pressed="false" title="Apuntar hacia donde vas (R)">🧭 Mirar adelante <small>R</small></button>
-        ${lunar ? '<button id="b-retro" class="big-btn" aria-pressed="false" title="Apuntar al revés de donde vas, para frenar (T)" hidden>↩ Mirar atrás <small>T</small></button><button id="b-chute" class="big-btn chute" title="Abrir los paracaídas (C)" hidden>🪂 Abrir paracaídas <small>C</small></button>' : ''}
-        ${transfer ? '<button id="b-transfer" class="big-btn transfer" hidden>🚀 Encender transferencia</button>' : ''}
-        <button id="b-finish" class="big-btn finish" hidden>✔ Terminar vuelo</button>
+        <button id="b-sep" class="big-btn sep" title="${simText("flight.separate-the-stage-space")}">${simText("flight.separate-stage")} <small>${simText('flight.space-key')}</small></button>
+        <button id="b-fairing" class="big-btn" title="${simText("flight.release-the-protective-fairing-f")}">${simText("flight.release-fairing")} <small>F</small></button>
+        <button id="b-prograde" class="big-btn" aria-pressed="false" title="${simText("flight.point-in-the-direction-of-travel-r")}">${simText("flight.point-prograde")} <small>R</small></button>
+        ${lunar ? `<button id="b-retro" class="big-btn" aria-pressed="false" title="${simText("lunarFlight.point-against-your-direction-of-travel-to-slow")}" hidden>${simText("lunarFlight.point-retrograde")} <small>T</small></button><button id="b-chute" class="big-btn chute" title="${simText("lunarFlight.deploy-the-parachutes-c")}" hidden>${simText("lunarFlight.deploy-parachutes")} <small>C</small></button>` : ''}
+        ${transfer ? `<button id="b-transfer" class="big-btn transfer" hidden>${simText("flight.start-transfer-burn")}</button>` : ''}
+        <button id="b-finish" class="big-btn finish" hidden>${simText("flight.finish-flight")}</button>
       </div>
     </div>`;
   }
@@ -262,7 +262,7 @@ export class Hud {
     if (!btn) return;
     this.controls.autopilot = force ?? !this.controls.autopilot;
     btn.setAttribute('aria-pressed', String(this.controls.autopilot));
-    btn.querySelector('.auto-state').textContent = this.controls.autopilot ? 'sí' : 'no';
+    btn.querySelector('.auto-state').textContent = this.controls.autopilot ? simText("flight.on") : simText("flight.off");
     btn.classList.toggle('is-on', this.controls.autopilot);
     this.h.autopilot(this.controls.autopilot);
   }
@@ -315,20 +315,20 @@ export class Hud {
     const bel = onMoon ? sim.bodyElements : null;
     if (onMoon) { t.altKm = sim.bodyAltitude / 1000; t.apoKm = bel.hyper ? Infinity : bel.apoAlt / 1000; t.periKm = bel.periAlt / 1000; }
     const km = t.altKm;
-    $('#t-alt', root).textContent = (km < 10 ? `${fmt(km * 1000)} m` : `${fmt(km, km < 100 ? 1 : 0)} km`) + (onMoon ? ' · Luna' : '');
+    $('#t-alt', root).textContent = (km < 10 ? `${fmt(km * 1000)} m` : `${fmt(km, km < 100 ? 1 : 0)} km`) + (onMoon ? simText("lunarFlight.moon") : '');
     // velocidad: respecto al suelo y al aire abajo, y respecto al espacio arriba (se mezclan sin saltos entre 40 y 100 km)
     const [rvx, rvy] = sim.relVelocity();
     const mixF = Math.min(1, Math.max(0, (sim.altitude - 40000) / 60000));
     const v = onMoon ? sim.bodySpeed : Math.hypot(rvx * (1 - mixF) + sim.vx * mixF, rvy * (1 - mixF) + sim.vy * mixF);
     $('#t-speed', root).textContent = v < 1000 ? `${fmt(v)} m/s` : `${fmt(v / 1000, 2)} km/s`;
-    const apo = Number.isFinite(t.apoKm) ? `${fmt(t.apoKm)} km` : 'sin límite';
-    const peri = t.periKm < 0 ? (onMoon ? 'bajo la Luna' : 'bajo tierra') : `${fmt(t.periKm)} km`; // sin órbita todavía
+    const apo = Number.isFinite(t.apoKm) ? `${fmt(t.apoKm)} km` : simText('flight.unbound');
+    const peri = t.periKm < 0 ? (onMoon ? simText("lunarFlight.below-the-lunar-surface") : simText('flight.below-ground')) : `${fmt(t.periKm)} km`; // sin órbita todavía
     $('#t-apo', root).textContent = apo; $('#t-apo2', root).textContent = apo;
     $('#t-peri', root).textContent = peri; $('#t-peri2', root).textContent = peri;
     $('#t-peri', root).className = t.periKm * 1000 >= (onMoon ? 15000 : PHYS.PERI_OK) ? 'good' : '';
     $('#t-angle', root).textContent = `${fmt(t.betaDeg)}°`;
     const secs = Math.floor(t.t);
-    $('#t-time', root).textContent = secs >= 86400 ? `Día ${Math.floor(secs / 86400) + 1} · ${String(Math.floor((secs % 86400) / 3600)).padStart(2, '0')}:${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')}` : secs >= 3600 ? `T+${Math.floor(secs / 3600)} h ${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')} min` : `T+${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+    $('#t-time', root).textContent = secs >= 86400 ? simText("lunarFlight.day-0-1-2", Math.floor(secs / 86400) + 1, String(Math.floor((secs % 86400) / 3600)).padStart(2, '0'), String(Math.floor((secs % 3600) / 60)).padStart(2, '0')) : secs >= 3600 ? `T+${Math.floor(secs / 3600)} h ${String(Math.floor((secs % 3600) / 60)).padStart(2, '0')} min` : `T+${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 
     // empuje contra peso: lo que decide si el cohete despega
     const twrEl = $('#t-twr', root);
@@ -361,7 +361,7 @@ export class Hud {
       row.classList.toggle('is-active', i === sim.stage && sim.status === 'flying');
       row.classList.toggle('is-gone', i < sim.stage);
       row.querySelector('i').style.width = `${Math.max(0, frac * 100)}%`;
-      row.querySelector('b').textContent = i < sim.stage ? '✔ soltada' : `${Math.round(frac * 100)} %`;
+      row.querySelector('b').textContent = i < sim.stage ? simText("flight.released") : `${Math.round(frac * 100)} %`;
     });
     // con la nave sola (módulo de servicio), el "total" es el combustible de la nave, no el del cohete que ya se soltó
     const alone = Boolean(sim.craft) && sim.stage >= sim.stageCount - 1;
@@ -374,7 +374,7 @@ export class Hud {
     const cur = sim.stage < sim.stageCount ? sim.stage : sim.stageCount - 1;
     const stagePct = sim.stage >= sim.stageCount ? 0 : Math.round(sim.stageFuelFrac * 100);
     const service = Boolean(sim.currentStage?.service);
-    $('#fc-stage', root).textContent = sim.stage >= sim.stageCount ? (sim.craft ? 'Cápsula sola' : 'Sin etapas') : service ? `Módulo de servicio${sim.engineOut ? ' · vacío' : ''}` : `Etapa ${cur + 1} de ${sim.stageCount - (sim.craft ? 1 : 0)}${sim.engineOut ? ' · vacía' : ''}`;
+    $('#fc-stage', root).textContent = sim.stage >= sim.stageCount ? (sim.craft ? simText("lunarFlight.capsule-only") : simText('flight.no-stages')) : service ? simText("lunarFlight.service-module-0", sim.engineOut ? simText("lunarFlight.empty") : '') : simText('flight.stage-0-of-1-2', cur + 1, sim.stageCount - (sim.craft ? 1 : 0), sim.engineOut ? simText('flight.empty') : '');
     $('#fc-stage-pct', root).textContent = `${stagePct} %`;
     $('#fuel-compact', root).classList.toggle('is-empty', sim.engineOut);
 
@@ -383,7 +383,7 @@ export class Hud {
     const sep = $('#b-sep', root);
     sep.disabled = sim.stage >= sim.stageCount - 0 || sim.status !== 'flying';
     sep.classList.toggle('pulse', Boolean(ctx.pulseSep));
-    sep.firstChild.textContent = service ? '✂ Soltar módulo de servicio ' : stagesLeft ? '✂ Separar etapa ' : '✂ Soltar última etapa ';
+    sep.firstChild.textContent = service ? simText("lunarFlight.release-service-module") : stagesLeft ? simText('flight.separate-stage-2') : simText('flight.release-final-stage');
     sep.hidden = Boolean(sim.craft) && sim.stage >= sim.stageCount;
     sep.classList.toggle('service', service);
     const fair = $('#b-fairing', root);
@@ -437,7 +437,7 @@ export class Hud {
     }
 
     const sg = $('#tr-suggest', root);
-    if (ctx.suggestThrottle != null) { sg.hidden = false; sg.style.bottom = `${Math.round(ctx.suggestThrottle * 100)}%`; sg.querySelector('span').textContent = `sugerido ${Math.round(ctx.suggestThrottle * 100)} %`; } else sg.hidden = true;
+    if (ctx.suggestThrottle != null) { sg.hidden = false; sg.style.bottom = `${Math.round(ctx.suggestThrottle * 100)}%`; sg.querySelector('span').textContent = simText("flight.suggested-0", Math.round(ctx.suggestThrottle * 100)); } else sg.hidden = true;
     // marca del empuje real del motor (sube hasta lo pedido)
     const live = $('#tr-live', root);
     live.hidden = !(sim.status === 'flying' && Math.abs(sim.throttle - this.controls.throttle) > 0.02);

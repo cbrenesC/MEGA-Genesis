@@ -1,41 +1,43 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Read-only flight resources and results. Mission preparation lives in Mission Control.
 import { buildRequests, matchReferenceMission } from './rules.js';
 import { ROLES } from './state.js';
 import { fmtKg, fmtMUSD, fmtMUSDShort, lifeText } from './plain.js';
+import { t, formatNumber } from '../../../src/i18n/index.js';
 import { app, inputs, current, currentOutput } from './store.js';
 
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Estados con ícono + texto (no dependen solo del color).
 export const STATUS = {
-  green: { icon: '✔', text: 'Margen cómodo', cls: 'green' },
-  yellow: { icon: '⚠', text: 'Margen justo', cls: 'yellow' },
-  red: { icon: '▲', text: 'Margen arriesgado', cls: 'red' },
-  blocked: { icon: '✖', text: 'No cabe', cls: 'red' },
+  green: { icon: '✔', get text() { return simText("flight.comfortable-margin"); }, cls: 'green' },
+  yellow: { icon: '⚠', get text() { return simText("flight.tight-margin"); }, cls: 'yellow' },
+  red: { icon: '▲', get text() { return simText("flight.risky-margin"); }, cls: 'red' },
+  blocked: { icon: '✖', get text() { return simText("flight.does-not-fit"); }, cls: 'red' },
 };
 const RESULT_TEXT = {
-  exito: { icon: '✔', title: '¡Éxito! Tu nave está en órbita', text: 'El cohete cumplió y tu nave llegó. Pasa al siguiente equipo con la órbita y la vida útil que ves abajo.' },
-  exito_parcial: { icon: '◐', title: 'Éxito parcial: llegaste, pero con costos', text: 'Tu nave sobrevivió, pero algo no salió perfecto: perdió vida útil o quedó en una órbita distinta. El siguiente equipo debe saberlo.' },
-  falla: { icon: '✖', title: 'Misión perdida', text: 'Esta vez no se pudo. Pasa en la vida real, incluso a los mejores equipos: de cada falla se aprende mucho. Mira abajo qué pasó y qué cambiarías.' },
+  exito: { icon: '✔', get title() { return simText("flight.success-the-spacecraft-reached-its-target"); }, get text() { return simText("flight.the-launch-vehicle-did-its-job-review-the"); } },
+  exito_parcial: { icon: '◐', get title() { return simText("flight.partial-success-you-made-it-but-at-a"); }, get text() { return simText("flight.the-spacecraft-survived-but-it-lost-some-service"); } },
+  falla: { icon: '✖', get title() { return simText("flight.mission-lost"); }, get text() { return simText("flight.this-flight-did-not-succeed-real-mission-teams"); } },
 };
 
 // Misión lunar de ida y vuelta: el éxito no es "quedar en órbita" sino volver a casa.
 const RESULT_TEXT_LUNAR = {
-  exito: { icon: '✔', title: '¡Éxito! La tripulación fue a la Luna y volvió a casa', text: 'Órbita de la Tierra, inyección hacia la Luna, órbita lunar, inyección de regreso, reentrada y amerizaje: hiciste el viaje completo, como las misiones Apolo 8 y Artemis.' },
-  exito_parcial: { icon: '◐', title: 'Éxito parcial: la misión no salió completa', text: 'Algo del plan quedó sin cumplir o salió más brusco de lo debido. Mira abajo qué parte faltó y cómo mejorarla.' },
-  falla: { icon: '✖', title: 'Misión perdida', text: 'Esta vez no se pudo. Un viaje a la Luna tiene muchos pasos y cada uno tiene que salir bien; mira abajo en cuál falló y qué cambiarías.' },
+  exito: { icon: '✔', get title() { return simText("lunarFlight.success-the-crew-reached-the-moon-and-returned"); }, get text() { return simText("lunarFlight.you-completed-the-round-trip-earth-orbit-lunar"); } },
+  exito_parcial: { icon: '◐', get title() { return simText("lunarFlight.partial-success-the-mission-was-not-fully-completed"); }, get text() { return simText("lunarFlight.a-milestone-was-missed-or-the-flight-was"); } },
+  falla: { icon: '✖', title: 'Misión perdida', get text() { return simText("lunarFlight.the-lunar-trip-has-several-milestones-review-where"); } },
 };
 
 const sourceTag = (key) => (app.resolved.sources[key] === 'estacion'
-  ? '<span class="tag shared">centro de control</span>'
+  ? `<span class="tag shared">${simText("flight.mission-control")}</span>`
   : app.resolved.sources[key] === 'compartido'
-  ? '<span class="tag shared" title="Dato recibido de otro equipo del juego">de otro equipo</span>'
-  : app.resolved.sources[key] === 'mock' ? '<span class="tag mock" title="Dato de práctica: el equipo que lo da todavía no lo publicó">dato de práctica</span>' : '');
+  ? `<span class="tag shared" title="${simText("flight.data-provided-by-another-team-in-the-game")}">${simText("flight.from-another-team")}</span>`
+  : app.resolved.sources[key] === 'mock' ? `<span class="tag mock" title="${simText("flight.practice-data-the-responsible-team-has-not-provided")}">${simText("flight.practice-data")}</span>` : '');
 
 export function renderResult() {
   const e = current();
   const f = app.flight;
-  if (!e || !f) return '<p>Todavía no hay resultado.</p>';
+  if (!e || !f) return `<p>${simText("flight.no-result-yet")}</p>`;
   const sc = inputs().spacecraft;
   const out = currentOutput('lanzado');
   const fd = f.flightData;
@@ -43,8 +45,8 @@ export function renderResult() {
   const txt = (lunar ? RESULT_TEXT_LUNAR : RESULT_TEXT)[f.result];
   const ao = f.achievedOrbit;
   const orbitText = ao
-    ? (ao.periapsisKm != null ? `${ao.periapsisKm} × ${ao.apoapsisKm} km${ao.type === 'LUNA' ? ' (Luna)' : ''}` : `${esc(ao.type)}${ao.altitudeKm != null ? ` · ${ao.altitudeKm} km` : ''}`) + (ao.inclinationDeg != null && inputs().orbit.type !== 'GTO' ? ` · ${ao.inclinationDeg}°` : '')
-    : 'ninguna';
+    ? (ao.periapsisKm != null ? `${ao.periapsisKm} × ${ao.apoapsisKm} km${ao.type === 'LUNA' ? ` (${simText("flight.moon")})` : ''}` : `${esc(ao.type)}${ao.altitudeKm != null ? ` · ${ao.altitudeKm} km` : ''}`) + (ao.inclinationDeg != null && inputs().orbit.type !== 'GTO' ? ` · ${ao.inclinationDeg}°` : '')
+    : simText("flight.none");
   const pilot = f.pilot;
   const match = matchReferenceMission(app.data.missions, inputs().orbit.type, sc.massKg, e.launcherId);
   const m = match.closest;
@@ -52,84 +54,94 @@ export function renderResult() {
 
   const score = pilot ? `
   <article class="card">
-    <h2>Tu puntaje de pilotaje: <span class="score">${pilot.total}</span><small>/100</small></h2>
+    <h2>${simText("flight.flight-score")} <span class="score">${pilot.total}</span><small>/100</small></h2>
     <ul class="score-parts">${pilot.parts.map((p) => `<li><div class="sp-head"><span>${esc(p.label)}</span><b>${p.points} / ${p.max}</b></div><div class="sp-bar"><i style="width:${(p.points / p.max) * 100}%"></i></div><small>${esc(p.note)}</small></li>`).join('')}</ul>
-    <details><summary>¿Cómo se calcula este puntaje?</summary>
-      ${pilot.how ? `<p>${esc(pilot.how)}</p>` : `<p>Sumas hasta 100 puntos: <b>50</b> por qué tan cerca quedó tu órbita de la que pedía la misión, <b>25</b> por el combustible que te sobró, <b>15</b> por no pasarte del límite de presión del aire (Max-Q) y <b>10</b> por separar bien las etapas y la cofia.</p>
-      <p class="more"><b>Ver más:</b> el combustible se compara con lo que deja el piloto automático en la misma misión (con la mitad ya es puntaje completo). Max-Q: se descuenta de forma gradual hasta 1,5 veces el límite de 40 kPa.</p>`}
+    <details><summary>${simText("flight.how-is-this-score-calculated")}</summary>
+      ${pilot.how ? `<p>${esc(pilot.how)}</p>` : `<p>${simText("flight.you-can-earn-up-to-100-points")} <b>50</b> ${simText("flight.for-how-closely-your-trajectory-matched-the-mission")} <b>25</b> ${simText("flight.for-fuel-remaining")} <b>15</b> ${simText("flight.for-staying-below-the-air-pressure-limit-max")} <b>10</b> ${simText("flight.for-separating-stages-and-the-fairing-at-the")}</p>
+      <p class="more"><b>${simText("flight.learn-more")}</b> ${simText("flight.fuel-is-compared-with-the-autopilot-on-the")}</p>`}
     </details>
-    ${fd?.autopilot ? '<p class="muted">Usaste el piloto automático: en las misiones difíciles, pilotear tú mismo da más puntos.</p>' : ''}
+    ${fd?.autopilot ? `<p class="muted">${simText("flight.you-used-autopilot-flying-manually-earns-more-points")}</p>` : ''}
   </article>` : '';
 
   const dash = (v, unit = '') => (v == null ? '—' : `${v.toLocaleString('es')}${unit}`);
   const flightCard = lunar ? `
   <article class="card">
-    <h2>Datos de tu viaje</h2>
+    <h2>${simText("lunarFlight.your-journey-data")}</h2>
     <div class="kpis">
-      <div class="kpi"><span>Duración del viaje</span><b>${dash(lunar.days, ' días')}</b></div>
-      <div class="kpi"><span>Órbita lunar</span><b>${lunar.lunarOrbitKm ? `${lunar.lunarOrbitKm.periapsis} × ${lunar.lunarOrbitKm.apoapsis} km` : '—'}</b></div>
-      <div class="kpi"><span>Vueltas a la Luna</span><b>${lunar.lunarOrbitKm ? dash(lunar.lunarRevs) : '—'}</b></div>
-      <div class="kpi"><span>Lo más cerca de la Luna</span><b>${dash(lunar.closestToMoonKm, ' km')}</b></div>
-      <div class="kpi"><span>Velocidad de reentrada</span><b>${dash(lunar.entrySpeedKmS, ' km/s')}</b></div>
-      <div class="kpi"><span>Fuerza g máxima</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.maxG, ' g')}</b></div>
-      <div class="kpi"><span>Calor máximo en el escudo</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.peakHeatWcm2, ' W/cm²')}</b></div>
-      <div class="kpi"><span>Escudo térmico que sobró</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.shieldLeftPct, ' %')}</b></div>
-      <div class="kpi"><span>Paracaídas abiertos a</span><b>${dash(lunar.chuteSpeedMs, ' m/s')}</b></div>
-      <div class="kpi"><span>Velocidad al tocar el agua</span><b>${dash(lunar.landingSpeedMs, ' m/s')}</b></div>
-      <div class="kpi"><span>Presión máxima del aire (subida)</span><b>${fd.maxQKPa} kPa</b></div>
-      <div class="kpi"><span>Combustible que sobró</span><b>${fd.fuelLeftPct} %</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.journey-duration")}</span><b>${dash(lunar.days, simText("lunarFlight.days"))}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.lunar-orbit")}</span><b>${lunar.lunarOrbitKm ? `${lunar.lunarOrbitKm.periapsis} × ${lunar.lunarOrbitKm.apoapsis} km` : '—'}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.lunar-revolutions")}</span><b>${lunar.lunarOrbitKm ? dash(lunar.lunarRevs) : '—'}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.closest-approach-to-the-moon")}</span><b>${dash(lunar.closestToMoonKm, ' km')}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.reentry-speed")}</span><b>${dash(lunar.entrySpeedKmS, ' km/s')}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.peak-g-load")}</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.maxG, ' g')}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.peak-heat-shield-flux")}</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.peakHeatWcm2, ' W/cm²')}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.heat-shield-remaining")}</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.shieldLeftPct, ' %')}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.speed-at-parachute-deployment")}</span><b>${dash(lunar.chuteSpeedMs, ' m/s')}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.splashdown-speed")}</span><b>${dash(lunar.landingSpeedMs, ' m/s')}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.peak-dynamic-pressure-ascent")}</span><b>${fd.maxQKPa} kPa</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.fuel-remaining")}</span><b>${fd.fuelLeftPct} %</b></div>
     </div>
-    ${fd.stagingTimes.length ? `<p class="muted">Separaciones: ${fd.stagingTimes.map((s) => `${s.stage > (fd.stagingTimes.length - 1) && lunar.reached.includes('left') ? 'módulo de servicio' : `etapa ${s.stage}`} (${s.altitudeKm.toLocaleString('es')} km)`).join(' · ')}.</p>` : ''}
+    ${fd.stagingTimes.length ? `<p class="muted">${simText("lunarFlight.stage-separations-0", fd.stagingTimes.map((s) => `${s.stage > (fd.stagingTimes.length - 1) && lunar.reached.includes('left') ? simText("lunarFlight.service-module-2") : simText("lunarFlight.stage-0", s.stage)} (${s.altitudeKm.toLocaleString('es')} km)`).join(' · '))}</p>` : ''}
   </article>` : fd ? `
   <article class="card">
-    <h2>Datos de tu vuelo</h2>
+    <h2>${simText("flight.your-flight-data")}</h2>
     <div class="kpis">
-      <div class="kpi"><span>Altura máxima</span><b>${fd.maxAltitudeKm} km</b></div>
-      <div class="kpi"><span>Punto más alto (apoapsis)</span><b>${fd.apoapsisKm ?? '—'} km</b></div>
-      <div class="kpi"><span>Punto más bajo (periapsis)</span><b>${fd.periapsisKm} km</b></div>
-      <div class="kpi"><span>Combustible que sobró</span><b>${fd.fuelLeftPct} %</b></div>
-      <div class="kpi"><span>Presión máxima del aire</span><b>${fd.maxQKPa} kPa</b></div>
-      <div class="kpi"><span>Duración</span><b>${Math.floor(fd.durationSeconds / 60)} min ${fd.durationSeconds % 60} s</b></div>
+      <div class="kpi"><span>${simText("flight.maximum-altitude")}</span><b>${fd.maxAltitudeKm} km</b></div>
+      <div class="kpi"><span>${simText("flight.highest-point-apoapsis")}</span><b>${fd.apoapsisKm ?? '—'} km</b></div>
+      <div class="kpi"><span>${simText("flight.lowest-point-periapsis")}</span><b>${fd.periapsisKm} km</b></div>
+      <div class="kpi"><span>${simText("flight.fuel-remaining")}</span><b>${fd.fuelLeftPct} %</b></div>
+      <div class="kpi"><span>${simText("flight.maximum-dynamic-pressure")}</span><b>${fd.maxQKPa} kPa</b></div>
+      <div class="kpi"><span>${simText("flight.duration")}</span><b>${Math.floor(fd.durationSeconds / 60)} min ${fd.durationSeconds % 60} s</b></div>
     </div>
-    ${fd.stagingTimes.length ? `<p class="muted">Separaciones: ${fd.stagingTimes.map((s) => `etapa ${s.stage} a los ${s.tSeconds} s (${s.altitudeKm} km)`).join(' · ')}.</p>` : ''}
-  </article>` : '<article class="card"><p class="muted">Para este cohete y este destino todavía no hay simulador de vuelo, así que el resultado se calculó automáticamente con las probabilidades del cohete.</p></article>';
+    ${fd.stagingTimes.length ? `<p class="muted">${simText("flight.stage-separations-0", fd.stagingTimes.map((s) => simText("flight.stage-0-at-1-s-2-km", s.stage, s.tSeconds, s.altitudeKm)).join(' · '))}</p>` : ''}
+  </article>` : `<article class="card"><p class="muted">${simText("flight.this-rocket-and-destination-do-not-yet-have")}</p></article>`;
+
+  const delivery = app.delivery;
+  const canRetry = delivery ? !delivery.delivered && (free || out.budgetAfterMUSD >= e.totalCostMUSD) : f.result !== 'exito';
+  const campaignCard = delivery ? `
+    <article class="card result ${delivery.delivered ? 'exito' : 'falla'}">
+      <h2>${esc(t(delivery.delivered ? 'campaign.delivered' : 'campaign.notDelivered'))}</h2>
+      <p>${esc(t(delivery.delivered ? 'campaign.landingModel' : `station.campaign.failed.${delivery.reason}`))}</p>
+      <p>${esc(t('campaign.flightSummary', { launcher: delivery.launcher, site: delivery.site, payload: formatNumber(delivery.payloadKg), cost: formatNumber(delivery.costMUSD, 2), budget: formatNumber(delivery.budgetMUSD) }))}</p>
+    </article>` : '';
 
   return `
+  ${campaignCard}
   <article class="card result ${f.result}">
     <h2><span class="ico">${txt.icon}</span> ${txt.title}</h2>
     <p class="lead">${esc(f.headline ?? '')}</p>
     <p>${txt.text}</p>
     ${f.story?.length ? `<ul class="story">${f.story.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}
     <div class="kpis">
-      <div class="kpi"><span>Cohete</span><b>${esc(e.launcher.name)}</b></div>
-      <div class="kpi"><span>Órbita lograda</span><b>${orbitText}</b></div>
-      <div class="kpi"><span>${sc.missionDays ? 'Duración planeada' : 'Vida de la nave'}</span><b>${lifeText(sc, f.lifetimeYears)}</b></div>
-      <div class="kpi"><span>Costo del lanzamiento</span><b>${fmtMUSD(out.cost.totalMUSD)}</b></div>
-      <div class="kpi"><span>Dinero que queda</span><b class="${out.budgetAfterMUSD < 0 ? 'status-red' : ''}">${fmtMUSD(out.budgetAfterMUSD)}</b></div>
-      <div class="kpi"><span>Lanzamiento</span><b>mes ${e.date.launchMonth}${f.delayDays ? ` + ${f.delayDays} días` : ''}</b></div>
+      <div class="kpi"><span>${simText("flight.rocket")}</span><b>${esc(e.launcher.name)}</b></div>
+      <div class="kpi"><span>${simText("flight.trajectory-achieved")}</span><b>${orbitText}</b></div>
+      <div class="kpi"><span>${simText(sc.missionDays ? 'flight.planned-duration' : 'flight.spacecraft-service-life')}</span><b>${lifeText(sc, f.lifetimeYears)}</b></div>
+      <div class="kpi"><span>${simText("flight.launch-cost")}</span><b>${fmtMUSD(out.cost.totalMUSD)}</b></div>
+      <div class="kpi"><span>${simText("flight.budget-remaining")}</span><b class="${out.budgetAfterMUSD < 0 ? 'status-red' : ''}">${fmtMUSD(out.budgetAfterMUSD)}</b></div>
+      <div class="kpi"><span>${simText("flight.launch")}</span><b>${simText('flight.month-0', e.date.launchMonth)}${f.delayDays ? simText("flight.0-days", f.delayDays) : ''}</b></div>
     </div>
   </article>
   ${score}${flightCard}
   <div class="grid-2">
-    <article class="card"><h2>Qué pasó y por qué importa</h2>${f.events.length
+    <article class="card"><h2>${simText("flight.what-happened-and-why-it-matters")}</h2>${f.events.length
       ? `<ul class="log">${f.events.map((ev) => `<li class="${ev.severity}"><b>${esc(ev.label)}</b> — ${esc(ev.consequence)}<small>${esc(ev.explain)}</small></li>`).join('')}</ul>`
-      : `<p>Sin imprevistos.${f.eventsEnabled ? '' : ' (Los imprevistos estaban apagados: modo práctica.)'}</p>`}</article>
-    <article class="card"><h2>Misiones reales parecidas</h2>
-      ${m ? `<p>Tu lanzamiento se parece al de <b>${esc(m.name)}</b> (${m.year}, unos ${fmtKg(m.massKg)}, ${esc(m.orbit)}), que usó <b>${esc(m.launcher)}</b>${m.launcherId === e.launcherId ? ': ¡el mismo cohete que elegiste!' : '.'}</p><p class="muted">${esc(m.note)}</p>` : ''}
-      ${match.sameLauncher ? `<p>Con tu mismo cohete también voló <b>${esc(match.sameLauncher.name)}</b> (${match.sameLauncher.year}, unos ${fmtKg(match.sameLauncher.massKg)}).</p>` : ''}
-      <p class="muted">Pesos aproximados, tomados de las páginas públicas de cada misión.</p></article>
+      : `<p>${simText('flight.no-events')}${f.eventsEnabled ? '' : simText("flight.random-events-were-off-in-practice-mode")}</p>`}</article>
+    <article class="card"><h2>${simText("flight.similar-real-missions")}</h2>
+      ${m ? `<p>${simText("flight.your-flight-was-similar-to")} <b>${esc(m.name)}</b> ${simText("flight.0-about-1-2-which-used", m.year, fmtKg(m.massKg), esc(m.orbit))} <b>${esc(m.launcher)}</b>${m.launcherId === e.launcherId ? simText("flight.the-same-rocket-you-chose") : '.'}</p><p class="muted">${esc(m.note)}</p>` : ''}
+      ${match.sameLauncher ? `<p>${simText("flight.another-mission-using-this-rocket-was")} <b>${esc(match.sameLauncher.name)}</b> ${simText("flight.0-about-1", match.sameLauncher.year, fmtKg(match.sameLauncher.massKg))}</p>` : ''}
+      <p class="muted">${simText("flight.masses-are-rounded-from-publicly-available-mission-information")}</p></article>
   </div>
   <article class="card">
-    <h2>Entrega al siguiente equipo</h2>
-    <p>Podés consultar o copiar los datos de este vuelo (versión ${out.schemaVersion}).</p>
-    ${out.requests.length ? `<h3>Avisos para otros roles</h3><ul>${out.requests.map((r) => `<li><span class="role-chip">${esc(ROLES[r.toRole] ?? r.toRole)}</span>${esc(r.text)}</li>`).join('')}</ul>` : ''}
-    <details><summary>Para los curiosos: ver los datos exactos (JSON)</summary><pre class="json" id="output-json">${esc(JSON.stringify(out, null, 2))}</pre></details>
+    <h2>${simText("flight.handoff-to-the-next-team")}</h2>
+    <p>${simText("flight.you-can-view-or-copy-the-flight-data", out.schemaVersion)}</p>
+    ${out.requests.length ? `<h3>${simText("flight.notes-for-other-roles")}</h3><ul>${out.requests.map((r) => `<li><span class="role-chip">${esc(ROLES[r.toRole] ?? r.toRole)}</span>${esc(r.text)}</li>`).join('')}</ul>` : ''}
+    <details><summary>${simText("flight.view-the-complete-flight-data-json")}</summary><pre class="json" id="output-json">${esc(JSON.stringify(out, null, 2))}</pre></details>
     <div class="actions">
-      <button id="copy-json">Copiar los datos</button>
-      ${f.result !== 'exito' ? `<button class="primary" id="retry">${free ? 'Intentar otra vez (gratis en nivel fácil)' : `Comprar otro lanzamiento (${fmtMUSD(e.totalCostMUSD)} más)`}</button>` : ''}
-      <button id="return-control">Volver al centro de control</button>
+      <button id="copy-json">${simText("flight.copy-flight-data")}</button>
+      ${canRetry ? `<button class="primary" id="retry">${free ? simText("flight.try-again-free-on-easy") : simText("flight.buy-another-launch-0-more", fmtMUSD(e.totalCostMUSD))}</button>` : ''}
+      <button id="return-control">${simText("flight.return-to-mission-control")}</button>
     </div>
-    ${f.result !== 'exito' && !free ? '<p class="muted">Intentar otra vez significa pagar otro cohete (y, en la vida real, construir otra nave): por eso se elige con cuidado desde el principio.</p>' : ''}
+    ${canRetry && !free ? `<p class="muted">${simText("flight.a-retry-means-paying-for-another-rocket-and")}</p>` : ''}
   </article>`;
 }
 
@@ -150,41 +162,41 @@ export function renderResources({ compact = false } = {}) {
   const lifetime = f ? f.lifetimeYears : e ? e.lifetimeYears : sc.designLifetimeYears;
   if (compact) {
     return `<div class="pills">
-      <span class="pill" title="Dinero que te queda: ${fmtMUSD(remaining)}"><b>💲</b> ${fmtMUSDShort(remaining)}</span>
-      <span class="pill ${st ? `status-${st.cls}` : ''}" title="Espacio libre en el cohete"><b>⚖</b> ${e ? `${st.icon} ${e.marginPct} %` : '—'}</span>
-      <span class="pill" title="Mes de lanzamiento"><b>📅</b> ${e ? `mes ${e.date.launchMonth}` : `mes ${schedule.monthsToTargetDate}`}</span>
-      <span class="pill" title="${sc.missionDays ? 'Duración de la misión en días' : 'Vida de la nave en años'}"><b>⏳</b> ${sc.missionDays ? `${sc.missionDays} d` : `${lifetime}/${sc.designLifetimeYears} a`}</span>
+      <span class="pill" title="${simText('flight.budget-remaining')}: ${fmtMUSD(remaining)}"><b>💲</b> ${fmtMUSDShort(remaining)}</span>
+      <span class="pill ${st ? `status-${st.cls}` : ''}" title="${simText("flight.payload-capacity-remaining")}"><b>⚖</b> ${e ? `${st.icon} ${e.marginPct} %` : '—'}</span>
+      <span class="pill" title="${simText("flight.launch-month")}"><b>📅</b> ${e ? simText("flight.month-0", e.date.launchMonth) : simText("flight.month-0", schedule.monthsToTargetDate)}</span>
+      <span class="pill" title="${simText(sc.missionDays ? 'flight.duration-in-days' : 'flight.spacecraft-service-life-in-years')}"><b>⏳</b> ${sc.missionDays ? `${sc.missionDays} d` : `${lifetime}/${sc.designLifetimeYears} a`}</span>
     </div>`;
   }
   return `
     <div class="res">
-      <h3>💲 Dinero</h3>
+      <h3>${simText("flight.budget")}</h3>
       <div class="stack"><i class="others" style="width:${pct(budget.committedMUSD)}"></i><i class="launch" style="width:${pct(launchCost)}"></i><i class="events" style="width:${pct(eventsCost)}"></i></div>
-      <div class="row"><span>Total</span><b>${fmtMUSD(budget.totalMUSD)}</b></div>
-      <div class="row"><span>Otros equipos${app.previousAttemptsMUSD ? ' + intentos anteriores' : ''}</span><b>−${fmtMUSD(budget.committedMUSD)}</b></div>
-      <div class="row"><span>Cohete${e?.delayCostMUSD ? ' + retraso' : ''}</span><b>${e ? `−${fmtMUSD(launchCost)}` : '—'}</b></div>
-      ${eventsCost ? `<div class="row"><span>Imprevistos</span><b>−${fmtMUSD(eventsCost)}</b></div>` : ''}
-      <div class="row total"><span>Te queda</span><b class="${remaining < 0 ? 'status-red' : ''}">${fmtMUSD(remaining)}</b></div>
+      <div class="row"><span>${simText("flight.total")}</span><b>${fmtMUSD(budget.totalMUSD)}</b></div>
+      <div class="row"><span>${simText(app.campaign ? 'flight.committed-campaign' : 'flight.other-teams')}${app.previousAttemptsMUSD ? simText("flight.previous-attempts") : ''}</span><b>−${fmtMUSD(budget.committedMUSD)}</b></div>
+      <div class="row"><span>${simText('flight.rocket')}${e?.delayCostMUSD ? simText("flight.delay") : ''}</span><b>${e ? `−${fmtMUSD(launchCost)}` : '—'}</b></div>
+      ${eventsCost ? `<div class="row"><span>${simText("flight.unexpected-events")}</span><b>−${fmtMUSD(eventsCost)}</b></div>` : ''}
+      <div class="row total"><span>${simText("flight.remaining")}</span><b class="${remaining < 0 ? 'status-red' : ''}">${fmtMUSD(remaining)}</b></div>
     </div>
     <div class="res">
-      <h3>⚖ Peso ${sourceTag('spacecraft')}</h3>
-      <div class="row"><span>Tu nave al despegar</span><b>${fmtKg(e ? e.launchMassKg : sc.massKg)}</b></div>
-      <div class="row"><span>El cohete puede subir</span><b>${e ? fmtKg(e.capacityKg) : '—'}</b></div>
-      <div class="row"><span>Espacio libre</span><b class="${st ? `status-${st.cls}` : ''}">${e ? `${st.icon} ${e.marginPct} %` : '—'}</b></div>
+      <h3>⚖ ${simText('flight.weight')} ${sourceTag('spacecraft')}</h3>
+      <div class="row"><span>${simText("flight.spacecraft-at-liftoff")}</span><b>${fmtKg(e ? e.launchMassKg : sc.massKg)}</b></div>
+      <div class="row"><span>${simText("flight.payload-capacity")}</span><b>${e ? fmtKg(e.capacityKg) : '—'}</b></div>
+      <div class="row"><span>${simText("flight.margin")}</span><b class="${st ? `status-${st.cls}` : ''}">${e ? `${st.icon} ${e.marginPct} %` : '—'}</b></div>
     </div>
     <div class="res">
       <h3>📅 Tiempo ${sourceTag('schedule')}</h3>
-      <div class="row"><span>Meta</span><b>mes ${schedule.monthsToTargetDate}</b></div>
-      <div class="row"><span>Lanzamiento</span><b class="${e?.date.delayMonths ? 'status-yellow' : ''}">${e ? `mes ${e.date.launchMonth}${f?.delayDays ? ` + ${f.delayDays} d` : ''}` : '—'}</b></div>
+      <div class="row"><span>${simText("flight.target")}</span><b>${simText('flight.month-0', schedule.monthsToTargetDate)}</b></div>
+      <div class="row"><span>${simText("flight.launch")}</span><b class="${e?.date.delayMonths ? 'status-yellow' : ''}">${e ? simText("flight.month-0-1", e.date.launchMonth, f?.delayDays ? ` + ${f.delayDays} d` : '') : '—'}</b></div>
     </div>
     <div class="res">
-      <h3>⏳ Vida y riesgo</h3>
-      <div class="row"><span>${sc.missionDays ? 'Duración planeada' : 'Vida de la nave'}</span><b>${lifeText(sc, f ? lifetime : sc.designLifetimeYears)}</b></div>
-      <div class="row"><span>De cada 100 lanzamientos</span><b>${e ? `${Math.round(e.reliability * 100)} salen bien` : '—'}</b></div>
-      <div class="row"><span>Resultado</span><b>${f ? { exito: '✔ Éxito', exito_parcial: '◐ Parcial', falla: '✖ Falla' }[f.result] : app.confirmed ? 'Listo para lanzar' : 'Pendiente'}</b></div>
+      <h3>${simText("flight.service-life-and-risk")}</h3>
+      <div class="row"><span>${simText(sc.missionDays ? 'flight.planned-duration' : 'flight.spacecraft-service-life')}</span><b>${lifeText(sc, f ? lifetime : sc.designLifetimeYears)}</b></div>
+      <div class="row"><span>${simText("flight.out-of-100-launches")}</span><b>${e ? simText("flight.0-succeed", Math.round(e.reliability * 100)) : '—'}</b></div>
+      <div class="row"><span>${simText("flight.result")}</span><b>${f ? { exito: simText("flight.success"), exito_parcial: simText("flight.partial"), falla: simText("flight.failed") }[f.result] : app.confirmed ? simText("flight.ready-to-launch") : simText("flight.pending")}</b></div>
     </div>
-    <div class="res unaffected"><h3>Potencia · Comunicaciones · Datos</h3><div>El cohete no los cambia directamente; los manejan otros equipos.</div></div>
-    ${requests.length ? `<div class="res requests"><h3>Avisos a otros roles</h3><ul>${requests.map((r) => `<li><span class="role-chip">${esc(r.toRole)}</span>${esc(r.text)}</li>`).join('')}</ul></div>` : ''}`;
+    <div class="res unaffected"><h3>${simText("flight.power-communications-data")}</h3><div>${simText("flight.the-rocket-does-not-directly-change-these-resources")}</div></div>
+    ${requests.length ? `<div class="res requests"><h3>${simText("flight.notes-for-other-roles-2")}</h3><ul>${requests.map((r) => `<li><span class="role-chip">${esc(r.toRole)}</span>${esc(r.text)}</li>`).join('')}</ul></div>` : ''}`;
 }
 
 export function bindScreens(root, nav) {
@@ -194,8 +206,8 @@ export function bindScreens(root, nav) {
     if (button?.id === 'return-control') nav.exit();
     if (button?.id === 'copy-json') {
       const text = document.getElementById('output-json')?.textContent ?? '';
-      if (!navigator.clipboard) { button.textContent = 'No se pudo copiar'; return; }
-      navigator.clipboard.writeText(text).then(() => { button.textContent = '¡Copiado!'; }, () => { button.textContent = 'No se pudo copiar'; });
+      if (!navigator.clipboard) { button.textContent = simText("flight.copy-failed"); return; }
+      navigator.clipboard.writeText(text).then(() => { button.textContent = simText("flight.copied"); }, () => { button.textContent = simText("flight.copy-failed"); });
     }
   };
 }

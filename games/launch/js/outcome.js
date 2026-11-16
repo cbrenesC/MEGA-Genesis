@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Une el vuelo interactivo (flight.js) con las reglas del juego (rules.js).
 //
 //  - planFlightEvents(): decide, con la semilla, qué imprevistos habrá (clima, falsa alarma,
@@ -25,11 +26,11 @@ export function hohmannDv(r1, r2) {
 
 // En qué etapa y en qué punto de su quemada ocurre cada tipo de falla grave.
 const FAIL_POINTS = {
-  liftoff: { stage: 0, frac: 0.04, label: 'justo después de despegar' },
-  maxq: { stage: 0, frac: 0.3, label: 'en el momento de más presión del aire (Max-Q)' },
-  staging: { stage: 0, frac: 0.96, label: 'al separar la primera etapa' },
-  fairing: { stage: 1, frac: 0.15, label: 'al soltar la punta (cofia)' },
-  insertion: { stage: 99, frac: 0.6, label: 'cuando ya casi llegabas a la órbita' },
+  liftoff: { stage: 0, frac: 0.04, label: simText("flight.just-after-liftoff") },
+  maxq: { stage: 0, frac: 0.3, label: simText("flight.at-maximum-dynamic-pressure-max-q") },
+  staging: { stage: 0, frac: 0.96, label: simText("flight.during-first-stage-separation") },
+  fairing: { stage: 1, frac: 0.15, label: simText("flight.during-fairing-separation") },
+  insertion: { stage: 99, frac: 0.6, label: simText("flight.just-before-reaching-orbit") },
 };
 
 /**
@@ -51,11 +52,11 @@ export function planFlightEvents(evaluation, data, inputs, { seed = 1, eventsEna
     if (p.weather != null && rng() < p.weather) {
       const days = Math.round(randBetween(ev.weather.minDays, ev.weather.maxDays));
       const cost = round(days * ev.weather.costMUSDPerDay, 2);
-      pre.push({ id: 'weather', phase: 'countdown', label: ev.weather.label, consequence: `Hubo mal clima en ${evaluation.site.name}: esperaron ${days} días y costó ${fmtMUSD(cost)} más.`, explain: ev.weather.explain, costMUSD: cost, delayDays: days, severity: 'minor' });
+      pre.push({ id: 'weather', phase: 'countdown', label: ev.weather.label, consequence: simText("flight.bad-weather-at-0-delayed-the-launch-by", evaluation.site.name, days, fmtMUSD(cost)), explain: ev.weather.explain, costMUSD: cost, delayDays: days, severity: 'minor' });
     }
     if (p.minorAnomaly != null && rng() < p.minorAnomaly) {
       const a = ev.minorAnomaly;
-      pre.push({ id: 'minorAnomaly', phase: 'countdown', label: a.label, consequence: `Revisaron el cohete: ${a.delayDays} días de retraso y ${fmtMUSD(a.costMUSD)} más.`, explain: a.explain, costMUSD: a.costMUSD, delayDays: a.delayDays, severity: 'minor' });
+      pre.push({ id: 'minorAnomaly', phase: 'countdown', label: a.label, consequence: simText("flight.the-rocket-was-inspected-adding-0-days-and", a.delayDays, fmtMUSD(a.costMUSD)), explain: a.explain, costMUSD: a.costMUSD, delayDays: a.delayDays, severity: 'minor' });
     }
     if (p.failure != null && rng() < p.failure) {
       if (rng() < (diff.partialFailureShare ?? 0)) {
@@ -67,7 +68,7 @@ export function planFlightEvents(evaluation, data, inputs, { seed = 1, eventsEna
         const keys = Object.keys(FAIL_POINTS);
         const phase = keys[Math.floor(rng() * keys.length)];
         const fp = FAIL_POINTS[phase];
-        flightEvents.push({ kind: 'fatal', stage: Math.min(fp.stage, stageCount - 1), frac: fp.frac, text: `Falla del cohete ${fp.label}: se perdió la señal.`,
+        flightEvents.push({ kind: 'fatal', stage: Math.min(fp.stage, stageCount - 1), frac: fp.frac, text: simText("flight.rocket-failure-0-signal-lost", fp.label),
           meta: { id: 'failure', phase, label: ev.failure.label, severity: 'fatal', explain: ev.failure.explain, where: fp.label } });
       }
     }
@@ -103,9 +104,9 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
     if (!fe.done || !fe.meta) continue;
     const m = fe.meta;
     let consequence;
-    if (fe.kind === 'gust') consequence = `Una ráfaga te empujó ${Math.abs(fe.deg)}° ${fe.deg > 0 ? 'a la derecha' : 'a la izquierda'}. Había que corregir la inclinación.`;
-    else if (fe.kind === 'engineOut') consequence = `Un motor de la etapa ${fe.stage + 1} empujó solo ${Math.round(fe.thrustMult * 100)} % durante el resto de su quemada.`;
-    else consequence = `El cohete falló ${m.where}: la nave se perdió.`;
+    if (fe.kind === 'gust') consequence = simText("flight.a-gust-pushed-the-rocket-0-1-you", Math.abs(fe.deg), fe.deg > 0 ? simText("flight.to-the-right") : simText("flight.to-the-left"));
+    else if (fe.kind === 'engineOut') consequence = simText("flight.a-stage-0-engine-delivered-only-1-thrust", fe.stage + 1, Math.round(fe.thrustMult * 100));
+    else consequence = simText("flight.the-rocket-failed-0-and-the-spacecraft-was", m.where);
     events.push({ id: m.id, phase: m.phase, label: m.label, consequence, explain: m.explain, severity: m.severity });
   }
 
@@ -139,30 +140,30 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
   if (destroyed) {
     const afterEntry = lunar && sim.mission.entry;
     const reasons = {
-      'crash-moon': () => ({ id: 'crash', phase: 'insertion', label: 'La nave chocó contra la Luna', consequence: 'Su trayectoria pasaba por debajo de la superficie lunar.', explain: 'Al llegar a la Luna hay que pasar por encima de sus montañas y frenar justo en el punto más bajo. Con una corrección de rumbo a mitad de camino se sube ese punto.', severity: 'fatal' }),
-      burn: () => ({ id: 'reentry', phase: 'insertion', label: 'La nave se quemó en la reentrada', consequence: sim.capsuleOnly ? 'El escudo térmico se gastó: la entrada fue tan rasante que la cápsula rebotó y pasó demasiado tiempo en el aire caliente.' : 'Entró al aire con el módulo de servicio todavía puesto: el escudo térmico quedó tapado.', explain: 'Al volver de la Luna la cápsula entra al aire a 11 km/s (40.000 km/h). El aire se comprime delante y se calienta más que la superficie del Sol; sólo el escudo térmico, puesto por delante, lo aguanta.', severity: 'fatal' }),
-      gforce: () => ({ id: 'reentry', phase: 'insertion', label: 'La cápsula entró demasiado empinada', consequence: `Frenó con más de ${Math.round(sim.craft?.gBreak ?? 20)} veces la gravedad y no aguantó.`, explain: 'Si la cápsula entra muy de punta, el aire denso la frena de golpe. El punto más bajo de la trayectoria tiene que quedar a unos 60 km de altura: así el frenado dura varios minutos y es soportable.', severity: 'fatal' }),
+      'crash-moon': () => ({ id: 'crash', phase: 'insertion', label: simText("lunarFlight.the-spacecraft-struck-the-moon"), consequence: simText("lunarFlight.the-trajectory-dipped-below-the-lunar-surface"), explain: simText("lunarFlight.pass-above-the-lunar-terrain-and-brake-near"), severity: 'fatal' }),
+      burn: () => ({ id: 'reentry', phase: 'insertion', label: simText("lunarFlight.the-spacecraft-burned-up-during-reentry-2"), consequence: sim.capsuleOnly ? simText("lunarFlight.the-heat-shield-was-consumed-after-a-shallow") : simText("lunarFlight.the-spacecraft-entered-with-the-service-module-still"), explain: simText("lunarFlight.a-capsule-returning-from-the-moon-can-enter"), severity: 'fatal' }),
+      gforce: () => ({ id: 'reentry', phase: 'insertion', label: simText("lunarFlight.the-capsule-entered-too-steeply"), consequence: simText("lunarFlight.deceleration-exceeded-0-g-beyond-what-the-capsule", Math.round(sim.craft?.gBreak ?? 20)), explain: simText("lunarFlight.a-steep-entry-causes-abrupt-deceleration-in-dense"), severity: 'fatal' }),
       failure: () => null, // ya está en los eventos
-      maxq: () => ({ id: 'structural', phase: 'maxq', label: 'El cohete se rompió por la presión del aire (Max-Q)', consequence: 'Pasaste el límite de presión del aire y la estructura no aguantó.', explain: 'Cerca del primer minuto el aire todavía es denso y el cohete ya va muy rápido. Bajar un poco el empuje en ese momento lo cuida.', severity: 'fatal' }),
-      aoa: () => ({ id: 'structural', phase: 'maxq', label: 'El cohete se partió al girar de lado', consequence: 'Inclinaste muy rápido con el aire denso: el viento de costado lo partió.', explain: 'Cuando el aire es denso, el cohete tiene que ir casi derecho. Inclina de a poquito y deja que la gravedad haga el giro.', severity: 'fatal' }),
+      maxq: () => ({ id: 'structural', phase: 'maxq', label: simText("lunarFlight.the-rocket-broke-apart-under-dynamic-pressure-max"), consequence: simText("lunarFlight.dynamic-pressure-exceeded-the-structural-limit"), explain: simText("lunarFlight.about-a-minute-into-flight-the-air-is"), severity: 'fatal' }),
+      aoa: () => ({ id: 'structural', phase: 'maxq', label: simText("lunarFlight.the-rocket-broke-apart-while-turning"), consequence: simText("lunarFlight.the-rocket-turned-too-fast-in-dense-air"), explain: simText("lunarFlight.in-dense-air-stay-close-to-vertical-tilt"), severity: 'fatal' }),
       crash: () => (afterEntry
-        ? { id: 'crash', phase: 'insertion', label: 'La cápsula llegó demasiado rápido a la superficie', consequence: sim.chute?.torn ? 'Los paracaídas se abrieron cuando la cápsula todavía iba muy rápido y se rompieron.' : sim.chute ? 'Los paracaídas se abrieron demasiado tarde y no alcanzaron a frenarla.' : 'No se abrieron los paracaídas.', explain: 'El aire frena la cápsula hasta unos 100 m/s. Para tocar el agua a 9 m/s hacen falta los paracaídas, abiertos por debajo de 7 km de altura y cuando la cápsula ya va despacio.', severity: 'fatal' }
-        : { id: 'crash', phase: 'insertion', label: 'El cohete volvió a caer', consequence: 'No alcanzó la velocidad lateral para quedarse en órbita y cayó.', explain: 'Para quedarte en órbita no basta con subir: tienes que ir de lado a unos 7,8 km/s. Si el cohete solo sube, vuelve a caer.', severity: 'fatal' }),
+        ? { id: 'crash', phase: 'insertion', label: simText("lunarFlight.the-capsule-reached-the-surface-too-fast"), consequence: sim.chute?.torn ? simText("lunarFlight.the-parachutes-deployed-at-excessive-speed-and-tore") : sim.chute ? simText("lunarFlight.the-parachutes-deployed-too-late-to-slow-the") : simText("lunarFlight.the-parachutes-did-not-open"), explain: simText("lunarFlight.air-slows-the-capsule-to-about-100-m"), severity: 'fatal' }
+        : { id: 'crash', phase: 'insertion', label: simText("lunarFlight.the-rocket-fell-back-to-earth"), consequence: simText("lunarFlight.it-did-not-build-enough-sideways-speed-to"), explain: simText("lunarFlight.getting-to-orbit-takes-more-than-altitude-you"), severity: 'fatal' }),
     };
     const extra = reasons[sim.endReason]?.();
     if (extra) events.push(extra);
-    story.push(sim.log.at(-1)?.text ?? 'El cohete se perdió.');
-    return { ...base, result: 'falla', headline: lunar && sim.mission.leo ? 'La nave se perdió' : 'El cohete se perdió', achievedOrbit: lunar ? lunarAchieved(sim) : null, lifetimeYears: 0, story, failureKind: sim.endReason };
+    story.push(sim.log.at(-1)?.text ?? simText("lunarFlight.the-rocket-was-lost"));
+    return { ...base, result: 'falla', headline: lunar && sim.mission.leo ? simText("lunarFlight.the-spacecraft-was-lost") : simText("lunarFlight.the-rocket-was-lost-2"), achievedOrbit: lunar ? lunarAchieved(sim) : null, lifetimeYears: 0, story, failureKind: sim.endReason };
   }
   if (lunar && sim.mission.leo) return resolveLunar({ sim, base, events, story, sc });
 
   // --- el cohete sobrevivió: ¿llegó a la órbita?
   const parkingOk = el.periAlt >= PHYS.PERI_OK;
   if (!parkingOk) {
-    events.push({ id: 'noOrbit', phase: 'insertion', label: 'No llegaste a la órbita', consequence: periKm < 0 ? `Tu punto más bajo quedó ${Math.abs(Math.round(periKm)).toLocaleString('es')} km por debajo del suelo: la trayectoria choca con la Tierra.` : `Tu punto más bajo quedó en ${Math.round(periKm)} km: dentro del aire. La nave va a caer.`,
-      explain: 'Para quedarte en órbita, el punto más bajo (periapsis) tiene que quedar sobre la atmósfera, a más de unos 150 km. Para eso hay que acelerar de lado, no solo subir.', severity: 'fatal' });
-    story.push(periKm < 0 ? `Tu punto más bajo quedó ${Math.abs(Math.round(periKm)).toLocaleString('es')} km por debajo del suelo: tu trayectoria choca con la Tierra. Faltó acelerar de lado.` : `Tu punto más bajo quedó en ${Math.round(periKm)} km, dentro del aire. La nave no se quedó en órbita.`);
-    return { ...base, result: 'falla', headline: 'No llegaste a la órbita', achievedOrbit: null, lifetimeYears: 0, story, failureKind: 'no-orbit' };
+    events.push({ id: 'noOrbit', phase: 'insertion', label: simText("flight.you-did-not-reach-orbit"), consequence: periKm < 0 ? simText("flight.your-lowest-point-was-0-km-underground-so", Math.abs(Math.round(periKm)).toLocaleString('es')) : simText("flight.your-lowest-point-was-0-km-still-inside", Math.round(periKm)),
+      explain: simText("flight.for-a-stable-orbit-the-lowest-point-periapsis"), severity: 'fatal' });
+    story.push(periKm < 0 ? simText("flight.your-lowest-point-was-0-km-underground-the", Math.abs(Math.round(periKm)).toLocaleString('es')) : simText("flight.your-lowest-point-was-0-km-inside-the", Math.round(periKm)));
+    return { ...base, result: 'falla', headline: simText("flight.you-did-not-reach-orbit"), achievedOrbit: null, lifetimeYears: 0, story, failureKind: 'no-orbit' };
   }
 
   const targetKm = (evaluation.fixedOrbit?.altitudeKm ?? inputs.orbit.altitudeKm ?? sim.targetAltKm) ?? 400;
@@ -174,37 +175,42 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
   let extraLossPct = 0;
   let achieved;
   let headline;
+  let reachedWithCorrection = false;
+  let transferCorrected = false;
+  let transferCorrectionCovered = true;
 
   if (d.kind === 'transfer') {
     const reached = transferReached(destId, el);
     const win = windowErrorDeg(sim);
     const winOk = win == null || win <= d.windowTolDeg; // sin encendido propio (la ascensión ya alcanzó la energía) no hay ventana que fallar
     if (reached && winOk) {
-      achieved = { type: destId, altitudeKm: null, inclinationDeg: incl, note: `Hiciste el encendido de transferencia en el momento justo: ${d.label}.` };
-      headline = '¡Transferencia perfecta!';
-      story.push(`Encendiste el motor a solo ${Math.round(win)}° del punto ideal y tomaste ${d.label}.`);
+      achieved = { type: destId, altitudeKm: null, inclinationDeg: incl, note: simText("flight.you-timed-the-transfer-burn-correctly-0", d.label) };
+      headline = simText("flight.transfer-burn-on-target");
+      story.push(simText("flight.you-ignited-only-0-from-the-ideal-point", Math.round(win), d.label));
     } else if (reached) {
       const dvFix = 350;
       const kg = hasEngine ? propellantForDeltaV(launchMass, dvFix, sc.ispS, rules.physics.g0) : 0;
+      transferCorrected = true;
+      transferCorrectionCovered = Boolean(hasEngine && kg <= Math.max(0, ops - lostPropKg));
       if (hasEngine) lostPropKg += kg; else extraLossPct += 30;
-      achieved = { type: destId, altitudeKm: null, inclinationDeg: incl, note: `Tuviste la fuerza, pero encendiste a ${Math.round(win ?? 0)}° de la ventana: la nave tuvo que corregir el rumbo con su propio motor.` };
-      headline = 'Encendiste fuera de la ventana';
-      story.push(`Encendiste ${Math.round(win ?? 0)}° lejos del punto ideal. La nave corrige el rumbo con su propio motor (unos ${dvFix} m/s) y gasta ${fmtKg(kg)} de combustible.`);
-      events.push({ id: 'missedWindow', phase: 'insertion', label: 'Encendido fuera de la ventana', consequence: `La nave tiene que corregir el rumbo y gasta combustible propio (${fmtKg(kg)}).`, explain: 'El mejor momento para salir de la órbita depende de dónde está tu destino. Si te adelantas o te atrasas, hay que corregir después, y eso gasta combustible.', severity: 'moderate' });
+      achieved = { type: destId, altitudeKm: null, inclinationDeg: incl, note: simText("flight.you-had-enough-thrust-but-ignited-0-off", Math.round(win ?? 0)) };
+      headline = simText("flight.you-ignited-outside-the-transfer-window");
+      story.push(simText("flight.you-ignited-0-away-from-the-ideal-point", Math.round(win ?? 0), dvFix, fmtKg(kg)));
+      events.push({ id: 'missedWindow', phase: 'insertion', label: simText("flight.ignition-outside-the-transfer-window"), consequence: simText("flight.the-spacecraft-needs-0-of-its-own-fuel", fmtKg(kg)), explain: simText("flight.the-best-point-to-leave-orbit-depends-on"), severity: 'moderate' });
     } else {
       // se quedó en la órbita de espera: la nave debe hacer el resto con su motor
       const dvRest = destDeltaV(destId, el.r);
       const kg = hasEngine ? propellantForDeltaV(launchMass, dvRest, sc.ispS, rules.physics.g0) : Infinity;
       if (!hasEngine || kg > ops) {
-        events.push({ id: 'noTransfer', phase: 'insertion', label: 'No hiciste la transferencia', consequence: 'Te quedaste en la órbita baja y la nave no tiene combustible para hacer el resto del viaje.', explain: 'Para ir a la Luna o a otro planeta hace falta un empujón grande desde la órbita baja. Sin él, la nave se queda cerca de la Tierra.', severity: 'fatal' });
-        story.push('Te quedaste en la órbita de espera y la nave no puede hacer sola el resto del camino.');
-        return { ...base, result: 'falla', headline: 'No saliste de la órbita baja', achievedOrbit: { type: 'LEO', altitudeKm: Math.round((periKm + (Number.isFinite(apoKm) ? apoKm : periKm)) / 2), inclinationDeg: incl, note: 'Órbita de espera.' }, lifetimeYears: 0, story, failureKind: 'no-transfer' };
+        events.push({ id: 'noTransfer', phase: 'insertion', label: simText("flight.transfer-not-achieved"), consequence: simText("flight.the-spacecraft-remained-in-low-earth-orbit-without"), explain: simText("flight.reaching-the-moon-or-another-planet-takes-a"), severity: 'fatal' });
+        story.push(simText("flight.you-stayed-in-the-parking-orbit-and-the"));
+        return { ...base, result: 'falla', headline: simText("flight.you-did-not-leave-low-earth-orbit"), achievedOrbit: { type: 'LEO', altitudeKm: Math.round((periKm + (Number.isFinite(apoKm) ? apoKm : periKm)) / 2), inclinationDeg: incl, note: simText("flight.parking-orbit") }, lifetimeYears: 0, story, failureKind: 'no-transfer' };
       }
       lostPropKg += kg;
-      achieved = { type: 'LEO', altitudeKm: Math.round((periKm + (Number.isFinite(apoKm) ? apoKm : periKm)) / 2), inclinationDeg: incl, note: 'Te quedaste en la órbita de espera: la nave hace sola el resto del viaje.' };
-      headline = 'Te quedaste en la órbita de espera';
-      story.push(`No completaste la transferencia. La nave termina el viaje con su motor y gasta ${fmtKg(kg)} de combustible.`);
-      events.push({ id: 'partialTransfer', phase: 'insertion', label: 'Transferencia incompleta', consequence: `La nave gasta ${fmtKg(kg)} de combustible para llegar sola.`, explain: 'Cada kilogramo de combustible que usa la nave para llegar es uno que ya no sirve para alargar su vida.', severity: 'major' });
+      achieved = { type: 'LEO', altitudeKm: Math.round((periKm + (Number.isFinite(apoKm) ? apoKm : periKm)) / 2), inclinationDeg: incl, note: simText("flight.the-rocket-stayed-in-the-parking-orbit-the") };
+      headline = simText("flight.you-stayed-in-the-parking-orbit");
+      story.push(simText("flight.you-did-not-complete-the-transfer-the-spacecraft", fmtKg(kg)));
+      events.push({ id: 'partialTransfer', phase: 'insertion', label: simText("flight.incomplete-transfer"), consequence: simText("flight.the-spacecraft-uses-0-of-propellant-to-reach", fmtKg(kg)), explain: simText("flight.every-kilogram-used-to-reach-the-target-is"), severity: 'major' });
     }
   } else {
     const meanKm = (periKm + apoKm) / 2;
@@ -221,12 +227,13 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
     }
     achieved = { type: destId, altitudeKm: Math.round(meanKm), periapsisKm: Math.round(periKm), apoapsisKm: Math.round(apoKm), inclinationDeg: incl,
       note: dvFix > 15
-        ? (hasEngine ? `Tu órbita quedó en ${Math.round(periKm)} × ${Math.round(apoKm)} km. La nave la corrige con su motor y gasta ${fmtKg(kg)} de combustible.` : `Tu órbita quedó en ${Math.round(periKm)} × ${Math.round(apoKm)} km y la nave no tiene motor para corregirla.`)
-        : `Llegaste a la órbita que querías: ${Math.round(periKm)} × ${Math.round(apoKm)} km.` };
-    headline = dvFix > 15 ? 'Llegaste a la órbita, un poco corrida' : '¡Órbita casi perfecta!';
-    story.push(`Tu órbita quedó en ${Math.round(periKm)} km (punto más bajo) × ${Math.round(apoKm)} km (punto más alto). Querías ${targetKm} km.`);
-    if (dvFix > 15 && hasEngine) story.push(`Corregirla cuesta unos ${Math.round(dvFix)} m/s de la nave, es decir ${fmtKg(kg)} de combustible que ya no servirá para alargar su vida.`);
-    if (dvFix > 15 && !hasEngine) story.push('Como la nave no tiene motor, se queda en esa órbita y pierde parte de su vida útil.');
+        ? (hasEngine ? simText("flight.you-reached-a-0-1-km-orbit-the", Math.round(periKm), Math.round(apoKm), fmtKg(kg)) : simText("flight.you-reached-a-0-1-km-orbit-and", Math.round(periKm), Math.round(apoKm)))
+        : simText("flight.you-reached-your-target-orbit-0-1-km", Math.round(periKm), Math.round(apoKm)) };
+    reachedWithCorrection = dvFix > 15;
+    headline = dvFix > 15 ? simText("flight.you-reached-an-orbit-slightly-off-target") : simText("flight.nearly-perfect-orbit");
+    story.push(simText("flight.you-reached-0-km-at-the-lowest-point", Math.round(periKm), Math.round(apoKm), targetKm));
+    if (dvFix > 15 && hasEngine) story.push(simText("flight.correcting-it-costs-roughly-0-m-s-or", Math.round(dvFix), fmtKg(kg)));
+    if (dvFix > 15 && !hasEngine) story.push(simText("flight.without-an-engine-the-spacecraft-stays-in-that"));
   }
 
   let lifetime = lifetimeAfterLoss(sc, lostPropKg) * (1 - extraLossPct / 100);
@@ -235,9 +242,9 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
   const lossPct = planned > 0 ? ((planned - lifetime) / planned) * 100 : 0;
   const partialEvent = events.some((e) => e.id === 'partialFailure');
   const result = lossPct >= rules.outcome.partialIfLifetimeLossPct || partialEvent && lossPct > 5 ? 'exito_parcial' : 'exito';
-  if (partialEvent) story.push('El motor que perdió fuerza obligó a gastar más combustible, y se nota en la órbita.');
-  if (result === 'exito_parcial' && lossPct >= rules.outcome.partialIfLifetimeLossPct) story.push(`La nave vivirá ${lifetime} años en vez de ${planned} (pierde ${Math.round(lossPct)} %).`);
-  return { ...base, result, headline: result === 'exito' && headline.startsWith('Llegaste') ? '¡Llegaste a la órbita!' : headline, achievedOrbit: achieved, lifetimeYears: lifetime, story, lossPct: round(lossPct, 0) };
+  if (partialEvent) story.push(simText("flight.the-engine-that-lost-power-made-the-rocket"));
+  if (result === 'exito_parcial' && lossPct >= rules.outcome.partialIfLifetimeLossPct) story.push(simText("flight.the-spacecraft-will-last-0-years-instead-of", lifetime, planned, Math.round(lossPct)));
+  return { ...base, result, headline: result === 'exito' && reachedWithCorrection ? simText("flight.you-reached-orbit") : headline, achievedOrbit: achieved, transferCorrected, transferCorrectionCovered, lifetimeYears: lifetime, story, lossPct: round(lossPct, 0) };
 }
 
 // ---------------------------------------------------------------------------
@@ -246,7 +253,7 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
 
 const lunarAchieved = (sim) => {
   const o = sim.mission?.bestOrbit;
-  return o ? { type: 'LUNA', periapsisKm: Math.round(o.periKm), apoapsisKm: Math.round(o.apoKm), altitudeKm: Math.round((o.periKm + o.apoKm) / 2), inclinationDeg: null, note: 'Órbita alrededor de la Luna.' } : null;
+  return o ? { type: 'LUNA', periapsisKm: Math.round(o.periKm), apoapsisKm: Math.round(o.apoKm), altitudeKm: Math.round((o.periKm + o.apoKm) / 2), inclinationDeg: null, note: simText("lunarFlight.orbit-around-the-moon-2") } : null;
 };
 
 /** Datos del viaje para el informe y para el siguiente equipo. */
@@ -273,29 +280,29 @@ function resolveLunar({ sim, base, events, story, sc }) {
   const m = sim.mission; const st = sim.stats;
   const achievedOrbit = lunarAchieved(sim);
   const km = (v) => Math.round(v).toLocaleString('es');
-  story.push(`El viaje duró ${base.flightData.lunar.days.toLocaleString('es')} días.`);
-  if (m.bestOrbit) story.push(`Estuviste en órbita lunar de ${km(m.bestOrbit.periKm)} × ${km(m.bestOrbit.apoKm)} km y diste ${m.lunarRevs.toLocaleString('es', { maximumFractionDigits: 1 })} vueltas a la Luna.`);
-  else if (m.soi) story.push(`Pasaste a ${km(m.minMoonAlt / 1000)} km de la Luna.`);
+  story.push(simText("lunarFlight.the-journey-lasted-0-days", base.flightData.lunar.days.toLocaleString('es')));
+  if (m.bestOrbit) story.push(simText("lunarFlight.you-reached-a-0-1-km-lunar-orbit-2", km(m.bestOrbit.periKm), km(m.bestOrbit.apoKm), m.lunarRevs.toLocaleString('es', { maximumFractionDigits: 1 })));
+  else if (m.soi) story.push(simText("lunarFlight.you-passed-within-0-km-of-the-moon-2", km(m.minMoonAlt / 1000)));
   if (sim.landing) {
     const gLim = sim.craft?.gLimit ?? 9;
-    story.push(`La cápsula entró al aire a ${(st.entrySpeed / 1000).toLocaleString('es', { maximumFractionDigits: 1 })} km/s, soportó ${st.maxG.toLocaleString('es', { maximumFractionDigits: 1 })} veces la gravedad, gastó ${Math.round((1 - sim.heat.shieldLeft) * 100)} % del escudo térmico y tocó la superficie a ${sim.landing.speed.toLocaleString('es', { maximumFractionDigits: 1 })} m/s.`);
+    story.push(simText("lunarFlight.the-capsule-entered-at-0-km-s-peaked", (st.entrySpeed / 1000).toLocaleString('es', { maximumFractionDigits: 1 }), st.maxG.toLocaleString('es', { maximumFractionDigits: 1 }), Math.round((1 - sim.heat.shieldLeft) * 100), sim.landing.speed.toLocaleString('es', { maximumFractionDigits: 1 })));
     const rough = st.maxG > gLim + 4;
-    if (st.maxG > gLim) events.push({ id: 'highG', phase: 'insertion', label: 'Reentrada muy brusca', consequence: `La tripulación soportó ${st.maxG.toFixed(1)} veces la gravedad (lo cómodo es menos de ${gLim}).`, explain: 'Mientras más empinada entra la cápsula, más de golpe la frena el aire. Con una corrección de rumbo en el viaje de vuelta se elige un ángulo más suave.', severity: rough ? 'major' : 'moderate' });
-    if (m.lunarOrbit && !rough) return { ...base, result: 'exito', headline: '¡Misión cumplida: fuiste a la Luna y volviste!', achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
-    if (m.lunarOrbit) return { ...base, result: 'exito_parcial', headline: 'Fuiste a la Luna y volviste, pero la reentrada fue muy brusca', achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
+    if (st.maxG > gLim) events.push({ id: 'highG', phase: 'insertion', label: simText("lunarFlight.rough-reentry"), consequence: simText("lunarFlight.the-crew-experienced-0-g-the-target-is", st.maxG.toFixed(1), gLim), explain: simText("lunarFlight.a-steep-entry-causes-sudden-deceleration-a-course"), severity: rough ? 'major' : 'moderate' });
+    if (m.lunarOrbit && !rough) return { ...base, result: 'exito', headline: simText("lunarFlight.mission-accomplished-you-reached-the-moon-and-returned"), achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
+    if (m.lunarOrbit) return { ...base, result: 'exito_parcial', headline: simText("lunarFlight.you-made-it-to-the-moon-and-back"), achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
     if (m.soi) {
-      events.push({ id: 'flyby', phase: 'insertion', label: 'Sobrevuelo de la Luna sin entrar en órbita', consequence: 'La nave rodeó la Luna y volvió, pero no frenó para quedarse dando vueltas.', explain: 'Para quedar en órbita lunar hay que frenar justo al pasar por el punto más cercano a la Luna. Así volvió a casa la tripulación del Apolo 13, que tuvo que cancelar su alunizaje.', severity: 'major' });
-      return { ...base, result: 'exito_parcial', headline: 'Rodeaste la Luna y volviste a salvo, sin entrar en órbita', achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
+      events.push({ id: 'flyby', phase: 'insertion', label: simText("lunarFlight.lunar-flyby-without-orbit-insertion"), consequence: simText("lunarFlight.the-spacecraft-passed-around-the-moon-and-returned"), explain: simText("lunarFlight.brake-at-closest-approach-to-enter-lunar-orbit"), severity: 'major' });
+      return { ...base, result: 'exito_parcial', headline: simText("lunarFlight.you-flew-around-the-moon-and-returned-safely"), achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
     }
-    events.push({ id: 'noMoon', phase: 'insertion', label: 'La nave no llegó a la Luna', consequence: 'La cápsula volvió a salvo desde la órbita de la Tierra.', explain: 'Para ir a la Luna hace falta la inyección translunar: un encendido largo en el momento en que la Luna está en el lugar correcto.', severity: 'major' });
-    return { ...base, result: 'exito_parcial', headline: 'La cápsula volvió a salvo, pero no llegó a la Luna', achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
+    events.push({ id: 'noMoon', phase: 'insertion', label: simText("lunarFlight.the-spacecraft-did-not-reach-the-moon"), consequence: simText("lunarFlight.the-capsule-returned-safely-from-earth-orbit"), explain: simText("lunarFlight.reaching-the-moon-requires-a-sustained-translunar-burn"), severity: 'major' });
+    return { ...base, result: 'exito_parcial', headline: simText("lunarFlight.the-capsule-returned-safely-but-did-not-reach"), achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
   }
   // el vuelo terminó con la nave todavía en el espacio
-  const where = sim.body === 'moon' ? (m.lunarOrbit ? 'en órbita alrededor de la Luna' : 'cerca de la Luna') : m.left ? 'en el camino de vuelta' : m.tli ? 'en el camino hacia la Luna' : 'en órbita alrededor de la Tierra';
-  events.push({ id: 'notBack', phase: 'insertion', label: 'La nave no volvió a la Tierra', consequence: `El vuelo terminó con la nave ${where}.`, explain: 'Una misión con tripulación no termina al llegar: termina cuando la cápsula está de vuelta en el agua. Faltaron la inyección de regreso, la reentrada y los paracaídas.', severity: m.tli ? 'fatal' : 'major' });
-  story.push(`El vuelo terminó con la nave ${where}.`);
-  if (!m.tli) return { ...base, result: 'exito_parcial', headline: 'Te quedaste en la órbita de la Tierra', achievedOrbit: { type: 'LEO', altitudeKm: Math.round((m.parking.periKm + m.parking.apoKm) / 2), inclinationDeg: null, note: 'Órbita de espera.' }, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
-  return { ...base, result: 'falla', headline: 'La nave no volvió a casa', achievedOrbit, lifetimeYears: 0, story, failureKind: 'not-back' };
+  const where = sim.body === 'moon' ? (m.lunarOrbit ? simText("lunarFlight.in-orbit-around-the-moon") : simText("lunarFlight.near-the-moon")) : m.left ? simText("lunarFlight.on-its-way-home") : m.tli ? simText("lunarFlight.on-its-way-to-the-moon") : simText("lunarFlight.in-orbit-around-earth");
+  events.push({ id: 'notBack', phase: 'insertion', label: simText("lunarFlight.the-spacecraft-did-not-return-to-earth"), consequence: simText("lunarFlight.the-flight-ended-with-the-spacecraft-0", where), explain: simText("lunarFlight.a-crewed-mission-is-not-over-until-the"), severity: m.tli ? 'fatal' : 'major' });
+  story.push(simText("lunarFlight.the-flight-ended-with-the-spacecraft-0", where));
+  if (!m.tli) return { ...base, result: 'exito_parcial', headline: simText("lunarFlight.you-stayed-in-earth-orbit"), achievedOrbit: { type: 'LEO', altitudeKm: Math.round((m.parking.periKm + m.parking.apoKm) / 2), inclinationDeg: null, note: simText("lunarFlight.parking-orbit-2") }, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
+  return { ...base, result: 'falla', headline: simText("lunarFlight.the-spacecraft-did-not-make-it-home"), achievedOrbit, lifetimeYears: 0, story, failureKind: 'not-back' };
 }
 
 /** Cuando un par cohete-destino no tiene vuelo calibrado, el resultado se calcula con las reglas del catálogo. */
@@ -303,7 +310,7 @@ export function resolveAutomatic(evaluation, data, inputs, { seed = 1, eventsEna
   const r = simulateLaunch(evaluation, data, inputs, { seed, eventsEnabled });
   return {
     ...r,
-    headline: r.result === 'exito' ? '¡Llegaste a la órbita!' : r.result === 'exito_parcial' ? 'Llegaste, pero algo no salió perfecto' : 'El cohete se perdió',
+    headline: r.result === 'exito' ? simText("flight.you-reached-orbit") : r.result === 'exito_parcial' ? simText("flight.you-made-it-but-not-everything-went-to") : simText("flight.the-rocket-was-lost-2"),
     story: r.events.map((e) => e.consequence),
     flightData: null,
     pilot: null,

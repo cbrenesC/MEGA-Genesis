@@ -11,9 +11,17 @@ export const CREW_GUIDE = Object.freeze([
   { id: 'rover', crewId: 'rios', talkKey: 'josue-rover-plan', stationId: 'rover', stationNameKey: 'lesson.rover.title', kind: 'rover-simulation', mission: 'rover', taskKey: 'guide.rios.rover' },
 ]);
 
-export function nextGuideStep(completed, completedMissions) {
-  // A player can fly without following the tutorial in order. Once the launch
-  // is over, the guide must not send them back through rocket preparation.
+const CAMPAIGN_ORDER = ['mission', 'mobility', 'science', 'power', 'comms', 'rocket', 'payload', 'review', 'launch', 'rover'];
+
+export function nextGuideStep(completed, completedMissions, { campaign = false, delivered = false } = {}) {
+  if (campaign) {
+    return CAMPAIGN_ORDER.map(id => CREW_GUIDE.find(step => step.id === id)).find(step => {
+      if (step.id === 'launch') return !delivered;
+      if (step.id === 'rover') return delivered && !completedMissions.includes('rover');
+      return !completed.has(step.id) && !delivered;
+    }) ?? null;
+  }
+  // Retain the original flow for legacy session previews and standalone exercises.
   const launchFinished = completedMissions.includes('launch') || completed.has('launch');
   const roverFinished = completedMissions.includes('rover') || completed.has('rover');
   const launchIndex = CREW_GUIDE.findIndex(step => step.id === 'launch');

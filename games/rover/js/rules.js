@@ -1,3 +1,4 @@
+import { catalogLanguage, simText } from "../../../src/i18n/catalog.js";
 // Reglas deterministas del módulo lunar (sin Phaser, sin DOM, sin azar ni reloj real).
 // Todo lo que cambia el estado de la misión pasa por aquí: la escena y la interfaz solo leen y dibujan.
 // Unidades: energía en "u", potencia en "u/s", masa en kg, distancia en px del terreno.
@@ -6,7 +7,7 @@
 
 export const LIMITS = Object.freeze({ mass: 145, budgetMUSD: 85 });
 /** Dinero como en el módulo de lanzamiento: millones de dólares. */
-export const fmtCost = (m) => `${String(Math.round(m * 10) / 10).replace('.', ',')} M US$`;
+export const fmtCost = (m) => simText("rover.0-million-usd", fmt(m));
 export const WORLD = Object.freeze({ w: 1600, h: 1000 });
 export const START = Object.freeze({ x: 800, y: 900 });
 export const RULES = Object.freeze({
@@ -27,13 +28,13 @@ export const RULES = Object.freeze({
 });
 
 export const CATEGORIES = Object.freeze([
-  { id: 'chassis', label: 'Chasis', required: true },
-  { id: 'wheels', label: 'Ruedas', required: true },
-  { id: 'battery', label: 'Batería', required: true },
-  { id: 'solar', label: 'Panel solar', required: true },
-  { id: 'instrument', label: 'Instrumento científico', required: true },
-  { id: 'camera', label: 'Cámara', required: true },
-  { id: 'comms', label: 'Comunicaciones', required: true },
+  { id: 'chassis', get label() { return simText("rover.chassis"); }, required: true },
+  { id: 'wheels', get label() { return simText("rover.wheels"); }, required: true },
+  { id: 'battery', get label() { return simText("rover.battery"); }, required: true },
+  { id: 'solar', get label() { return simText("rover.solar-panel"); }, required: true },
+  { id: 'instrument', get label() { return simText("rover.science-instrument"); }, required: true },
+  { id: 'camera', get label() { return simText("rover.camera"); }, required: true },
+  { id: 'comms', get label() { return simText("rover.communications"); }, required: true },
 ]);
 
 // Catálogo. Cada opción lleva sus números; `trade` es la consecuencia en una frase.
@@ -90,17 +91,17 @@ export const ROCKS = Object.freeze([
 ]);
 // Puntos de interés fotografiables. Algunos son obstáculos (módulo, monolito).
 export const PHOTO_DEFS = Object.freeze([
-  { id: 'P1', name: 'Módulo de aterrizaje', kind: 'lander', x: 650, y: 945, r: 36, obstacle: true },
-  { id: 'P2', name: 'Bandera de la misión', kind: 'flag', x: 1010, y: 810, r: 10, obstacle: false },
-  { id: 'P3', name: 'Borde del cráter Aurora', kind: 'rim', x: 780, y: 516, r: 8, obstacle: false },
-  { id: 'P4', name: 'Monolito de basalto', kind: 'monolith', x: 1100, y: 480, r: 22, obstacle: true },
+  { id: 'P1', get name() { return simText("rover.lander"); }, kind: 'lander', x: 650, y: 945, r: 36, obstacle: true },
+  { id: 'P2', get name() { return simText("rover.mission-flag"); }, kind: 'flag', x: 1010, y: 810, r: 10, obstacle: false },
+  { id: 'P3', get name() { return simText("rover.aurora-crater-rim"); }, kind: 'rim', x: 780, y: 516, r: 8, obstacle: false },
+  { id: 'P4', get name() { return simText("rover.basalt-monolith"); }, kind: 'monolith', x: 1100, y: 480, r: 22, obstacle: true },
 ]);
 export const PHOTO_STATES = Object.freeze(['available', 'captured', 'transmitted']);
 export const SAMPLE_DEFS = Object.freeze([
-  { id: 'S1', kind: 'Anortosita de tierras altas', x: 630, y: 260, value: 1.0 },
-  { id: 'S2', kind: 'Basalto de mar lunar', x: 1350, y: 860, value: 1.2 },
-  { id: 'S3', kind: 'Brecha de impacto', x: 210, y: 540, value: 1.1, hidden: true },
-  { id: 'S4', kind: 'Regolito con hielo de agua', x: 1380, y: 300, value: 0.9, hidden: true },
+  { id: 'S1', get kind() { return simText("rover.highland-anorthosite"); }, x: 630, y: 260, value: 1.0 },
+  { id: 'S2', get kind() { return simText("rover.lunar-mare-basalt"); }, x: 1350, y: 860, value: 1.2 },
+  { id: 'S3', get kind() { return simText("rover.impact-breccia"); }, x: 210, y: 540, value: 1.1, hidden: true },
+  { id: 'S4', get kind() { return simText("rover.water-ice-bearing-regolith"); }, x: 1380, y: 300, value: 0.9, hidden: true },
 ]);
 export const SAMPLE_STATES = Object.freeze(['available', 'collected', 'analyzed', 'transmitted']);
 
@@ -153,22 +154,22 @@ export function validateBuild(build) {
   const stats = computeBuild(build);
   const reasons = [];
   const missing = CATEGORIES.filter((c) => c.required && !getComponent(c.id, build && build[c.id])).map((c) => c.label);
-  if (missing.length) reasons.push(`Falta elegir: ${missing.join(', ')}.`);
-  if (stats.mass > LIMITS.mass) reasons.push(`Masa ${fmt(stats.mass)}/${LIMITS.mass} kg: reduce ${fmt(stats.mass - LIMITS.mass)} kg.`);
-  if (stats.cost > LIMITS.budgetMUSD) reasons.push(`Presupuesto ${fmtCost(stats.cost)} de ${fmtCost(LIMITS.budgetMUSD)}: reduce ${fmtCost(stats.cost - LIMITS.budgetMUSD)}.`);
+  if (missing.length) reasons.push(simText("rover.still-to-choose-0", missing.join(', ')));
+  if (stats.mass > LIMITS.mass) reasons.push(simText("rover.mass-0-1-kg-remove-2-kg", fmt(stats.mass), LIMITS.mass, fmt(stats.mass - LIMITS.mass)));
+  if (stats.cost > LIMITS.budgetMUSD) reasons.push(simText("rover.budget-0-out-of-1-cut-2", fmtCost(stats.cost), fmtCost(LIMITS.budgetMUSD), fmtCost(stats.cost - LIMITS.budgetMUSD)));
   return { ok: reasons.length === 0, reasons, missing, stats };
 }
 export function fmt(n, d = 1) {
-  return Number(n).toLocaleString('es-ES', { maximumFractionDigits: d });
+  return Number(n).toLocaleString(catalogLanguage() === 'en' ? 'en-US' : 'es-ES', { maximumFractionDigits: d });
 }
 
 // ---------- Misión ----------
 
 export function createMission(build) {
   const v = validateBuild(build);
-  if (!v.ok) throw new Error('Configuración inválida: ' + v.reasons.join(' '));
+  if (!v.ok) throw new Error(simText("rover.invalid-build") + v.reasons.join(' '));
   return {
-    build: { ...emptyBuild(), ...build }, stats: v.stats,
+    build: Object.fromEntries(CATEGORIES.map(({ id }) => [id, build[id]])), stats: v.stats,
     phase: 'landing', t: 0, elapsed: 0,
     rover: { x: START.x, y: START.y, facing: 1, moving: false, blocked: false },
     battery: v.stats.capacity, minBattery: v.stats.capacity, energyUsed: 0,
@@ -209,45 +210,45 @@ function plan(m, type) {
   if (type === 'collect') {
     const free = m.samples.filter((s) => s.state === 'available' && s.revealed);
     if (m.samples.some((s) => s.state === 'available' && !s.revealed && dist(m.rover, s) <= RULES.collectRange * 3))
-      return { reason: 'Los sensores detectan algo bajo el regolito cerca de aquí: usa el escáner (R) para localizarlo.' };
+      return { reason: simText("rover.the-sensors-detected-something-beneath-the-nearby-regolith") };
     if (!free.length) {
       const hid = m.samples.some((s) => s.state === 'available' && !s.revealed);
-      return { reason: hid ? 'Quedan muestras sin detectar: usa el escáner (R) cerca de zonas inexploradas.' : 'No quedan muestras por recoger.' };
+      return { reason: hid ? simText("rover.some-samples-are-still-hidden-use-the-scanner") : simText("rover.no-samples-left-to-collect") };
     }
     const n = nearest(m, free)[0];
-    if (dist(m.rover, n) > RULES.collectRange) return { reason: `Acércate a una muestra (menos de ${RULES.collectRange} px). La más cercana está a ${Math.round(dist(m.rover, n))} px.` };
-    return { target: n, kind: 'sample', duration: RULES.collectTime, energy: RULES.collectEnergy, from: 'available', to: 'collected', label: 'Recolección' };
+    if (dist(m.rover, n) > RULES.collectRange) return { reason: simText("rover.move-within-0-px-of-a-sample-the", RULES.collectRange, Math.round(dist(m.rover, n))) };
+    return { target: n, kind: 'sample', duration: RULES.collectTime, energy: RULES.collectEnergy, from: 'available', to: 'collected', label: simText("rover.collection") };
   }
   if (type === 'analyze') {
     const t = m.inventory.map((id) => m.samples.find((s) => s.id === id)).find((s) => s && s.state === 'collected');
-    if (!t) return { reason: m.inventory.length ? 'Todas las muestras recogidas ya están analizadas.' : 'Primero recoge una muestra.' };
-    return { target: t, kind: 'sample', duration: st.analysisTime, energy: st.analysisEnergy, from: 'collected', to: 'analyzed', label: 'Análisis' };
+    if (!t) return { reason: m.inventory.length ? simText("rover.all-collected-samples-have-been-analyzed") : simText("rover.collect-a-sample-first") };
+    return { target: t, kind: 'sample', duration: st.analysisTime, energy: st.analysisEnergy, from: 'collected', to: 'analyzed', label: simText("rover.analysis") };
   }
   if (type === 'transmit') {
     const smp = m.samples.find((s) => s.state === 'analyzed');
-    if (smp) return { target: smp, kind: 'sample', duration: st.txTime, energy: st.txEnergy, from: 'analyzed', to: 'transmitted', label: 'Transmisión' };
+    if (smp) return { target: smp, kind: 'sample', duration: st.txTime, energy: st.txEnergy, from: 'analyzed', to: 'transmitted', label: simText("rover.transmission") };
     const ph = m.photos.find((p) => p.state === 'captured');
-    if (ph) return { target: ph, kind: 'photo', duration: st.photoTxTime, energy: st.photoTxEnergy, from: 'captured', to: 'transmitted', label: 'Transmisión' };
-    return { reason: 'No hay análisis ni fotos pendientes de transmitir.' };
+    if (ph) return { target: ph, kind: 'photo', duration: st.photoTxTime, energy: st.photoTxEnergy, from: 'captured', to: 'transmitted', label: simText("rover.transmission") };
+    return { reason: simText("rover.no-analyses-or-photos-ready-to-transmit") };
   }
   if (type === 'photo') {
     const free = m.photos.filter((p) => p.state === 'available');
-    if (!free.length) return { reason: 'Ya fotografiaste todos los puntos de interés.' };
+    if (!free.length) return { reason: simText("rover.you-have-photographed-every-point-of-interest") };
     const n = nearest(m, free)[0], d = Math.max(0, dist(m.rover, n) - n.r);
-    if (d > RULES.photoRange) return { reason: `Acércate a un punto de interés (menos de ${RULES.photoRange} px). El más cercano, «${n.name}», está a ${Math.round(d)} px.` };
-    return { target: n, kind: 'photo', duration: st.photoTime, energy: st.photoEnergy, from: 'available', to: 'captured', label: 'Fotografía' };
+    if (d > RULES.photoRange) return { reason: simText("rover.move-within-0-px-of-a-point-of", RULES.photoRange, n.name, Math.round(d)) };
+    return { target: n, kind: 'photo', duration: st.photoTime, energy: st.photoEnergy, from: 'available', to: 'captured', label: simText("rover.photography") };
   }
-  if (type === 'scan') return { target: null, kind: 'area', duration: RULES.scanTime, energy: RULES.scanEnergy, label: 'Escaneo de subsuelo' };
-  return { reason: 'Acción desconocida.' };
+  if (type === 'scan') return { target: null, kind: 'area', duration: RULES.scanTime, energy: RULES.scanEnergy, label: simText("rover.subsurface-scan") };
+  return { reason: simText("rover.unknown-action") };
 }
 
 // ¿Se puede iniciar esta acción ahora? Devuelve el motivo exacto si no.
 export function availability(m, type) {
-  if (m.phase !== 'explore') return { ok: false, reason: m.phase === 'landing' ? 'Aterrizaje en curso.' : 'La misión ha terminado.' };
-  if (m.action) return { ok: false, reason: 'Ya hay una acción en curso.' };
+  if (m.phase !== 'explore') return { ok: false, reason: m.phase === 'landing' ? simText("rover.landing-in-progress") : simText("rover.the-mission-is-over") };
+  if (m.action) return { ok: false, reason: simText("rover.another-action-is-in-progress") };
   const p = plan(m, type);
   if (p.reason) return { ok: false, reason: p.reason };
-  if (m.battery < p.energy) return { ok: false, reason: `Energía insuficiente: necesitas ${fmt(p.energy)} u y tienes ${fmt(m.battery)} u. Espera la recarga solar.` };
+  if (m.battery < p.energy) return { ok: false, reason: simText("rover.not-enough-energy-you-need-0-units-and", fmt(p.energy), fmt(m.battery)) };
   return { ok: true, target: p.target, cost: p.energy };
 }
 export function startAction(m, type) {
@@ -278,7 +279,7 @@ export function step(m, input, dt) {
   const dx = clamp((input && input.dx) || 0, -1, 1), dy = clamp((input && input.dy) || 0, -1, 1);
   const wants = dx !== 0 || dy !== 0;
   if (wants && m.action) {
-    const ev = cancelAction(m, 'El rover se movió: la acción se canceló y nada cambió.');
+    const ev = cancelAction(m, simText("rover.the-rover-moved-the-action-was-canceled-and"));
     if (ev) events.push(ev);
   }
   let moved = false, blocked = false;
@@ -314,7 +315,7 @@ export function step(m, input, dt) {
 
   if (m.action) {
     if (m.battery <= 0) {
-      events.push(cancelAction(m, 'Sin energía: la acción falló y nada cambió.'));
+      events.push(cancelAction(m, simText("rover.out-of-energy-the-action-failed-and-nothing")));
     } else {
       m.action.progress += dt / m.action.duration;
       if (m.action.progress >= 1) {
@@ -353,9 +354,9 @@ export function dataPackets(m) {
     const a = m.action && m.action.targetId === s.id ? m.action : null;
     const act = a ? Math.round(clamp(a.progress, 0, 1) * 100) : 0;
     let stage, pct, overall;
-    if (s.state === 'collected') { stage = a && a.type === 'analyze' ? 'Analizando' : 'Esperando análisis'; pct = a ? act : 0; overall = 25 + pct * 0.25; }
-    else if (s.state === 'analyzed') { stage = a && a.type === 'transmit' ? 'Transmitiendo' : 'Listo para enviar'; pct = a ? act : 0; overall = 50 + pct * 0.25; }
-    else { const k = Math.round((m.acks[s.id] === undefined ? 1 : m.acks[s.id]) * 100); stage = k >= 100 ? 'Recibido en la Tierra' : 'Recibiendo confirmación'; pct = k; overall = 75 + k * 0.25; }
+    if (s.state === 'collected') { stage = a && a.type === 'analyze' ? simText("rover.analyzing") : simText("rover.awaiting-analysis"); pct = a ? act : 0; overall = 25 + pct * 0.25; }
+    else if (s.state === 'analyzed') { stage = a && a.type === 'transmit' ? simText("rover.transmitting") : simText("rover.ready-to-send"); pct = a ? act : 0; overall = 50 + pct * 0.25; }
+    else { const k = Math.round((m.acks[s.id] === undefined ? 1 : m.acks[s.id]) * 100); stage = k >= 100 ? simText("rover.received-on-earth") : simText("rover.awaiting-confirmation"); pct = k; overall = 75 + k * 0.25; }
     out.push({ id: s.id, kind: 'sample', title: s.kind, stage, pct, overall: Math.round(overall), state: s.state, active: !!a });
   }
   for (const p of m.photos) {
@@ -363,8 +364,8 @@ export function dataPackets(m) {
     const a = m.action && m.action.targetId === p.id ? m.action : null;
     const act = a ? Math.round(clamp(a.progress, 0, 1) * 100) : 0;
     let stage, pct, overall;
-    if (p.state === 'captured') { stage = a && a.type === 'transmit' ? 'Transmitiendo' : 'Foto lista para enviar'; pct = a ? act : 0; overall = 50 + pct * 0.25; }
-    else { const k = Math.round((m.acks[p.id] === undefined ? 1 : m.acks[p.id]) * 100); stage = k >= 100 ? 'Recibida en la Tierra' : 'Recibiendo confirmación'; pct = k; overall = 75 + k * 0.25; }
+    if (p.state === 'captured') { stage = a && a.type === 'transmit' ? simText("rover.transmitting") : simText("rover.photo-ready-to-send"); pct = a ? act : 0; overall = 50 + pct * 0.25; }
+    else { const k = Math.round((m.acks[p.id] === undefined ? 1 : m.acks[p.id]) * 100); stage = k >= 100 ? simText("rover.received-on-earth-2") : simText("rover.awaiting-confirmation"); pct = k; overall = 75 + k * 0.25; }
     out.push({ id: p.id, kind: 'photo', title: p.name, stage, pct, overall: Math.round(overall), state: p.state, active: !!a });
   }
   return out;
@@ -387,34 +388,34 @@ export function evaluate(m) {
   const score = Math.max(0, science + data + photos + discoveries + bonusEnergy + bonusTime + bonusBudget - penalty);
   const rating = !ok ? 'X' : score >= 900 ? 'A' : score >= 720 ? 'B' : 'C';
   const breakdown = [
-    { label: 'Ciencia (muestras analizadas)', points: science },
-    { label: 'Datos transmitidos', points: data },
-    { label: 'Fotos transmitidas', points: photos },
-    { label: 'Muestras descubiertas con el escáner', points: discoveries },
-    { label: 'Energía restante', points: bonusEnergy },
-    { label: 'Tiempo restante', points: bonusTime },
-    { label: 'Presupuesto sin gastar', points: bonusBudget },
-    { label: 'Choques', points: -penalty },
+    { label: simText("rover.science-samples-analyzed"), points: science },
+    { label: simText("rover.data-transmitted"), points: data },
+    { label: simText("rover.photos-transmitted"), points: photos },
+    { label: simText("rover.samples-found-with-the-scanner"), points: discoveries },
+    { label: simText("rover.energy-remaining"), points: bonusEnergy },
+    { label: simText("rover.time-remaining"), points: bonusTime },
+    { label: simText("rover.budget-remaining"), points: bonusBudget },
+    { label: simText("rover.collisions"), points: -penalty },
   ];
   const objectives = [
-    { label: `Transmitir ${RULES.sampleGoal} muestras analizadas`, done: p.transmitted >= RULES.sampleGoal, main: true },
-    { label: 'Fotografiar y transmitir 2 puntos de interés', done: p.photosTransmitted >= 2 },
-    { label: 'Descubrir una muestra oculta con el escáner', done: p.discovered >= 1 },
-    { label: 'Terminar sin choques', done: ok && m.bumps === 0 },
-    { label: 'Terminar con al menos 50 % de batería', done: ok && energyPct >= 50 },
+    { label: simText("rover.transmit-0-analyzed-samples", RULES.sampleGoal), done: p.transmitted >= RULES.sampleGoal, main: true },
+    { label: simText("rover.take-and-transmit-photos-of-2-points-of"), done: p.photosTransmitted >= 2 },
+    { label: simText("rover.use-the-scanner-to-find-a-hidden-sample"), done: p.discovered >= 1 },
+    { label: simText("rover.finish-without-collisions"), done: ok && m.bumps === 0 },
+    { label: simText("rover.finish-with-at-least-50-battery"), done: ok && energyPct >= 50 },
   ];
   const suggestions = [];
-  if (!ok && m.endReason === 'tiempo') suggestions.push('Se acabó el tiempo: planifica una ruta más corta o elige un chasis/ruedas más rápidos.');
-  if (m.minBattery < st.capacity * 0.1) suggestions.push(`La batería llegó a ${fmt(m.minBattery)} u de ${st.capacity} u: usa una batería mayor o un panel más potente, y espera la recarga entre tareas.`);
-  if (m.bumps > 2) suggestions.push(`Hubo ${m.bumps} choques (−${penalty} puntos): ruedas todoterreno o chasis reforzado reducen su coste de energía.`);
-  if (ok && m.elapsed > RULES.timeLimit * 0.7) suggestions.push('Terminaste con poco margen de tiempo: un chasis más rápido o menos paradas mejorarían el bono de tiempo.');
-  if (p.photosTransmitted < 2) suggestions.push('Fotografiar y transmitir puntos de interés suma puntos extra; una cámara HD los vale 50 % más.');
-  if (p.discovered === 0) suggestions.push('No usaste el escáner: las muestras ocultas (S3 y S4) solo aparecen al escanear a menos de ' + RULES.scanRange + ' px.');
-  if (LIMITS.budgetMUSD - st.cost >= 20) suggestions.push(`Sobraron ${fmtCost(LIMITS.budgetMUSD - st.cost)}: un instrumento de más calidad o una cámara HD aumentarían la puntuación.`);
-  if (ok && !suggestions.length) suggestions.push('Configuración y ruta muy equilibradas: prueba otra combinación para superar tu puntuación.');
+  if (!ok && m.endReason === 'tiempo') suggestions.push(simText("rover.time-ran-out-plan-a-shorter-route-or"));
+  if (m.minBattery < st.capacity * 0.1) suggestions.push(simText("rover.battery-fell-to-0-of-1-units-use", fmt(m.minBattery), st.capacity));
+  if (m.bumps > 2) suggestions.push(simText("rover.you-hit-0-obstacles-1-points-all-terrain", m.bumps, penalty));
+  if (ok && m.elapsed > RULES.timeLimit * 0.7) suggestions.push(simText("rover.you-finished-with-little-time-to-spare-a"));
+  if (p.photosTransmitted < 2) suggestions.push(simText("rover.photographing-and-transmitting-points-of-interest-earns-extra"));
+  if (p.discovered === 0) suggestions.push(simText("rover.you-did-not-use-the-scanner-hidden-samples") + RULES.scanRange + ' px.');
+  if (LIMITS.budgetMUSD - st.cost >= 20) suggestions.push(simText("rover.you-had-0-left-a-higher-quality-instrument", fmtCost(LIMITS.budgetMUSD - st.cost)));
+  if (ok && !suggestions.length) suggestions.push(simText("rover.your-build-and-route-were-well-balanced-try"));
   const explanation = ok
-    ? `Misión completada: analizaste y transmitiste ${p.transmitted} muestras únicas en ${fmt(m.elapsed, 0)} s, con ${energyPct} % de batería restante. Puntuación ${score} (calificación ${rating}).`
-    : `Misión no completada: se transmitieron ${p.transmitted} de ${RULES.sampleGoal} muestras necesarias (${p.analyzed} analizadas, ${p.collected} recogidas). Puntuación parcial ${score}.`;
+    ? simText("rover.mission-complete-you-analyzed-and-transmitted-0-unique", p.transmitted, fmt(m.elapsed, 0), energyPct, score, rating)
+    : simText("rover.mission-incomplete-you-sent-0-of-1-required", p.transmitted, RULES.sampleGoal, p.analyzed, p.collected, score);
   return { success: ok, score, rating, breakdown, objectives, suggestions, explanation, progress: p, energyPct, elapsed: m.elapsed, bumps: m.bumps, stats: st, packets: dataPackets(m) };
 }
 
@@ -422,9 +423,9 @@ export function evaluate(m) {
 
 export function snapshot(m) {
   return {
-    v: 2, build: m.build, phase: m.phase, t: m.t, elapsed: m.elapsed, rover: { x: m.rover.x, y: m.rover.y, facing: m.rover.facing },
+    v: 2, build: m.build, campaignRun: m.campaignRun ?? null, phase: m.phase, t: m.t, elapsed: m.elapsed, rover: { x: m.rover.x, y: m.rover.y, facing: m.rover.facing },
     battery: m.battery, minBattery: m.minBattery, energyUsed: m.energyUsed, bumps: m.bumps, distance: m.distance, scans: m.scans,
-    inventory: [...m.inventory], samples: m.samples.map((s) => ({ id: s.id, state: s.state, revealed: s.revealed })),
+    inventory: [...m.inventory], acks: { ...m.acks }, samples: m.samples.map((s) => ({ id: s.id, state: s.state, revealed: s.revealed })),
     photos: m.photos.map((p) => ({ id: p.id, state: p.state })),
   };
 }
@@ -435,6 +436,7 @@ export function restoreMission(snap) {
     const legacy = snap.v === 1;
     if (snap.phase !== 'landing' && snap.phase !== 'explore') return null;
     const m = createMission(snap.build);
+    m.campaignRun = typeof snap.campaignRun === 'string' ? snap.campaignRun : null;
     const nums = [snap.t, snap.elapsed, snap.battery, snap.minBattery, snap.energyUsed, snap.bumps, snap.distance, snap.rover && snap.rover.x, snap.rover && snap.rover.y];
     if (!nums.every(num) || !Array.isArray(snap.samples) || snap.samples.length !== m.samples.length) return null;
     if (!legacy && (!num(snap.scans) || !Array.isArray(snap.photos) || snap.photos.length !== m.photos.length)) return null;
@@ -452,9 +454,9 @@ export function restoreMission(snap) {
       if (!target || photoIds.has(p.id) || !PHOTO_STATES.includes(p.state)) return null;
       photoIds.add(p.id);
       target.state = p.state;
-      if (p.state === 'transmitted') m.acks[p.id] = 1;
+      if (p.state === 'transmitted') m.acks[p.id] = num(snap.acks?.[p.id]) ? clamp(snap.acks[p.id], 0, 1) : 1;
     }
-    for (const s of m.samples) if (s.state === 'transmitted') m.acks[s.id] = 1;
+    for (const s of m.samples) if (s.state === 'transmitted') m.acks[s.id] = num(snap.acks?.[s.id]) ? clamp(snap.acks[s.id], 0, 1) : 1;
     m.phase = snap.phase; m.t = Math.max(0, snap.t); m.elapsed = Math.max(0, snap.elapsed); m.scans = legacy ? 0 : Math.max(0, Math.floor(snap.scans));
     m.rover.x = clamp(snap.rover.x, 0, WORLD.w); m.rover.y = clamp(snap.rover.y, 0, WORLD.h);
     if (blockedAt(m.rover.x, m.rover.y)) { m.rover.x = START.x; m.rover.y = START.y; }

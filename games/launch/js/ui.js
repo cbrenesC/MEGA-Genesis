@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Utilidades de interfaz compartidas: glosario con "?", datos curiosos, avisos y teclado.
 
 import { esc } from './screens.js';
@@ -29,7 +30,7 @@ export function showTerm(button) {
   $('popover-text').textContent = term.text;
   const more = $('popover-more');
   more.hidden = !(term.more || term.formula);
-  more.innerHTML = `<summary>Ver más · Para los curiosos</summary><p>${esc(term.more ?? '')}</p>${term.formula ? `<p class="formula"><code>${esc(term.formula)}</code></p>` : ''}`;
+  more.innerHTML = `<summary>${simText("flight.learn-more-for-the-curious")}</summary><p>${esc(term.more ?? '')}</p>${term.formula ? `<p class="formula"><code>${esc(term.formula)}</code></p>` : ''}`;
   more.open = false;
   pop.hidden = false;
   const r = button.getBoundingClientRect();
@@ -68,7 +69,7 @@ export function rotateFacts(container, ms = 7000) {
     const f = randomFact(last?.id);
     if (!f) return;
     last = f;
-    container.innerHTML = `<span class="fact-kicker">¿SABÍAS QUE…?</span><p>${esc(f.text)}</p><small>${esc(f.source)}</small>`;
+    container.innerHTML = `<span class="fact-kicker">${simText("flight.did-you-know")}</span><p>${esc(f.text)}</p><small>${esc(f.source)}</small>`;
   };
   show();
   const id = setInterval(show, ms);

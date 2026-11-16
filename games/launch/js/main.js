@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 import Phaser from 'phaser';
 // Control Room hands a confirmed plan to the countdown, flight and results scenes.
 import { app } from './store.js';
@@ -16,7 +17,7 @@ import { startGameplayMusic } from '../../../src/welcome/core/gameAudio.js';
 
 const $ = (id) => document.getElementById(id);
 const SCENES = { pad: 'PadScene', flight: 'FlightScene', result: 'ResultScene' };
-const STEPS = [['pad', 'Plataforma'], ['flight', 'Vuelo'], ['result', 'Resultado']];
+const STEPS = [['pad', simText("flight.launch-pad")], ['flight', simText("flight.flight")], ['result', simText("flight.result")]];
 let currentStep = 'pad';
 
 export function exitMission() { returnToControl(getLanguage()); }
@@ -71,8 +72,7 @@ document.querySelectorAll('[data-mission-exit]').forEach(button => button.addEve
   exitMission();
 }));
 bindGlossary();
-localizeDOM($('topbar'));
-localizeDOM($('boot'));
+localizeDOM();
 
 app.game = new Phaser.Game({
   type: Phaser.CANVAS, // Canvas 2D: dibujos vectoriales simples, funciona igual en cualquier celular o computadora

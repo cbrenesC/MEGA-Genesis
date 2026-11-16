@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Planificador de clima del lanzamiento: evalúa las ventanas de los próximos días con el pronóstico de Meteomatics
 // y recomienda la mejor fecha y hora para despegar.
 //
@@ -22,7 +23,7 @@ const RANK = { [GO]: 0, [CAUTION]: 1, [NO_GO]: 2 };
  *   noGo    false = este factor nunca llega a NO-GO por sí solo (sólo resta puntos)
  */
 export const CRITERIA = {
-  _about: 'Criterios educativos simplificados para el juego. No son reglas oficiales de NASA.',
+  _about: simText("flight.simplified-educational-criteria-for-the-game-these-are"),
   windowHours: 3,
   factors: [
     { id: 'gust', field: 'gustMs', fallbackField: 'windMs', unit: 'm/s', kind: 'max', go: 10, caution: 15, weight: 28 },
@@ -243,7 +244,7 @@ export function windowGustEvents(conditions, rng = Math.random, criteria = CRITE
   const events = [];
   for (let i = 0; i < count; i++) {
     const deg = Math.round(clamp(extra * g.degPerMs * (0.7 + rng() * 0.6), 2, g.maxDeg) * 10) / 10 * (rng() < 0.5 ? -1 : 1);
-    events.push({ kind: 'gust', atT: Math.round(22 + i * 16 + rng() * 10), deg, meta: { id: 'windGust', phase: 'maxq', label: 'Ráfaga de viento', severity: 'minor', explain: `En la ventana elegida se esperaban ráfagas de ${Math.round(gust)} m/s.` } });
+    events.push({ kind: 'gust', atT: Math.round(22 + i * 16 + rng() * 10), deg, meta: { id: 'windGust', phase: 'maxq', label: simText("flight.wind-gust"), severity: 'minor', explain: simText("flight.the-selected-window-had-forecast-gusts-of-0", Math.round(gust)) } });
   }
   return events;
 }

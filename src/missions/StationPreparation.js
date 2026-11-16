@@ -1,10 +1,11 @@
 import { setSimulationMusicDucked, startRoverAudio, stopRoverAudio } from '../welcome/core/gameAudio.js';
 import { CREW_GUIDE } from '../crew/guideFlow.js';
+import { localizeLaunchData } from '../../games/launch/js/localizeData.js';
 import { loadData } from '../../games/launch/js/state.js';
 import { operationalPropellant } from '../../games/launch/js/rules.js';
 import { vehicleFor, fuelSummary, FUEL_RANGE } from '../../games/launch/js/flight.js';
 import { loadForecast, buildWindows, recommendWindow, bestPerDay, siteLocal } from '../../games/launch/js/launchWeather.js';
-import { CATEGORIES, COMPONENTS, emptyBuild, LIMITS, RECOMMENDED_BUILD, RULES, restoreMission, selectComponent, validateBuild } from '../../games/rover/js/rules.js';
+import { emptyBuild, RECOMMENDED_BUILD, RULES, restoreMission, selectComponent, validateBuild } from '../../games/rover/js/rules.js';
 import { roverCanvas } from '../../games/rover/js/art.js';
 import { hasStorageConsent } from '../welcome/core/consent.js';
 import { getLanguage, t, formatNumber } from '../i18n/index.js';
@@ -12,7 +13,8 @@ import { newFlightPlan, PAYLOAD_FIELDS, reviewFlightPlan } from './flightPlan.js
 import { renderLaunchStation, rocketControlsSummary } from './launchStationUI.js';
 import { renderRoverStation, ROVER_GROUPS } from './roverStationUI.js';
 import './stationUI.css';
-import { MISSION_COMPLETE, MISSION_EXIT, missionUrl, ROVER_SAVE_KEY } from './missionTransfer.js';
+import { MISSION_COMPLETE, MISSION_EXIT, ROVER_PROGRESS, missionUrl, ROVER_SAVE_KEY } from './missionTransfer.js';
+import { LUNAR_ROVER, acceptsDelivery, playableDelivery, roverGroupReady, sameRoverBuild, snapshotRoverBuild } from './lunarCampaign.js';
 import { clearGameSession, readGameSession, writeGameSession } from './gameSession.js';
 
 const el = (tag, value = '', className = '') => {
@@ -27,25 +29,66 @@ export class StationPreparation {
     this.scene = scene;
     const saved = hasStorageConsent() ? readGameSession(localStorage) : null;
     this.started = false;
+    this.delivery = playableDelivery(saved?.delivery) ? saved.delivery : null;
+    this.lastDelivery = saved?.lastDelivery ?? null;
     this.position = saved?.position;
     this.completedMissions = Array.isArray(saved?.completedMissions) ? saved.completedMissions : [];
     this.activeMission = saved?.activeMission ?? null;
     this.launch = saved?.launch;
+    this.roverSave = null;
     this.rover = { ...emptyBuild(), ...saved?.rover };
     this.guideProgress = Array.isArray(saved?.guideProgress) ? saved.guideProgress : [];
     this.guideConversations = Array.isArray(saved?.guideConversations) ? saved.guideConversations : [];
     this.onMessage = event => {
       if (!this.frame || event.origin !== location.origin || event.source !== this.frame.contentWindow) return;
       if (event.data?.type === MISSION_COMPLETE && event.data.mission === this.activeMission?.mission) {
-        const mission = this.activeMission.mission;
-        if (!this.completedMissions.includes(mission)) this.completedMissions.push(mission);
-        this.activeMission = null;
-        this.scene.onMissionCompleted(mission);
-        this.save();
+        const { mission, plan } = this.activeMission;
+        if (mission === 'launch' && plan.scenarioId === LUNAR_ROVER) {
+          const delivery = event.data.delivery;
+          if (!acceptsDelivery(delivery, plan)) return;
+          this.activeMission.resultShown = true;
+          this.lastDelivery = delivery;
+          this.delivery = playableDelivery(delivery) ? delivery : null;
+          if (this.delivery) this.markMissionCompleted(mission);
+          this.save();
+        } else {
+          this.activeMission.resultShown = true;
+          if (mission === 'rover') this.roverSave = null;
+          if (mission === 'rover' && plan.campaign?.runId === this.delivery?.runId && event.data.success === true) this.markMissionCompleted(mission);
+          this.save();
+        }
+      }
+      if (event.data?.type === ROVER_PROGRESS && this.activeMission?.mission === 'rover') {
+        const snap = event.data.snapshot;
+        if (snap?.campaignRun === this.delivery?.runId && sameRoverBuild(snap?.build, this.delivery?.build)) this.roverSave = snap;
       }
       if (event.data?.type === MISSION_EXIT) this.closeSimulation();
     };
     window.addEventListener('message', this.onMessage);
+  }
+
+  markMissionCompleted(mission) {
+    if (!this.completedMissions.includes(mission)) this.completedMissions.push(mission);
+    this.scene.onMissionCompleted(mission);
+    this.save();
+  }
+
+  get guideCampaign() { return { campaign: true, delivered: playableDelivery(this.delivery) }; }
+
+  get flightPlan() {
+    if (!this.launch || this.launch.scenarioId !== LUNAR_ROVER) return this.launch;
+    return { ...this.launch, roverBuild: snapshotRoverBuild(this.rover) };
+  }
+
+  defaultLaunchPlan() { return { ...newFlightPlan(this.data), scenarioId: LUNAR_ROVER }; }
+
+  roverDesignChanged() {
+    if (this.launch?.scenarioId === LUNAR_ROVER) {
+      this.launch.approved = false;
+      this.launch.acks = {};
+    }
+    this.save();
+    this.renderAgain();
   }
 
   save() {
@@ -56,6 +99,7 @@ export class StationPreparation {
       launch: this.launch, rover: this.rover, guideProgress: this.guideProgress,
       guideConversations: this.guideConversations, position: this.position,
       completedMissions: this.completedMissions, activeMission: this.activeMission,
+      delivery: this.delivery, lastDelivery: this.lastDelivery,
     });
   }
 
@@ -78,19 +122,23 @@ export class StationPreparation {
   beginSession({ resume = false } = {}) {
     if (!resume) {
       if (hasStorageConsent()) clearGameSession(localStorage);
-      this.launch = this.data ? newFlightPlan(this.data) : undefined;
+      this.launch = this.data ? this.defaultLaunchPlan() : undefined;
       this.rover = emptyBuild();
       this.guideProgress = [];
       this.guideConversations = [];
       this.completedMissions = [];
       this.activeMission = null;
+      this.delivery = null;
+      this.lastDelivery = null;
+      this.roverSave = null;
     }
     this.started = true;
   }
 
   resumeSimulation() {
     const pending = this.activeMission;
-    if (pending?.mission === 'rover' && validateBuild(pending.plan).ok) {
+    if (pending?.resultShown) return;
+    if (pending?.mission === 'rover' && playableDelivery(this.delivery) && pending.plan?.campaign?.runId === this.delivery.runId && sameRoverBuild(pending.plan, this.delivery.build)) {
       this.openSimulation('rover', pending.plan, { resume: true });
     } else if (pending?.mission === 'launch' && pending.plan?.approved === true) {
       this.openSimulation('launch', pending.plan);
@@ -101,22 +149,19 @@ export class StationPreparation {
     if (!step) return false;
     if (step.kind.startsWith('launch-')) {
       if (!this.data || !this.launch) return false;
-      const view = reviewFlightPlan(this.data, this.launch);
-      if (step.kind === 'launch-mission') return this.data.mocks.scenarios.some(scenario => scenario.id === this.launch.scenarioId);
-      if (step.kind === 'launch-rocket') return Boolean(view.selected?.compatible && vehicleFor(view.selected.launcherId, view.resolved.inputs.orbit.type, this.data));
+      const view = reviewFlightPlan(this.data, this.flightPlan);
+      if (step.kind === 'launch-mission') return Boolean(view.campaign);
+      if (step.kind === 'launch-rocket') return Boolean(view.campaign && view.selected?.compatible && vehicleFor(view.selected.launcherId, view.resolved.inputs.orbit.type, this.data));
       if (step.kind === 'launch-payload') {
         // The console displays the scenario defaults even before they are edited.
         // A valid default configuration can be confirmed as shown.
-        return view.reason !== 'payload';
+        return Boolean(view.campaign && view.rover.ok && view.reason !== 'payload');
       }
-      if (step.kind === 'launch-review') return view.reason === null;
+      if (step.kind === 'launch-review') return Boolean(view.campaign && view.reason === null);
       return false;
     }
     if (step.kind === 'rover-group') {
-      const { stats } = validateBuild(this.rover);
-      const group = ROVER_GROUPS[step.part];
-      return Boolean(group?.every(id => COMPONENTS[id].some(option => option.id === this.rover[id])))
-        && stats.mass <= LIMITS.mass && stats.cost <= LIMITS.credits;
+      return roverGroupReady(this.rover, ROVER_GROUPS[step.part]);
     }
     return false;
   }
@@ -147,8 +192,8 @@ export class StationPreparation {
     if (item.mission === 'launch' || item.setup === 'launch') {
       if (!this.data) content.append(el('p', t('station.loading')));
       try {
-        this.data ??= await (this.loading ??= loadData());
-        if (!this.launch || typeof this.launch !== 'object' || Array.isArray(this.launch)) this.launch = newFlightPlan(this.data);
+        this.data = localizeLaunchData(await (this.loading ??= loadData()));
+        if (!this.launch || typeof this.launch !== 'object' || Array.isArray(this.launch)) this.launch = this.defaultLaunchPlan();
       } catch {
         this.loading = null;
         if (item === this.item) content.replaceChildren(el('p', t('station.loadError')));
@@ -162,10 +207,16 @@ export class StationPreparation {
     if (item.mission) this.renderStart(content, start, item.mission);
     const stationStep = item.setup && CREW_GUIDE.find(step => step.stationId === item.id);
     if (stationStep) {
+      const canConfirm = () => {
+        if (item.setup === 'launch' && this.launch.scenarioId !== LUNAR_ROVER) {
+          return stationStep.kind !== 'launch-review' || reviewFlightPlan(this.data, this.flightPlan).reason === null;
+        }
+        return this.guideStationReady(stationStep);
+      };
       confirm.hidden = false;
-      confirm.disabled = !this.guideStationReady(stationStep);
+      confirm.disabled = !canConfirm();
       confirm.onclick = () => {
-        if (this.item !== item || !this.guideStationReady(stationStep)) return;
+        if (this.item !== item || !canConfirm()) return;
         if (stationStep.kind === 'launch-review') this.launch.approved = true;
         this.scene.confirmStation(item);
         this.save();
@@ -327,7 +378,7 @@ export class StationPreparation {
   note(root, key, params) { root.append(el('p', t(key, params), 'preparation-note')); }
 
   renderLaunch(root, part) {
-    const plan = this.launch;
+    const plan = this.flightPlan;
     const view = reviewFlightPlan(this.data, plan);
     root.innerHTML = renderLaunchStation(part, { data: this.data, plan, view, onlyCompatible: this.onlyCompatible, translate: t },
       '<div data-station-fields></div>');
@@ -345,9 +396,18 @@ export class StationPreparation {
         radio.onchange = () => this.changeLaunch({ difficulty: radio.value, siteId: null, offloadKg: 0, launcherId: null, events: null });
       }
       root.querySelector('#team-mode').onchange = event => this.changeLaunch({ teamMode: event.target.checked });
-      this.number(grid, 'budget', budget.totalMUSD, budget.committedMUSD, 10000, '.01', budgetMUSD => this.changeLaunch({ budgetMUSD }));
+      if (view.campaign) this.note(fields, 'station.campaign.intro');
+      else this.note(fields, 'station.campaign.practice');
+      this.number(grid, 'budget', budget.totalMUSD, view.campaign ? 1 : budget.committedMUSD, 10000, '.01', budgetMUSD => this.changeLaunch({ budgetMUSD }));
       this.number(grid, 'schedule', schedule.monthsToTargetDate, 1, 120, 1, targetMonths => this.changeLaunch({ targetMonths }));
-    } else if (part === 'payload') {
+    } else if (part === 'payload' || part === 'review') {
+      if (view.campaign) this.note(fields, 'station.campaign.cargo', {
+        rover: formatNumber(view.rover.stats.mass), roverCost: formatNumber(view.rover.stats.cost),
+        total: formatNumber(spacecraft.massKg), committed: formatNumber(budget.committedMUSD),
+      });
+      if (view.campaign && !view.rover.ok) this.note(fields, 'station.block.lunarRover');
+    }
+    if (part === 'payload' && !view.campaign) {
       for (const [key, [min, max, step]] of Object.entries(PAYLOAD_FIELDS)) {
         this.number(grid, key, spacecraft[key], min, max, step, value => this.changeLaunch({ payload: { ...plan.payload, [key]: value } }));
       }
@@ -440,6 +500,7 @@ export class StationPreparation {
 
   renderRover(root, part) {
     root.innerHTML = renderRoverStation(part, this.rover, { translate: t, number: formatNumber });
+    if (playableDelivery(this.delivery)) this.note(root, 'station.campaign.alreadyDelivered');
     const preview = roverCanvas(this.rover, 6);
     preview.setAttribute('aria-hidden', 'true');
     root.querySelector('[data-rover-preview]').append(preview);
@@ -447,8 +508,7 @@ export class StationPreparation {
       button.onclick = () => {
         const { component, option } = button.dataset;
         this.rover = selectComponent(this.rover, component, option);
-        this.save();
-        this.renderAgain();
+        this.roverDesignChanged();
       };
     }
     for (const button of root.querySelectorAll('[data-rover-action]')) {
@@ -456,40 +516,52 @@ export class StationPreparation {
         for (const id of ROVER_GROUPS[part]) {
           this.rover[id] = button.dataset.roverAction === 'recommend' ? RECOMMENDED_BUILD[id] : null;
         }
-        this.save();
-        this.renderAgain();
+        this.roverDesignChanged();
       };
     }
   }
 
   renderStart(root, start, mission) {
-    const flight = mission === 'launch' ? reviewFlightPlan(this.data, this.launch) : null;
-    const rover = mission === 'rover' ? validateBuild(this.rover) : null;
-    const ready = flight?.ready ?? rover.ok;
+    const flight = mission === 'launch' ? reviewFlightPlan(this.data, this.flightPlan) : null;
+    const delivered = playableDelivery(this.delivery);
+    const ready = flight ? flight.ready : delivered;
     if (flight && !ready) this.note(root, flight.reason ? `station.block.${flight.reason}` : 'station.block.review');
     if (flight) this.note(root, 'station.flightControls');
-    if (rover && !ready) {
-      const missing = CATEGORIES.filter(c => !COMPONENTS[c.id].some(option => option.id === this.rover[c.id]));
-      if (missing.length) this.note(root, 'station.roverMissing', { parts: missing.map(c => t(`station.field.${c.id}`)).join(', ') });
-      if (rover.stats.mass > LIMITS.mass || rover.stats.cost > LIMITS.budgetMUSD) this.note(root, 'station.roverLimits');
-    }
-    if (rover) {
-      this.note(root, 'station.roverStats', { mass: rover.stats.mass, cost: rover.stats.cost, battery: rover.stats.capacity, solar: rover.stats.solar });
-      this.note(root, 'station.roverControls', { goal: RULES.sampleGoal });
-      let saved;
-      try { if (hasStorageConsent()) saved = restoreMission(JSON.parse(localStorage.getItem(ROVER_SAVE_KEY))); } catch { /* optional storage */ }
-      if (saved) {
-        const resume = el('button', t('station.resumeRover'), 'preparation-confirm');
-        resume.type = 'button';
-        resume.onclick = () => this.openSimulation(mission, saved.build, { resume: true });
-        root.append(resume);
+    if (mission === 'rover') {
+      if (!delivered) this.note(root, this.lastDelivery ? `station.campaign.failed.${this.lastDelivery.reason}` : 'station.campaign.needsDelivery');
+      else {
+        const { stats } = validateBuild(this.delivery.build);
+        this.note(root, 'station.roverStats', { mass: stats.mass, cost: stats.cost, battery: stats.capacity, solar: stats.solar });
+        this.note(root, 'station.roverControls', { goal: RULES.sampleGoal });
+        let saved = this.roverSave ? restoreMission(this.roverSave) : null;
+        try { if (!saved && hasStorageConsent()) saved = restoreMission(JSON.parse(localStorage.getItem(ROVER_SAVE_KEY))); } catch { /* optional storage */ }
+        if (saved?.campaignRun === this.delivery.runId && sameRoverBuild(saved.build, this.delivery.build)) {
+          const resume = el('button', t('station.resumeRover'), 'preparation-confirm');
+          resume.type = 'button';
+          resume.onclick = () => this.openSimulation(mission, { ...this.delivery.build, campaign: this.delivery, ...(this.roverSave ? { progress: this.roverSave } : {}) }, { resume: true });
+          root.append(resume);
+        }
       }
     }
     if (ready) this.note(root, mission === 'launch' ? 'station.readyLaunch' : 'station.readyRover');
     start.hidden = false;
     start.disabled = !ready;
     start.onclick = () => {
-      if (ready) this.openSimulation(mission, mission === 'launch' ? this.launch : this.rover);
+      if (!ready) return;
+      if (mission === 'rover') this.openSimulation(mission, { ...this.delivery.build, campaign: this.delivery });
+      else {
+        const plan = this.flightPlan;
+        if (flight.campaign) {
+          plan.campaignRun = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+          this.delivery = null;
+          this.lastDelivery = null;
+          this.roverSave = null;
+          this.completedMissions = this.completedMissions.filter(id => id !== 'launch' && id !== 'rover');
+          try { if (hasStorageConsent()) localStorage.removeItem(ROVER_SAVE_KEY); } catch { /* optional storage */ }
+          this.scene.updateGuideBeacon();
+        }
+        this.openSimulation(mission, plan);
+      }
     };
   }
 

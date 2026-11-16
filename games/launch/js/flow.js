@@ -4,6 +4,7 @@ import { vehicleFor, withPilotMargin, withSpacecraft, returnCraft, COAST_DV, Fli
 import { planFlightEvents, resolveFlight, resolveAutomatic } from './outcome.js';
 import { windowDelayRisk, windowGustEvents } from './launchWeather.js';
 import { app, inputs, current, currentOutput, writeLaunch } from './store.js';
+import { makeLunarDelivery } from '../../../src/missions/lunarCampaign.js';
 import { MISSION_COMPLETE } from '../../../src/missions/missionTransfer.js';
 
 /** Datos de la misión que necesita el simulador. */
@@ -103,17 +104,21 @@ export function finishFlight(sim) {
   } else {
     app.flight = resolveAutomatic(e, app.data, inputs(), { seed: app.seed, eventsEnabled: app.eventsEnabled });
   }
+  app.delivery = app.campaign ? makeLunarDelivery({ ...app.campaign, flight: app.flight, evaluation: e, inputs: inputs() }) : null;
   writeLaunch(currentOutput('lanzado'));
-  if (window.parent !== window) window.parent.postMessage({ type: MISSION_COMPLETE, mission: 'launch' }, location.origin);
+  if (window.parent !== window) window.parent.postMessage({
+    type: MISSION_COMPLETE, mission: 'launch', delivery: app.delivery, result: app.flight.result,
+  }, location.origin);
   return app.flight;
 }
 
 /** Otro intento: en el nivel fácil es gratis; en los demás hay que pagar otro cohete. */
 export function prepareRetry() {
   const e = current();
-  if (inputs().difficulty !== 'facil') app.previousAttemptsMUSD += e.totalCostMUSD;
+  if (inputs().difficulty !== 'facil') app.previousAttemptsMUSD += e.totalCostMUSD + (app.flight?.extraCostMUSD ?? 0);
   app.attempts += 1;
   app.flight = null;
+  app.delivery = null;
   app.sim = null;
   app.seed = Math.floor(Math.random() * 999999) + 1;
   app.autopilotUsed = false;

@@ -14,16 +14,15 @@ Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para N
 ## Cómo jugar
 
 - **WASD o flechas** para caminar. En móviles, usa el pad táctil.
-- **E** cerca de un personaje para hablar o cerca de una consola para abrirla. En móviles, usá **Usar**. Seleccioná **Start Mission** en una consola de misión.
+- **E** cerca de un personaje para hablar o cerca de una consola para abrirla. En móviles, usá **Usar**. Seleccioná **Start mission** en una consola de misión.
 - **Esc** para cerrar un diálogo o pausar y reanudar el recorrido.
 - La introducción del comandante se puede saltar y no aparece si desactivas **Animaciones y video**.
-- El menú **Juegos** ofrece acceso directo a ambas misiones.
 
-Las misiones de lanzamiento y rover están en `games/launch/` y `games/rover/`, respectivamente.
+La campaña **Misión científica con rover lunar** es la opción inicial. Confirma el objetivo, configura movilidad, ciencia, energía y comunicaciones, y revisa la carga antes de lanzar. El rover debe respetar sus límites de **145 kg** y **85 millones de dólares**. Su masa y costo se suman a los del módulo de aterrizaje en la revisión de vuelo.
 
-- **Izquierda · lanzamiento:** misión y presupuesto, carga y combustible, elección de cohete y sitio, y revisión de vuelo. Confirmá el plan en la estación de revisión y luego iniciá en la consola amarilla de lanzamiento.
-- **Derecha · rover:** movilidad, energía, ciencia y comunicaciones. La consola amarilla del rover arranca el aterrizaje cuando el diseño está completo y no excede 145 kg ni 850 créditos.
-- Volver de una simulación conserva tu posición y tus elecciones. Sin permiso de almacenamiento las configuraciones duran lo que dure la visita, sin grabarse en el navegador.
+- La consola amarilla de lanzamiento usa la configuración aprobada. Un vuelo que no alcanza la transferencia lunar, consume la reserva del aterrizaje o excede el presupuesto no desbloquea la operación.
+- Tras una entrega exitosa, la consola amarilla del rover inicia el aterrizaje simplificado con el diseño que realmente voló. El informe identifica las muestras y fotos confirmadas por Tierra y explica cómo influyeron el lanzador, el instrumento y la antena.
+- Los otros escenarios, incluido el viaje lunar tripulado de ida y vuelta, siguen disponibles como prácticas independientes. Volver de un simulador conserva las elecciones. El almacenamiento persistente es opcional.
 
 El botón ⛶ abre el centro de control en pantalla completa. En ventanas anchas se encuadra toda la sala. En pantallas compactas, la cámara sigue al astronauta para conservar la legibilidad.
 

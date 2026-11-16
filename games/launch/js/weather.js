@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Clima REAL del sitio de lanzamiento, para dibujarlo: si allá es de noche, se ve de noche; si llueve, llueve.
 //
 //   1) Con conexión: se pregunta el clima de ESTE momento en las coordenadas del sitio a Open-Meteo
@@ -53,15 +54,15 @@ function localClock(siteId, date) {
 
 /** Texto corto del estado del tiempo (según el código de la Organización Meteorológica Mundial). */
 export function weatherLabel(w) {
-  if (w.thunder) return 'tormenta eléctrica';
-  if (w.snow) return 'nieve';
-  if (w.rainMmH >= 4) return 'lluvia fuerte';
-  if (w.rainMmH >= 0.8) return 'lluvia';
-  if (w.rainMmH > 0) return 'llovizna';
-  if (w.fog) return 'niebla';
-  if (w.cloud > 0.85) return 'nublado';
-  if (w.cloud > 0.4) return 'parcialmente nublado';
-  return 'despejado';
+  if (w.thunder) return simText("flight.thunderstorm");
+  if (w.snow) return simText("flight.snow");
+  if (w.rainMmH >= 4) return simText("flight.heavy-rain");
+  if (w.rainMmH >= 0.8) return simText("flight.rain");
+  if (w.rainMmH > 0) return simText("flight.drizzle");
+  if (w.fog) return simText("flight.fog");
+  if (w.cloud > 0.85) return simText("flight.overcast");
+  if (w.cloud > 0.4) return simText("flight.partly-cloudy");
+  return simText("flight.clear");
 }
 
 function finish(w) {
@@ -80,7 +81,7 @@ export function parseOpenMeteo(json) {
   const snow = (Number(c.snowfall ?? 0) || 0) > 0 || (code >= 71 && code <= 77) || code === 85 || code === 86;
   return finish({
     source: 'real',
-    sourceName: 'Open-Meteo, ahora mismo',
+    sourceName: simText("flight.open-meteo-live-weather"),
     isDay: c.is_day !== 0,
     cloud: (Number(c.cloud_cover ?? 0) || 0) / 100,
     // si el código dice que llueve pero la última medición marca 0, se dibuja al menos llovizna
@@ -111,7 +112,7 @@ export function typicalWeather(siteId, date = new Date(), seed = 1) {
   const cold = t.temp[m] <= 2;
   return finish({
     source: 'typical',
-    sourceName: 'clima típico del mes (sin conexión)',
+    sourceName: simText("flight.typical-weather-for-this-month-offline"),
     isDay: sunElevationDeg(geo.lat, geo.lon, date) > -3,
     cloud: rainy ? 0.9 : 0.15 + r2 * 0.5,
     rainMmH: rainy && !cold ? 0.6 + r2 * 3 : 0,
@@ -135,14 +136,14 @@ export function weatherUrl(siteId) {
 /** Clima real del sitio ahora; si no hay conexión (o tarda más de 4 s), el de respaldo. Nunca falla. */
 export async function loadSiteWeather(siteId, { seed = 1, fetchFn = globalThis.fetch, timeoutMs = 4000 } = {}) {
   try {
-    if (typeof fetchFn !== 'function') throw new Error('sin fetch');
+    if (typeof fetchFn !== 'function') throw new Error(simText("flight.fetch-unavailable"));
     const ctl = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null;
     const res = await fetchFn(weatherUrl(siteId), ctl ? { signal: ctl.signal } : undefined);
     if (timer) clearTimeout(timer);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const w = parseOpenMeteo(await res.json());
-    if (!w) throw new Error('respuesta sin datos');
+    if (!w) throw new Error(simText("flight.no-weather-data-returned"));
     return w;
   } catch {
     return typicalWeather(siteId, new Date(), seed);
@@ -152,9 +153,9 @@ export async function loadSiteWeather(siteId, { seed = 1, fetchFn = globalThis.f
 /** Frase para la pantalla de la plataforma. */
 export function describeWeather(w, siteName) {
   const temp = Number.isFinite(w.tempC) ? ` · ${Math.round(w.tempC)} °C` : '';
-  const wind = ` · viento ${Math.round(w.windKmh)} km/h`;
-  const when = `${w.isDay ? 'de día' : 'de noche'}${w.localTime ? ` (${w.localTime} hora local)` : ''}`;
-  return `${w.icon} ${w.source === 'real' ? 'Clima real ahora' : 'Clima'} en ${siteName}: ${w.label}${temp}${wind}, ${when}. Fuente: ${w.sourceName}.`;
+  const wind = simText("flight.wind-0-km-h", Math.round(w.windKmh));
+  const when = `${w.isDay ? simText("flight.daytime") : simText("flight.nighttime")}${w.localTime ? simText("flight.0-local-time", w.localTime) : ''}`;
+  return simText("flight.0-1-at-2-3-4-5-6", w.icon, w.source === 'real' ? simText("flight.live-weather") : simText("flight.weather"), siteName, w.label, temp, wind, when, w.sourceName);
 }
 
 /** Componente del viento hacia el este (m/s): la dirección de un parte meteorológico dice DE DÓNDE viene el viento. */

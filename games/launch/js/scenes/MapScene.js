@@ -1,3 +1,4 @@
+import { simText } from "../../../../src/i18n/catalog.js";
 import Phaser from 'phaser';
 // Mapa de la órbita: vista desde arriba de la Tierra con la trayectoria proyectada.
 // Responde una pregunta: ¿tu órbita "cierra" (te quedas dando vueltas) o vas a caer?
@@ -13,7 +14,7 @@ import { MOON as MOON_BODY, moonState, moonAngle } from '../bodies.js';
 import { guidePrediction, signedPass } from '../lunar.js';
 
 const mmss = (s) => (Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '—');
-const dur = (s) => (!Number.isFinite(s) ? '—' : s >= 2 * 86400 ? `${(s / 86400).toLocaleString('es', { maximumFractionDigits: 1 })} días` : s >= 2 * 3600 ? `${Math.round(s / 3600)} h` : s >= 120 ? `${Math.round(s / 60)} min` : `${Math.max(0, Math.round(s))} s`);
+const dur = (s) => (!Number.isFinite(s) ? '—' : s >= 2 * 86400 ? simText("lunarFlight.0-days", (s / 86400).toLocaleString('es', { maximumFractionDigits: 1 })) : s >= 2 * 3600 ? `${Math.round(s / 3600)} h` : s >= 120 ? `${Math.round(s / 60)} min` : `${Math.max(0, Math.round(s))} s`);
 const fmtKm = (m) => `${Math.round(m / 1000).toLocaleString('es')} km`;
 const D2R = Math.PI / 180;
 const AU = 1.496e11;
@@ -24,10 +25,10 @@ const smooth01 = (t) => { const u = Math.min(1, Math.max(0, t)); return u * u * 
 // r = radio del planeta (m) · soi = radio de su zona de influencia gravitacional (m)
 const EARTH_L = 100;
 const PLANETS = [
-  { id: 'mercurio', name: 'Mercurio', a: 0.387 * AU, L: 252, r: 2.44e6, soi: 1.12e8, color: '#b0a79a' },
+  { id: 'mercurio', name: simText("flight.mercury"), a: 0.387 * AU, L: 252, r: 2.44e6, soi: 1.12e8, color: '#b0a79a' },
   { id: 'venus', name: 'Venus', a: 0.723 * AU, L: 182, r: 6.05e6, soi: 6.16e8, color: '#e8c97a' },
-  { id: 'marte', name: 'Marte', a: 1.524 * AU, L: 355, r: 3.39e6, soi: 5.77e8, color: '#d9603a' },
-  { id: 'jupiter', name: 'Júpiter', a: 5.203 * AU, L: 34, r: 6.99e7, soi: 4.82e10, color: '#d8a878' },
+  { id: 'marte', name: simText("flight.mars"), a: 1.524 * AU, L: 355, r: 3.39e6, soi: 5.77e8, color: '#d9603a' },
+  { id: 'jupiter', name: simText("flight.jupiter"), a: 5.203 * AU, L: 34, r: 6.99e7, soi: 4.82e10, color: '#d8a878' },
   { id: 'saturno', name: 'Saturno', a: 9.537 * AU, L: 50, r: 5.82e7, soi: 5.45e10, color: '#e6d39a', rings: true },
   { id: 'urano', name: 'Urano', a: 19.19 * AU, L: 313, r: 2.54e7, soi: 5.18e10, color: '#9fe0e6' },
   { id: 'neptuno', name: 'Neptuno', a: 30.07 * AU, L: 305, r: 2.46e7, soi: 8.66e10, color: '#4f78e0' },
@@ -126,7 +127,7 @@ export class MapScene extends Phaser.Scene {
       // el Sol
       ctx.globalAlpha = 0.25; dot(SUN.x, SUN.y, SUN.r * 2.2, '#ffd24a', 5); ctx.globalAlpha = 1;
       dot(SUN.x, SUN.y, SUN.r, '#fff3b0', 3);
-      if (auPx > 2.5) label('sun', SUN.x, SUN.y, 'Sol', -10); else hide('sun');
+      if (auPx > 2.5) label('sun', SUN.x, SUN.y, simText("flight.sun"), -10); else hide('sun');
     } else hide('sun', ...PLANETS.map((pl) => pl.id));
 
     // ---- la Luna, su órbita y las zonas de influencia de la Tierra y de la Luna
@@ -139,14 +140,14 @@ export class MapScene extends Phaser.Scene {
       const [mpx, mpy] = P(mx, my);
       if (MOON.soi * k > 3) ring(ctx, mpx, mpy, MOON.soi * k, LW, LH, '#c9d3df', 16);
       if (lunar && MOON.r * k >= 2) { if (visible(mpx, mpy, MOON.r * k + 4)) { drawMoonGlobe(ctx, LW, LH, mpx, mpy, MOON.r * k, -(ma + Math.PI)); ring(ctx, mpx, mpy, MOON.r * k, LW, LH, '#eef0f2'); } } else dot(mx, my, MOON.r, '#d7dde6', 1.5);
-      if (moonPx > 20) label('moon', mx, my, MOON.soi * k > 12 ? 'Luna · zona de influencia' : 'Luna'); else hide('moon');
+      if (moonPx > 20) label('moon', mx, my, MOON.soi * k > 12 ? simText('flight.moon-sphere-of-influence') : simText('flight.moon')); else hide('moon');
     } else hide('moon');
     const soiPx = EARTH_SOI * k;
     if (soiPx > 5 && soiPx < 60000) {
       ring(ctx, ex, ey, soiPx, LW, LH, '#4fb4ff', 48);
-      if (soiPx > 40) label('soi', 0, EARTH_SOI, 'Zona de influencia de la Tierra (924.000 km)'); else hide('soi');
+      if (soiPx > 40) label('soi', 0, EARTH_SOI, simText("flight.earth-s-sphere-of-influence-924-000-km")); else hide('soi');
     } else hide('soi');
-    if (R * k < 3 && auPx > 10) label('earth', 0, 0, 'Tierra', -8); else hide('earth');
+    if (R * k < 3 && auPx > 10) label('earth', 0, 0, simText("flight.earth"), -8); else hide('earth');
 
         // atmósfera (velos azules) y Tierra real: gira con el suelo, con el sitio de lanzamiento bajo la plataforma
     ctx.globalAlpha = 0.14; clipDisc(ctx, ex, ey, (R + 220000) * k, LW, LH, '#4f9bff');
@@ -162,7 +163,7 @@ export class MapScene extends Phaser.Scene {
       ring(ctx, ex, ey, (R + PHYS.PERI_OK) * k, LW, LH, '#ffd24a', 60);
       ring(ctx, ex, ey, (R + tAlt) * k, LW, LH, '#73ddcf', 40);
       const [tx, ty] = S(-(R + tAlt) * Math.SQRT1_2, -(R + tAlt) * Math.SQRT1_2);
-      this.setLabel('target', tx - 10, ty + 24, `Órbita pedida: ${Math.round(tAlt / 1000)} km`);
+      this.setLabel('target', tx - 10, ty + 24, simText("flight.target-orbit-0-km", Math.round(tAlt / 1000)));
     } else hide('target');
 
     // misión lunar (ya en órbita): se dibuja la trayectoria predicha completa, con el paso por la Luna y el regreso
@@ -199,7 +200,7 @@ export class MapScene extends Phaser.Scene {
       const [ix, iy] = P(R * Math.cos(ang), R * Math.sin(ang));
       for (const o of [0, 1]) { line(ctx, ix - 3 + o, iy - 3, ix + 3 + o, iy + 3, '#ff3b3b'); line(ctx, ix + 3 + o, iy - 3, ix - 3 + o, iy + 3, '#ff3b3b'); }
       const [sx, sy] = S(R * Math.cos(ang), R * Math.sin(ang));
-      this.setLabel('impact', sx, sy - 12, '💥 Aquí caerías');
+      this.setLabel('impact', sx, sy - 12, simText("flight.impact-here"));
     }
     // punto más alto y más bajo
     const apoAng = el.periAngle + Math.PI;
@@ -210,24 +211,24 @@ export class MapScene extends Phaser.Scene {
         const wx = moonNow.x + bel.ra * Math.cos(a2); const wy = moonNow.y + bel.ra * Math.sin(a2);
         const [ax, ay] = P(wx, wy);
         if (visible(ax, ay)) { disc(ctx, ax, ay, 2, '#ffd24a'); ring(ctx, ax, ay, 3, LW, LH, '#0b1424'); }
-        const [sx, sy] = S(wx, wy); this.setLabel('apo', sx, sy - 10, `Punto más alto: ${fmtKm(bel.apoAlt)}`);
+        const [sx, sy] = S(wx, wy); this.setLabel('apo', sx, sy - 10, simText("lunarFlight.highest-point-0", fmtKm(bel.apoAlt)));
         const wx2 = moonNow.x + bel.rp * Math.cos(bel.periAngle); const wy2 = moonNow.y + bel.rp * Math.sin(bel.periAngle);
         const [qx, qy] = P(wx2, wy2);
         if (visible(qx, qy)) { disc(ctx, qx, qy, 2, '#4fd18b'); ring(ctx, qx, qy, 3, LW, LH, '#0b1424'); }
-        const [sx2, sy2] = S(wx2, wy2); this.setLabel('peri', sx2, sy2 + 22, `Punto más bajo: ${fmtKm(bel.periAlt)}`);
+        const [sx2, sy2] = S(wx2, wy2); this.setLabel('peri', sx2, sy2 + 22, simText("lunarFlight.lowest-point-0", fmtKm(bel.periAlt)));
       } else hide('apo', 'peri');
     } else if (lunarTraj && sim.mission.tli) hide('apo', 'peri');
     else if (!el.hyper) {
       const [ax, ay] = P(el.ra * Math.cos(apoAng), el.ra * Math.sin(apoAng));
       if (visible(ax, ay)) { disc(ctx, ax, ay, 2, '#ffd24a'); ring(ctx, ax, ay, 3, LW, LH, '#0b1424'); }
       const [sx, sy] = S(el.ra * Math.cos(apoAng), el.ra * Math.sin(apoAng));
-      if (el.ra * k > 6) this.setLabel('apo', sx, sy - 10, `Punto más alto: ${fmtKm(el.apoAlt)} · en ${mmss(timeToApoapsis(sim))}`); else hide('apo');
+      if (el.ra * k > 6) this.setLabel('apo', sx, sy - 10, simText("flight.highest-point-0-in-1", fmtKm(el.apoAlt), mmss(timeToApoapsis(sim)))); else hide('apo');
     } else this.setLabel('apo', -999, -999, '');
     if (moonMode || (lunarTraj && sim.mission.tli)) { /* ya resuelto arriba */ } else if (el.rp > R * 0.9) {
       const [qx, qy] = P(el.rp * Math.cos(el.periAngle), el.rp * Math.sin(el.periAngle));
       if (visible(qx, qy)) { disc(ctx, qx, qy, 2, closes ? '#4fd18b' : '#ff6b6b'); ring(ctx, qx, qy, 3, LW, LH, '#0b1424'); }
       const [sx, sy] = S(el.rp * Math.cos(el.periAngle), el.rp * Math.sin(el.periAngle));
-      if (near) this.setLabel('peri', sx, sy - 10, `Punto más bajo: ${fmtKm(el.periAlt)}`); else hide('peri');
+      if (near) this.setLabel('peri', sx, sy - 10, simText("flight.lowest-point-0", fmtKm(el.periAlt))); else hide('peri');
     } else this.setLabel('peri', -999, -999, '');
 
     // ventana de transferencia
@@ -246,7 +247,7 @@ export class MapScene extends Phaser.Scene {
         const [wx, wy] = P(r * Math.cos(w.windowAngle), r * Math.sin(w.windowAngle));
         if (visible(wx, wy)) disc(ctx, wx, wy, 3, '#ffa24a');
         const [sx, sy] = S(r * Math.cos(w.windowAngle), r * Math.sin(w.windowAngle));
-        this.setLabel('window', sx, sy - 12, w.waitS > 2 ? `Aquí enciendes · faltan ${mmss(w.waitS)}` : '¡Enciende ahora!');
+        this.setLabel('window', sx, sy - 12, w.waitS > 2 ? simText("flight.ignition-point-in-0", mmss(w.waitS)) : simText("flight.ignite-now"));
       }
     }
 
@@ -260,22 +261,22 @@ export class MapScene extends Phaser.Scene {
     const sp = Math.hypot(rv.vx, rv.vy) || 1;
     line(ctx, rx + (rv.vx / sp) * 5, ry - (rv.vy / sp) * 5, rx + (rv.vx / sp) * 10, ry - (rv.vy / sp) * 10, '#ffffff');
     const [srx, sry] = S(sim.x, sim.y);
-    this.setLabel('rocket', srx, sry - 16, R * k >= 3 || auPx <= 10 ? 'Tú' : ''); // de lejos, la etiqueta «Tierra» ya marca dónde estás
+    this.setLabel('rocket', srx, sry - 16, R * k >= 3 || auPx <= 10 ? simText("flight.you") : ''); // de lejos, la etiqueta «Tierra» ya marca dónde estás
     view.present(0, 0);
     // escala del mapa: cuánto mide un trozo de pantalla
     const barM = 80 / scale; // metros que caben en 80 px de pantalla
-    const barTxt = barM > AU * 0.5 ? `${(barM / AU).toLocaleString('es', { maximumFractionDigits: 1 })} UA` : barM > 2e9 ? `${Math.round(barM / 1e9).toLocaleString('es')} millones de km` : `${Math.round(barM / 1000).toLocaleString('es')} km`;
-    this.scaleTxt.setText(`├─ ${barTxt} ─┤${W < 1000 ? '' : '  ·  aleja (−) para ver la Luna y el Sistema Solar'}`).setPosition(12, H - (W < 700 ? 250 : 190));
+    const barTxt = barM > AU * 0.5 ? `${(barM / AU).toLocaleString('es', { maximumFractionDigits: 1 })} UA` : barM > 2e9 ? simText("lunarFlight.0-million-km", Math.round(barM / 1e9).toLocaleString('es')) : `${Math.round(barM / 1000).toLocaleString('es')} km`;
+    this.scaleTxt.setText(`├─ ${barTxt} ─┤${W < 1000 ? '' : ' · ' + simText('flight.map-zoom-help')}`).setPosition(12, H - (W < 700 ? 250 : 190));
 
     // mensaje de estado
     let text;
     let good = null;
     if (lunarTraj) [text, good] = this.lunarStatus(sim, lunarInfo.pred, lunarInfo.plan);
     else if (d.kind === 'transfer' && sim.orbitReached) {
-      text = sim.stats.transfer ? '🚀 Transferencia en marcha: mira cómo se estira tu órbita.' : '✔ Estás en órbita. Para el siguiente paso, enciende la transferencia dentro de la marca naranja.';
-    } else if (closes) text = '✔ ¡Tu órbita cierra! Te quedas dando vueltas a la Tierra.';
-    else if (el.hyper) text = '⚠ Vas tan rápido que escapas de la Tierra.';
-    else text = `✖ Tu órbita no cierra: el punto más bajo (${fmtKm(el.periAlt)}) está dentro de la Tierra o del aire. Sigue acelerando de lado.`;
+      text = sim.stats.transfer ? simText('flight.transfer-underway-watch-your-orbit-stretch-outward') : simText('flight.you-are-in-orbit-start-the-transfer-burn');
+    } else if (closes) text = simText('flight.your-orbit-closes-the-rocket-will-keep-circling');
+    else if (el.hyper) text = simText('flight.you-are-moving-fast-enough-to-escape-earth');
+    else text = simText('flight.this-is-not-a-stable-orbit-its-lowest', fmtKm(el.periAlt));
     this.status.setText(text).setPosition(W / 2, H - (W < 700 ? 215 : 150));
     this.status.setColor((good ?? (closes || el.hyper)) ? '#bff5d6' : '#ffc4c4');
   }
@@ -338,7 +339,7 @@ export class MapScene extends Phaser.Scene {
       if (MOON.SOI * k > 4) ring(ctx, gx, gy, MOON.SOI * k, LW, LH, '#73ddcf', 20);
       ring(ctx, gx, gy, Math.max(2, MOON.R * k), LW, LH, '#e6e9ec', MOON.R * k > 6 ? 12 : 0);
       const pass = signedPass(pred);
-      put('enc', g.x, g.y, pm.impact ? '💥 Chocarías con la Luna' : `Luna al llegar · pasas a ${fmtKm(Math.abs(pass))}${pass < 0 ? ' (lado contrario)' : ''} · en ${dur(tg - sim.t)}`, -Math.max(12, MOON.SOI * k * this.view.px + 6));
+      put('enc', g.x, g.y, pm.impact ? simText("lunarFlight.you-would-hit-the-moon") : simText("lunarFlight.moon-at-arrival-passing-at-0-1-in", fmtKm(Math.abs(pass)), pass < 0 ? simText("lunarFlight.far-side-approach") : '', dur(tg - sim.t)), -Math.max(12, MOON.SOI * k * this.view.px + 6));
     }
     // punto más bajo sobre la Luna (vista lunar)
     if (moonMode && pm && !pm.closed) {
@@ -346,12 +347,12 @@ export class MapScene extends Phaser.Scene {
       const wx = moonNow.x + pm.rp * Math.cos(a); const wy = moonNow.y + pm.rp * Math.sin(a);
       const [qx, qy] = pt(wx, wy);
       if (visible(qx, qy)) { disc(ctx, qx, qy, 2, pm.impact ? '#ff6b6b' : '#ffd24a'); ring(ctx, qx, qy, 3, LW, LH, '#0b1424'); }
-      put('pmoon', wx, wy, pm.impact ? '💥 Choca con la Luna' : `Punto más bajo: ${fmtKm(pm.periAlt)}${pm.tPeri && pm.tPeri > sim.t ? ` · en ${dur(pm.tPeri - sim.t)}` : ''}`);
+      put('pmoon', wx, wy, pm.impact ? simText("lunarFlight.collision-with-the-moon") : simText("lunarFlight.lowest-point-0-1", fmtKm(pm.periAlt), pm.tPeri && pm.tPeri > sim.t ? simText("lunarFlight.in-0", dur(pm.tPeri - sim.t)) : ''));
     }
     // final de lo predicho
     if (last && pred.end === 'entry' && !moonMode) { const [lx, ly] = last; for (const o of [0, 1]) { line(ctx, lx - 3 + o, ly - 3, lx + 3 + o, ly + 3, '#ffb24a'); line(ctx, lx + 3 + o, ly - 3, lx - 3 + o, ly + 3, '#ffb24a'); } }
-    if (pred.end === 'entry' && pred.entry && !moonMode) { const sx = last[0] * this.view.px - this.view.margin * this.view.px; const sy = last[1] * this.view.px - this.view.margin * this.view.px; this.setLabel('ret', sx, sy - 12, `🔥 Reentrada en ${dur(pred.entry.t - sim.t)} · ángulo ${pred.entry.angleDeg.toFixed(1)}°`); used.add('ret'); }
-    if (moonMode && pred.exit && pred.earth) put('ret', sim.x, sim.y, pred.end === 'entry' ? `Después: regreso a la Tierra (punto más bajo ${fmtKm(pred.earth.periAlt)})` : 'Después: sale de la zona de la Luna', 30);
+    if (pred.end === 'entry' && pred.entry && !moonMode) { const sx = last[0] * this.view.px - this.view.margin * this.view.px; const sy = last[1] * this.view.px - this.view.margin * this.view.px; this.setLabel('ret', sx, sy - 12, simText("lunarFlight.reentry-in-0-angle-1", dur(pred.entry.t - sim.t), pred.entry.angleDeg.toFixed(1))); used.add('ret'); }
+    if (moonMode && pred.exit && pred.earth) put('ret', sim.x, sim.y, pred.end === 'entry' ? simText("lunarFlight.next-return-to-earth-lowest-point-0", fmtKm(pred.earth.periAlt)) : simText("lunarFlight.next-leave-the-moon-s-sphere-of-influence"), 30);
     // dónde encender
     const w = plan?.window;
     if (plan?.phase === 'parking' && w && !moonMode) {
@@ -360,13 +361,13 @@ export class MapScene extends Phaser.Scene {
       for (let i = 0; i <= steps; i++) { const a = w.startAngle + (span * i) / steps; const [qx, qy] = pt(r * Math.cos(a), r * Math.sin(a)); if (visible(qx, qy)) disc(ctx, qx, qy, 1, '#ffa24a'); }
       const [ix, iy] = pt(r * Math.cos(w.idealAngle), r * Math.sin(w.idealAngle));
       if (visible(ix, iy)) disc(ctx, ix, iy, 3, '#ffa24a');
-      put('burn', r * Math.cos(w.idealAngle), r * Math.sin(w.idealAngle), w.open ? '¡Ventana abierta! Enciende «Ir a la Luna»' : `Aquí enciendes para ir a la Luna · faltan ${dur(w.waitS)}`, -12);
+      put('burn', r * Math.cos(w.idealAngle), r * Math.sin(w.idealAngle), w.open ? simText("lunarFlight.window-open-start-go-to-the-moon") : simText("lunarFlight.translunar-burn-point-in-0", dur(w.waitS)), -12);
     } else if (plan?.phase === 'lunarOrbit' && w && moonMode) {
       const q = sim.rel(); const r = Math.hypot(q.x, q.y);
       const wx = moonNow.x + r * Math.cos(w.startAngle); const wy = moonNow.y + r * Math.sin(w.startAngle);
       const [qx, qy] = pt(wx, wy);
       if (visible(qx, qy)) disc(ctx, qx, qy, 3, '#ffa24a');
-      put('burn', wx, wy, w.open ? '¡Enciende «Volver a la Tierra»!' : `Aquí enciendes para volver · faltan ${dur(w.waitS)}`, -12);
+      put('burn', wx, wy, w.open ? simText("lunarFlight.start-return-to-earth-now") : simText("lunarFlight.return-burn-point-in-0", dur(w.waitS)), -12);
     }
     for (const key of keys) if (!used.has(key)) this.setLabel(key, -999, -999, '');
     return { pred, plan };
@@ -376,21 +377,21 @@ export class MapScene extends Phaser.Scene {
   lunarStatus(sim, pred, plan) {
     const m = sim.mission;
     const ph = plan?.phase;
-    if (sim.landing) return ['✔ ¡Amerizaje! La cápsula volvió a casa.', true];
-    if (ph === 'parking') return ['✔ Órbita de espera. Aleja el mapa (−) para ver la Luna: tienes que encender en la marca naranja para encontrarte con ella.', true];
+    if (sim.landing) return [simText("lunarFlight.splashdown-the-capsule-is-home"), true];
+    if (ph === 'parking') return [simText("lunarFlight.parking-orbit-zoom-out-to-see-the-moon"), true];
     if (ph === 'toMoon') {
       const pass = signedPass(pred);
-      if (pass == null) return ['✖ Tu trayectoria no se encuentra con la Luna. Corrige el rumbo.', false];
-      if (pred.moon.impact) return ['✖ Tu trayectoria choca con la Luna. Corrige el rumbo.', false];
-      return [`✔ Vas a encontrarte con la Luna: el círculo a trazos marca dónde estará cuando llegues.`, true];
+      if (pass == null) return [simText("lunarFlight.your-trajectory-misses-the-moon-correct-course"), false];
+      if (pred.moon.impact) return [simText("lunarFlight.your-trajectory-intersects-the-moon-correct-course"), false];
+      return [simText("lunarFlight.you-will-encounter-the-moon-the-dashed-circle"), true];
     }
-    if (ph === 'approach') return pred.moon?.impact ? ['✖ La trayectoria choca con la Luna.', false] : ['Llegando a la Luna. Si no frenas en el punto más bajo, la nave pasa de largo y sale otra vez.', true];
-    if (ph === 'lunarOrbit') return ['✔ ¡Órbita lunar! Para volver, enciende en la marca naranja: así sales de la Luna "hacia atrás" y caes hacia la Tierra.', true];
+    if (ph === 'approach') return pred.moon?.impact ? [simText("lunarFlight.the-trajectory-intersects-the-moon"), false] : [simText("lunarFlight.approaching-the-moon-if-you-do-not-brake"), true];
+    if (ph === 'lunarOrbit') return [simText("lunarFlight.lunar-orbit-for-the-return-trip-burn-at"), true];
     if (ph === 'departing' || ph === 'toEarth') {
-      if (pred.end === 'entry') return ['✔ Rumbo a casa: la línea naranja termina en la atmósfera de la Tierra.', true];
-      return ['✖ Tu trayectoria de vuelta no llega a la atmósfera de la Tierra. Corrige el rumbo.', false];
+      if (pred.end === 'entry') return [simText("lunarFlight.heading-home-the-orange-line-ends-in-earth"), true];
+      return [simText("lunarFlight.the-return-trajectory-misses-earth-s-atmosphere-correct"), false];
     }
-    if (ph === 'entry' || ph === 'descent') return ['Reentrada: la cápsula frena en el aire.', true];
-    return [m.leo ? '✔ En órbita.' : 'Subiendo hacia la órbita.', true];
+    if (ph === 'entry' || ph === 'descent') return [simText("lunarFlight.reentry-the-atmosphere-is-slowing-the-capsule"), true];
+    return [m.leo ? simText("lunarFlight.in-orbit") : simText("lunarFlight.climbing-toward-orbit"), true];
   }
 }

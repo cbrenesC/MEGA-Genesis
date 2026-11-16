@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Mundo del vuelo: fases, cámara y piezas sueltas. Módulo PURO (sin Phaser ni DOM), para poder probarlo con Node.
 //
 //   - phaseOf(): en qué fase de vuelo está el cohete según su ALTURA REAL simulada (no por temporizadores).
@@ -19,7 +20,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // ---------------------------------------------------------------------------
 
 export const PHASES = ['pad', 'liftoff', 'atmosphere', 'upper', 'space'];
-export const PHASE_LABEL = { pad: 'En la plataforma', liftoff: 'Despegue', atmosphere: 'Vuelo en la atmósfera', upper: 'Atmósfera superior', space: 'Espacio' };
+export const PHASE_LABEL = { get pad() { return simText("flight.on-the-pad"); }, get liftoff() { return simText("flight.liftoff"); }, get atmosphere() { return simText("flight.atmospheric-flight-2"); }, get upper() { return simText("flight.upper-atmosphere"); }, get space() { return simText("flight.space"); } };
 // Altura (m) a partir de la cual empieza cada fase.
 export const PHASE_START = { liftoff: 0.5, atmosphere: 800, upper: 40000, space: PHYS.ATM_TOP };
 const HYST = 0.03; // 3 %: para volver a una fase anterior hay que bajar un poco más

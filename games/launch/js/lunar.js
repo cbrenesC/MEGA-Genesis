@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Misión lunar de ida y vuelta: predicción de la trayectoria y guía de cada maniobra. Módulo PURO (sin Phaser ni DOM).
 //
 // La misión, como las de verdad (Apolo 8, Artemis), tiene estas etapas:
@@ -137,9 +138,9 @@ export function signedPass(pred) {
 
 export const LUNAR_PHASES = ['ascent', 'parking', 'toMoon', 'approach', 'lunarOrbit', 'departing', 'toEarth', 'entry', 'descent', 'landed'];
 export const LUNAR_PHASE_LABEL = {
-  ascent: 'Subida a la órbita', parking: 'Órbita de espera', toMoon: 'Rumbo a la Luna', approach: 'Llegando a la Luna',
-  lunarOrbit: 'Órbita lunar', departing: 'Saliendo de la Luna', toEarth: 'Regreso a la Tierra', entry: 'Reentrada',
-  descent: 'Descenso con paracaídas', landed: 'Amerizaje',
+  ascent: simText("lunarFlight.climbing-to-orbit"), parking: simText("lunarFlight.parking-orbit"), toMoon: simText("lunarFlight.heading-to-the-moon"), approach: simText("lunarFlight.approaching-the-moon"),
+  lunarOrbit: simText("lunarFlight.lunar-orbit"), departing: simText("lunarFlight.leaving-the-moon"), toEarth: simText("lunarFlight.returning-to-earth"), entry: simText('lunarFlight.reentry'),
+  descent: simText("lunarFlight.parachute-descent"), landed: simText('lunarFlight.splashdown'),
 };
 
 /** Fase de la misión según lo que ya pasó de verdad (diario de la simulación) y dónde está la nave. */

@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Módulo lunar (Phaser 3). Phaser dibuja el terreno y el rover; las pantallas de decisión y el HUD son HTML.
 //   Consolas del centro de control → Aterrizaje y exploración → Resultados
 // Toda la lógica vive en rules.js; aquí solo se lee el estado y se dibuja.
@@ -9,9 +10,10 @@ import {
 import { roverCanvas, terrainCanvas, sampleCanvas, poiCanvas, earthCanvas, skyCanvas, lightCanvas, iceSpots } from './art.js';
 import Phaser from 'phaser';
 import '@fontsource/press-start-2p/latin-400.css';
-import { getLanguage, localizeDOM, t } from '../../../src/i18n/index.js';
+import { formatNumber, getLanguage, localizeDOM, t } from '../../../src/i18n/index.js';
 import { getPreferences, hasStorageConsent } from '../../../src/welcome/core/consent.js';
-import { MISSION_COMPLETE, readMissionPlan, returnToControl, ROVER_SAVE_KEY as SAVE_KEY } from '../../../src/missions/missionTransfer.js';
+import { playableDelivery, sameRoverBuild } from '../../../src/missions/lunarCampaign.js';
+import { MISSION_COMPLETE, ROVER_PROGRESS, readMissionPlan, returnToControl, ROVER_SAVE_KEY as SAVE_KEY } from '../../../src/missions/missionTransfer.js';
 
 const $ = (id) => document.getElementById(id);
 const exitMission = () => returnToControl(getLanguage());
@@ -36,7 +38,7 @@ function flash(msg, kind = 'ok') {
 }
 
 // ---------- Navegación ----------
-const STEPS = [['explore', 'Exploración'], ['results', 'Resultados']];
+const STEPS = [['explore', simText("rover.exploration")], ['results', simText("rover.results")]];
 export function go(name) {
   app.screen = name; document.body.dataset.screen = name;
   document.querySelectorAll('[data-screen-id]').forEach((el) => { el.hidden = el.dataset.screenId !== name; });
@@ -55,9 +57,15 @@ export function go(name) {
 function beginMission() {
   const v = validateBuild(app.build);
   if (!v.ok) { flash(v.reasons[0], 'bad'); return false; } // se revalida: no depende solo del botón
-  app.mission = createMission(app.build); app.result = null; go('explore'); saveNow(); return true;
+  app.mission = createMission(app.build); app.mission.campaignRun = app.campaign?.runId ?? null; app.result = null; go('explore'); saveNow(); return true;
 }
-function saveNow() { const m = app.mission; if (m && (m.phase === 'explore' || m.phase === 'landing')) store.set(SAVE_KEY, snapshot(m)); }
+function saveNow() {
+  const m = app.mission;
+  if (!m || (m.phase !== 'explore' && m.phase !== 'landing')) return;
+  const progress = snapshot(m);
+  store.set(SAVE_KEY, progress);
+  if (window.parent !== window) window.parent.postMessage({ type: ROVER_PROGRESS, snapshot: progress }, location.origin);
+}
 function setPaused(p) {
   if (app.screen !== 'explore' || !app.mission || app.mission.phase === 'success' || app.mission.phase === 'failed') return;
   app.paused = p; $('pause').hidden = !p; directions.clear(); app.virt.clear(); app.keys.clear();
@@ -67,7 +75,7 @@ function setPaused(p) {
 function finishMission() {
   app.result = evaluate(app.mission);
   store.del(SAVE_KEY);
-  if (window.parent !== window) window.parent.postMessage({ type: MISSION_COMPLETE, mission: 'rover' }, location.origin);
+  if (window.parent !== window) window.parent.postMessage({ type: MISSION_COMPLETE, mission: 'rover', success: app.result.success }, location.origin);
   go('results');
 }
 
@@ -80,15 +88,15 @@ function tryAction(type) {
 function onEvent(ev) {
   const m = app.mission, obj = ev.targetId && (m.samples.find((x) => x.id === ev.targetId) || m.photos.find((x) => x.id === ev.targetId));
   const sc = sceneOf(); if (sc && sc.fxEvent) sc.fxEvent(ev);
-  if (ev.type === 'landed') flash('Aterrizaje exitoso. Explora, escanea y recoge muestras.');
-  else if (ev.type === 'collected') { flash(`Muestra ${obj.id} recogida (${obj.kind}). Falta analizarla.`); saveNow(); }
-  else if (ev.type === 'analyzed') { flash(`Análisis de ${obj.id} completado. Ya puedes transmitirlo.`); saveNow(); }
-  else if (ev.type === 'photographed') { flash(`Foto de «${obj.name}» guardada. Transmítela para ganar puntos.`); saveNow(); }
-  else if (ev.type === 'transmitted') { flash(`${obj.name ? 'Foto' : 'Datos'} de ${obj.id} enviados. Esperando confirmación de la Tierra…`); saveNow(); }
-  else if (ev.type === 'scanned') { flash(ev.found.length ? `Escáner: ${ev.found.length} muestra(s) oculta(s) detectada(s).` : 'Escáner: no se detecta nada nuevo en ' + RULES.scanRange + ' px a la redonda.', ev.found.length ? 'ok' : 'warn'); saveNow(); }
-  else if (ev.type === 'success') flash('¡Objetivo cumplido! Esperando la última confirmación de la Tierra…');
+  if (ev.type === 'landed') flash(simText("rover.successful-landing-explore-scan-and-collect-samples"));
+  else if (ev.type === 'collected') { flash(simText("rover.sample-0-collected-1-analyze-it-next", obj.id, obj.kind)); saveNow(); }
+  else if (ev.type === 'analyzed') { flash(simText("rover.analysis-of-0-is-complete-you-can-now", obj.id)); saveNow(); }
+  else if (ev.type === 'photographed') { flash(simText("rover.photo-of-0-saved-transmit-it-to-earn", obj.name)); saveNow(); }
+  else if (ev.type === 'transmitted') { flash(simText("rover.0-from-1-sent-waiting-for-earth-s", obj.name ? simText("rover.photo") : simText("rover.data"), obj.id)); saveNow(); }
+  else if (ev.type === 'scanned') { flash(ev.found.length ? simText("rover.scanner-0-hidden-sample-s-detected", ev.found.length) : simText("rover.scanner-nothing-new-within") + RULES.scanRange + simText("rover.px"), ev.found.length ? 'ok' : 'warn'); saveNow(); }
+  else if (ev.type === 'success') flash(simText("rover.objective-met-waiting-for-final-confirmation-from-earth"));
   else if (ev.type === 'action-failed') flash(ev.reason, 'warn');
-  else if (ev.type === 'bump') flash('Obstáculo: evita cráteres y rocas.', 'warn');
+  else if (ev.type === 'bump') flash(simText("rover.obstacle-steer-around-craters-and-rocks"), 'warn');
 }
 
 // ---------- Entrada ----------
@@ -146,24 +154,24 @@ function refreshHud() {
   const p = progress(m), cap = m.stats.capacity, pct = Math.round((m.battery / cap) * 100);
   const cls = pct <= 15 ? 'bad' : pct <= 35 ? 'warn' : '';
   const left = Math.max(0, Math.ceil(RULES.timeLimit - m.elapsed));
-  const html = `<div class="stat energy"><span>Energía</span><b>${fmt(m.battery, 0)} / ${cap} u · ${pct} %</b><div class="bar ${cls}"><i style="width:${pct}%"></i></div></div>
-    <div class="stat"><span>Analizadas</span><b>${p.analyzed} / ${p.goal}</b></div>
-    <div class="stat"><span>Transmitidas</span><b>${p.transmitted} / ${p.goal}</b></div>
-    <div class="stat"><span>Recogidas</span><b>${p.collected}</b></div>
-    <div class="stat"><span>Tiempo</span><b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b></div>`;
+  const html = `<div class="stat energy"><span>${simText("rover.energy")}</span><b>${fmt(m.battery, 0)} / ${cap} u · ${pct} %</b><div class="bar ${cls}"><i style="width:${pct}%"></i></div></div>
+    <div class="stat"><span>${simText("rover.analyzed")}</span><b>${p.analyzed} / ${p.goal}</b></div>
+    <div class="stat"><span>${simText("rover.transmitted")}</span><b>${p.transmitted} / ${p.goal}</b></div>
+    <div class="stat"><span>${simText("rover.collected")}</span><b>${p.collected}</b></div>
+    <div class="stat"><span>${simText("rover.time")}</span><b>${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</b></div>`;
   if (html !== lastHud) { $('hud-stats').innerHTML = html; lastHud = html; }
   // Hint contextual
   let msg, kind = '';
-  if (m.phase === 'landing') msg = 'Aterrizaje automático en curso…';
-  else if (m.action) { msg = `${m.action.label}${m.action.targetId ? ' de ' + m.action.targetId : ''}: ${Math.round(m.action.progress * 100)} %. No te muevas (se cancelaría).`; kind = 'ok'; }
-  else if (m.noPower) { msg = 'Sin energía: no puedes moverte. El panel solar recarga con el rover detenido.'; kind = 'bad'; }
+  if (m.phase === 'landing') msg = simText("rover.automatic-landing-in-progress");
+  else if (m.action) { msg = simText("rover.0-1-2-do-not-move-or-the", m.action.label, m.action.targetId ? simText("rover.on") + m.action.targetId : '', Math.round(m.action.progress * 100)); kind = 'ok'; }
+  else if (m.noPower) { msg = simText("rover.out-of-energy-stop-moving-so-the-solar"); kind = 'bad'; }
   else if (hintMsg && hintMsg.until > performance.now()) { msg = hintMsg.msg; kind = hintMsg.kind; }
-  else if (availability(m, 'collect').ok) { msg = 'Muestra al alcance: pulsa E para recogerla.'; kind = 'ok'; }
-  else if (availability(m, 'photo').ok) { msg = `«${availability(m, 'photo').target.name}» al alcance: pulsa C para fotografiar.`; kind = 'ok'; }
-  else if (m.samples.some((s) => s.state === 'collected')) msg = 'Tienes muestras sin analizar: pulsa F.';
-  else if (m.samples.some((s) => s.state === 'analyzed') || m.photos.some(p => p.state === 'captured')) msg = 'Hay análisis o fotos listos: pulsa T para transmitirlos.';
-  else if (m.samples.some((s) => s.hidden && !s.revealed) && p.collected >= 1) msg = 'Quedan muestras ocultas: pulsa R para escanear el subsuelo.';
-  else msg = 'Conduce con WASD / flechas. Busca muestras brillantes, puntos de interés y usa el escáner (R).';
+  else if (availability(m, 'collect').ok) { msg = simText("rover.sample-in-range-press-e-to-collect-it"); kind = 'ok'; }
+  else if (availability(m, 'photo').ok) { msg = simText("rover.0-is-in-range-press-c-to-take", availability(m, 'photo').target.name); kind = 'ok'; }
+  else if (m.samples.some((s) => s.state === 'collected')) msg = simText("rover.you-have-samples-to-analyze-press-f");
+  else if (m.samples.some((s) => s.state === 'analyzed') || m.photos.some(p => p.state === 'captured')) msg = simText("rover.analyses-or-photos-are-ready-press-t-to");
+  else if (m.samples.some((s) => s.hidden && !s.revealed) && p.collected >= 1) msg = simText("rover.some-samples-are-still-hidden-press-r-to");
+  else msg = simText("rover.drive-with-wasd-or-arrows-look-for-glowing");
   if (msg + kind !== lastHint) { const h = $('hud-hint'); h.textContent = msg; h.className = 'hint ' + kind; lastHint = msg + kind; }
   renderData(m);
   for (const b of $('actions').querySelectorAll('[data-action]')) {
@@ -181,13 +189,13 @@ function renderData(m) {
   strip.hidden = pk.length === 0; if (!pk.length) { lastData = ''; return; }
   const tx = m.action && m.action.type === 'transmit' ? m.action : null;
   const pendingAck = Math.min(...Object.values(m.acks), 1);
-  let linkPct = 0, linkTxt = `Antena ${m.build.comms === 'alta' ? 'de alta ganancia' : m.build.comms === 'media' ? 'media' : 'de baja ganancia'} en espera`, linkCls = '';
-  if (tx) { linkPct = Math.round(tx.progress * 100); linkTxt = `Transmitiendo ${tx.targetId}… ${linkPct} %`; linkCls = 'is-tx'; }
-  else if (pendingAck < 1) { linkPct = Math.round(pendingAck * 100); linkTxt = `Recibiendo confirmación… ${linkPct} %`; linkCls = 'is-rx'; }
-  else if (Object.keys(m.acks).length) { linkPct = 100; linkTxt = 'Última transmisión confirmada ✔'; linkCls = 'is-ok'; }
-  const html = `<div class="pkt link ${linkCls}"><div class="pkt-h"><span class="pkt-id"><canvas id="earth-ico" width="22" height="22" aria-hidden="true"></canvas> Enlace Tierra</span><b>${linkPct} %</b></div><div class="bar"><i style="width:${linkPct}%"></i></div><div class="pkt-s">${linkTxt}</div></div>`
+  let linkPct = 0, linkTxt = simText("rover.0-antenna-on-standby", m.build.comms === 'alta' ? simText("rover.high-gain") : m.build.comms === 'media' ? simText('rover.mid-gain') : simText("rover.low-gain")), linkCls = '';
+  if (tx) { linkPct = Math.round(tx.progress * 100); linkTxt = simText("rover.transmitting-0-1", tx.targetId, linkPct); linkCls = 'is-tx'; }
+  else if (pendingAck < 1) { linkPct = Math.round(pendingAck * 100); linkTxt = simText("rover.receiving-confirmation-0", linkPct); linkCls = 'is-rx'; }
+  else if (Object.keys(m.acks).length) { linkPct = 100; linkTxt = simText("rover.last-transmission-confirmed"); linkCls = 'is-ok'; }
+  const html = `<div class="pkt link ${linkCls}"><div class="pkt-h"><span class="pkt-id"><canvas id="earth-ico" width="22" height="22" aria-hidden="true"></canvas> ${simText("rover.earth-link")}</span><b>${linkPct} %</b></div><div class="bar"><i style="width:${linkPct}%"></i></div><div class="pkt-s">${linkTxt}</div></div>`
     + pk.map((k) => `<div class="pkt ${k.kind} ${k.active ? 'is-active' : ''} ${k.overall >= 100 ? 'is-done' : ''}" title="${k.title}"><div class="pkt-h"><span class="pkt-id">${k.kind === 'photo' ? '📷' : '🪨'} ${k.id}</span><b>${k.overall} %</b></div>
-      <div class="pkt-t">${k.title}</div><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${k.overall}" aria-label="Progreso de ${k.title}"><i style="width:${k.overall}%"></i></div>
+      <div class="pkt-t">${k.title}</div><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${k.overall}" aria-label="${simText('rover.packet-progress', k.title)}"><i style="width:${k.overall}%"></i></div>
       <div class="pkt-s">${k.stage}${k.active || (k.state === 'transmitted' && k.pct < 100) ? ' · ' + k.pct + ' %' : ''}</div></div>`).join('');
   if (html !== lastData) {
     const scroll = strip.scrollLeft;
@@ -419,22 +427,49 @@ class ExploreScene extends Phaser.Scene {
 }
 
 // ---------- Pantallas HTML ----------
+const escReport = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function campaignReport(r) {
+  const d = app.campaign;
+  if (!d) return '';
+  const tr = (key, params) => escReport(t(key, params));
+  const n = (value, decimals = 0) => formatNumber(value, decimals);
+  const received = r.packets.filter(packet => packet.state === 'transmitted' && packet.overall === 100 && (app.mission.acks[packet.id] ?? 1) === 1);
+  const samples = received.filter(packet => packet.kind === 'sample').length;
+  const photos = received.length - samples;
+  const build = app.mission.build;
+  return `<section class="panel">
+    <h2>${tr('campaign.report')}</h2>
+    <p>${tr('campaign.flightSummary', { launcher: d.launcher, site: d.site, payload: n(d.payloadKg), cost: n(d.costMUSD, 2), budget: n(d.budgetMUSD) })}</p>
+    <p>${tr(received.length ? 'campaign.receivedSummary' : 'campaign.receivedNone', { samples, photos })}</p>
+    ${received.length ? `<ul class="list">${received.map(p => `<li>${escReport(p.id)} · ${escReport(p.title)}</li>`).join('')}</ul>` : ''}
+    <h3>${tr('campaign.decisions')}</h3>
+    <ul class="list">
+      <li>${tr('campaign.margin', { margin: n(d.marginKg, 1), budget: n(d.budgetMUSD - d.costMUSD, 2) })}</li>
+      <li>${tr(d.corrected ? 'campaign.correction' : 'campaign.cleanTransfer')}</li>
+      <li>${tr('campaign.roverChoices', { instrument: t(`station.component.instrument.${build.instrument}`), antenna: t(`station.component.comms.${build.comms}`), analysis: n(r.stats.analysisTime, 1), tx: n(r.stats.txTime, 1), energy: n(r.stats.txEnergy, 1) })}</li>
+      <li>${tr('campaign.energyUsed', { remaining: r.energyPct, solar: n(r.stats.solar, 1) })}</li>
+    </ul>
+  </section>`;
+}
+
 function renderResults() {
   const r = app.result; if (!r) { go('waiting'); return; }
-  const p = r.progress, bars = r.packets.map((k) => `<div class="pkt res ${k.kind} ${k.overall >= 100 ? 'is-done' : ''}"><div class="pkt-h"><span class="pkt-id">${k.kind === 'photo' ? '📷' : '🪨'} ${k.id} · ${k.title}</span><b>${k.overall} %</b></div><div class="bar"><i style="width:${k.overall}%"></i></div><div class="pkt-s">${k.overall >= 100 ? 'Recibido en la Tierra ✔' : k.stage}</div></div>`).join('');
+  const p = r.progress, bars = r.packets.map((k) => `<div class="pkt res ${k.kind} ${k.overall >= 100 ? 'is-done' : ''}"><div class="pkt-h"><span class="pkt-id">${k.kind === 'photo' ? '📷' : '🪨'} ${k.id} · ${k.title}</span><b>${k.overall} %</b></div><div class="bar"><i style="width:${k.overall}%"></i></div><div class="pkt-s">${k.overall >= 100 ? simText("rover.received-on-earth-3") : k.stage}</div></div>`).join('');
   $('screen-results').innerHTML = `<div class="wrap">
-    <section class="panel hero"><div class="hero-row"><div><span class="kicker">${r.success ? 'MISIÓN COMPLETADA' : 'MISIÓN NO COMPLETADA'}</span>
-      <h1 class="${r.success ? 'ok' : 'bad'}">${r.success ? '¡Datos recibidos en la Tierra!' : 'No se alcanzó el objetivo'}</h1>
+    <section class="panel hero"><div class="hero-row"><div><span class="kicker">${r.success ? simText("rover.mission-complete") : simText("rover.mission-incomplete")}</span>
+      <h1 class="${r.success ? 'ok' : 'bad'}">${r.success ? simText("rover.data-received-on-earth") : simText("rover.objective-not-met")}</h1>
       <p class="lead">${r.explanation}</p>
       <p class="score" style="margin-top:12px">${r.score} pts${r.success ? ' · ' + r.rating : ''}</p></div>
-      <img class="earth" alt="La Tierra" width="112" height="112" src="${earthCanvas(56).toDataURL()}"></div></section>
-    <div class="grid2"><section class="panel"><h2>Objetivos</h2><ul class="objs">${r.objectives.map((o) => `<li class="${o.done ? 'done' : ''}"><span class="chk">${o.done ? '✔' : '○'}</span>${o.label}${o.main ? ' <span class="chip">principal</span>' : ''}</li>`).join('')}</ul></section>
-      <section class="panel"><h2>Puntuación</h2><table class="bd">${r.breakdown.map((b) => `<tr><td>${b.label}</td><td class="${b.points < 0 ? 'bad' : ''}">${b.points > 0 ? '+' : ''}${b.points}</td></tr>`).join('')}<tr class="tot"><td>Total</td><td>${r.score}</td></tr></table></section></div>
-    <section class="panel"><h2>Informe de datos</h2>${bars ? `<div class="res-pkts">${bars}</div>` : '<p class="muted">No se recogió ningún dato.</p>'}</section>
-    <div class="grid2"><section class="panel"><h2>Resumen</h2><div class="stats"><span>Recogidas</span><b>${p.collected}</b><span>Analizadas</span><b>${p.analyzed} / ${p.goal}</b><span>Transmitidas</span><b>${p.transmitted} / ${p.goal}</b><span>Fotos transmitidas</span><b>${p.photosTransmitted} / ${p.photoTotal}</b><span>Ocultas descubiertas</span><b>${p.discovered} / ${p.hiddenTotal}</b><span>Batería final</span><b>${r.energyPct} %</b><span>Tiempo</span><b>${fmt(r.elapsed, 0)} s</b><span>Choques</span><b>${r.bumps}</b><span>Masa / costo</span><b>${fmt(r.stats.mass)} kg · ${fmtCost(r.stats.cost)}</b></div></section>
-    <section class="panel"><h2>Cómo mejorar</h2><ul class="list">${r.suggestions.map((s) => `<li>${s}</li>`).join('')}</ul>
-      <p class="muted" style="margin-top:8px;font-size:.85rem">Puntuación y sugerencias calculadas con reglas fijas a partir de tu partida; no hay decisiones arbitrarias.</p></section></div>
-    <div class="row"><button class="primary" data-cmd="retry">Reintentar con este rover</button><button data-cmd="exit">Volver al centro de control</button></div></div>`;
+      <img class="earth" alt="${simText("rover.earth")}" width="112" height="112" src="${earthCanvas(56).toDataURL()}"></div></section>
+    <div class="grid2"><section class="panel"><h2>${simText("rover.objectives")}</h2><ul class="objs">${r.objectives.map((o) => `<li class="${o.done ? 'done' : ''}"><span class="chk">${o.done ? '✔' : '○'}</span>${o.label}${o.main ? ` <span class="chip">${simText("rover.primary")}</span>` : ''}</li>`).join('')}</ul></section>
+      <section class="panel"><h2>${simText("rover.score")}</h2><table class="bd">${r.breakdown.map((b) => `<tr><td>${b.label}</td><td class="${b.points < 0 ? 'bad' : ''}">${b.points > 0 ? '+' : ''}${b.points}</td></tr>`).join('')}<tr class="tot"><td>Total</td><td>${r.score}</td></tr></table></section></div>
+    ${campaignReport(r)}
+    <section class="panel"><h2>${simText("rover.data-report")}</h2>${bars ? `<div class="res-pkts">${bars}</div>` : `<p class="muted">${simText("rover.no-data-collected")}</p>`}</section>
+    <div class="grid2"><section class="panel"><h2>${simText("rover.summary")}</h2><div class="stats"><span>${simText("rover.collected")}</span><b>${p.collected}</b><span>${simText("rover.analyzed")}</span><b>${p.analyzed} / ${p.goal}</b><span>${simText("rover.transmitted")}</span><b>${p.transmitted} / ${p.goal}</b><span>${simText("rover.photos-transmitted")}</span><b>${p.photosTransmitted} / ${p.photoTotal}</b><span>${simText("rover.hidden-samples-found")}</span><b>${p.discovered} / ${p.hiddenTotal}</b><span>${simText("rover.final-battery")}</span><b>${r.energyPct} %</b><span>${simText("rover.time")}</span><b>${fmt(r.elapsed, 0)} s</b><span>${simText("rover.collisions")}</span><b>${r.bumps}</b><span>${simText("rover.mass-cost")}</span><b>${fmt(r.stats.mass)} kg · ${fmtCost(r.stats.cost)}</b></div></section>
+    <section class="panel"><h2>${simText("rover.how-to-improve")}</h2><ul class="list">${r.suggestions.map((s) => `<li>${s}</li>`).join('')}</ul>
+      <p class="muted" style="margin-top:8px;font-size:.85rem">${simText("rover.the-score-and-suggestions-follow-the-same-rules")}</p></section></div>
+    <div class="row"><button class="primary" data-cmd="retry">${simText("rover.try-again-with-this-rover")}</button><button data-cmd="exit">${simText("rover.return-to-mission-control")}</button></div></div>`;
 }
 $('screen-results').addEventListener('click', (e) => {
   const c = e.target.closest('[data-cmd]'); if (!c) return;
@@ -443,16 +478,21 @@ $('screen-results').addEventListener('click', (e) => {
 
 // ---------- Arranque ----------
 const params = new URLSearchParams(location.search);
-const saved = params.get('resume') === '1' ? restoreMission(store.get(SAVE_KEY)) : null;
-const plan = saved?.build ?? readMissionPlan(location.hash);
+const plan = readMissionPlan(location.hash);
+const campaign = plan?.campaign;
+const validCampaign = playableDelivery(campaign) && sameRoverBuild(campaign.build, plan);
+const savedGame = params.get('resume') === '1' ? restoreMission(plan?.progress ?? store.get(SAVE_KEY)) : null;
+const saved = savedGame && sameRoverBuild(savedGame.build, plan)
+  && (savedGame.campaignRun ?? null) === (campaign?.runId ?? null) ? savedGame : null;
+app.campaign = validCampaign ? campaign : null;
 document.querySelectorAll('[data-mission-exit]').forEach(button => button.addEventListener('click', event => {
   event.preventDefault();
   saveNow();
   exitMission();
 }));
-localizeDOM(document.querySelector('.topbar'));
+localizeDOM();
 
-if (validateBuild(plan).ok) {
+if (validateBuild(plan).ok && (params.get('embedded') !== '1' || validCampaign)) {
   app.build = plan;
   app.game = new Phaser.Game({
     type: Phaser.CANVAS, parent: 'game', backgroundColor: '#050b16', pixelArt: true,

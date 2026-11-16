@@ -1,3 +1,4 @@
+import { simText } from "../../../../src/i18n/catalog.js";
 import Phaser from 'phaser';
 import { preloadLaunchAudio, startLaunchCountdownAudio, stopLaunchCountdownAudio, setSimulationMusicDucked } from '../../../../src/welcome/core/gameAudio.js';
 // Plataforma de lanzamiento: se ve el cohete, se revisan los imprevistos y se hace la cuenta regresiva.
@@ -5,7 +6,7 @@ import { app, inputs, current, reducedMotion } from '../store.js';
 import { esc } from '../screens.js';
 import { prepareLaunch } from '../flow.js';
 import { rotateFacts } from '../ui.js';
-import { fmtKg } from '../plain.js';
+import { fmtKg, fmtNumber } from '../plain.js';
 import { PixelView, FlightRenderer } from './render.js';
 import { ParticleSystem } from '../particles.js';
 import { CAMERA } from '../world.js';
@@ -47,12 +48,12 @@ export class PadScene extends Phaser.Scene {
     const site = current().site;
     const lw = app.launchWindow;
     // con una ventana elegida en el planificador, se dibuja el clima previsto para ESA fecha y hora
-    if (lw) app.weather = weatherFromConditions(lw.conditions, site?.id, new Date(lw.time), lw.source === 'meteomatics' ? 'pronóstico de Meteomatics para la ventana elegida' : 'MODO SIMULACIÓN (no son datos reales)');
+    if (lw) app.weather = weatherFromConditions(lw.conditions, site?.id, new Date(lw.time), lw.source === 'meteomatics' ? simText("flight.meteomatics-forecast-for-the-chosen-window") : simText("flight.simulation-mode-not-real-weather-data"));
     else loadSiteWeather(site?.id, { seed: app.seed }).then((w) => {
       if (!this.scene.isActive() || this.state === 'go') return;
       app.weather = w;
       const el = document.getElementById('pad-weather');
-      if (el) el.textContent = describeWeather(w, site?.name ?? 'el sitio');
+      if (el) el.textContent = describeWeather(w, site?.name ?? simText("flight.the-site"));
     });
     const preparation = {};
     this.preparation = preparation;
@@ -109,10 +110,10 @@ export class PadScene extends Phaser.Scene {
   /** Peso real del cohete y combustible cargado (en toneladas). */
   fuelLine() {
     const info = app.vehicleInfo ?? vehicleFor(current().launcherId, inputs().orbit.type, app.data);
-    if (!info) return ` Combustible inicial del cohete: <b>${app.rocketFuelPct} %</b>.`;
+    if (!info) return esc(simText('flight.initial-fuel', app.rocketFuelPct));
     const f = fuelSummary(info.vehicle, current().launchMassKg, app.rocketFuelPct / 100);
-    const tons = (kg) => (Math.round(kg / 100) / 10).toLocaleString('es');
-    return `<br>El cohete completo pesa <b>${tons(f.liftoffKg)} toneladas</b> al despegar, con <b>${tons(f.propKg)} t</b> de combustible (${app.rocketFuelPct} % del tanque).`;
+    const tons = kg => fmtNumber(kg / 1000, 1);
+    return '<br>' + esc(simText('flight.pad-loaded-details', tons(f.liftoffKg), tons(f.propKg), app.rocketFuelPct));
   }
 
   /** Misión lunar de ida y vuelta: qué lleva la nave y qué pasos tiene el viaje. */
@@ -121,9 +122,9 @@ export class PadScene extends Phaser.Scene {
     const sc = inputs().spacecraft;
     if (!sc.return || sc.return.profile !== 'lunarReturn') return '';
     const d = lunar?.craftDef;
-    const parts = d ? `Tu nave tiene dos partes: el <b>módulo de servicio</b> (motor y ${fmtKg(d.propellantKg)} de combustible para frenar en la Luna y volver) y la <b>cápsula</b> (${fmtKg(d.capsuleKg)}), con el <b>escudo térmico</b> en la base y los <b>paracaídas</b> en la punta.` : '';
+    const parts = d ? `${simText('lunarFlight.two-parts')} <b>${simText("lunarFlight.service-module-2")}</b> ${simText("lunarFlight.engine-and-0-of-fuel-for-lunar-braking", fmtKg(d.propellantKg))} <b>${simText("lunarFlight.capsule-2")}</b> ${simText("lunarFlight.0-with-the", fmtKg(d.capsuleKg))} <b>${simText("lunarFlight.heat-shield")}</b> ${simText("lunarFlight.on-the-base-and")} <b>${simText("lunarFlight.parachutes")}</b> ${simText('lunarFlight.in-the-nose')}` : '';
     return `<p>${parts}</p>
-      <p><b>Plan de vuelo:</b> ① órbita de la Tierra · ② inyección hacia la Luna · ③ frenado y órbita lunar · ④ inyección de regreso · ⑤ soltar el módulo de servicio y reentrada · ⑥ paracaídas y amerizaje. El viaje dura unos ${sc.missionDays ?? 11} días: usa ⏩ <b>Saltar</b> para adelantar el tiempo y el <b>mapa (M)</b> para ver la trayectoria.</p>`;
+      <p><b>${simText("lunarFlight.flight-plan")}</b> ${simText("lunarFlight.earth-orbit-translunar-injection-lunar-orbit-insertion-return", sc.missionDays ?? 11)} <b>${simText("lunarFlight.skip-ahead")}</b> ${simText("lunarFlight.to-move-time-forward-and-the")} <b>${simText("lunarFlight.map-m")}</b> ${simText("lunarFlight.to-see-your-trajectory")}</p>`;
   }
 
   renderOverlay() {
@@ -134,19 +135,19 @@ export class PadScene extends Phaser.Scene {
     const pre = app.plan?.pre ?? [];
     ov.innerHTML = `
       <div class="pad-card">
-        <span class="kicker">PLATAFORMA DE LANZAMIENTO · ${esc(e.site.name)}</span>
-        <h2>${esc(e.launcher.name)} con ${esc(inp.spacecraft.name ?? 'tu nave')}</h2>
-        <p>Tu nave (la carga que va en la punta) pesa <b>${fmtKg(e.launchMassKg)}</b> y va hacia <b>${esc(e.orbitDef.short ?? e.orbitDef.name)}</b>.${this.fuelLine()}
-        ${this.state === 'prep' ? '<br><span class="muted">Revisando el cohete y el clima…</span>' : ''}</p>
+        <span class="kicker">${esc(simText('flight.launch-pad-title', e.site.name))}</span>
+        <h2>${esc(simText('flight.rocket-payload', e.launcher.name, inp.spacecraft.name ?? simText('flight.your-spacecraft')))}</h2>
+        <p>${simText("flight.payload-headed-for", fmtKg(e.launchMassKg))} <b>${esc(e.orbitDef.short ?? e.orbitDef.name)}</b>.${this.fuelLine()}
+        ${this.state === 'prep' ? `<br><span class="muted">${simText("flight.checking-the-rocket-and-weather")}</span>` : ''}</p>
         ${this.lunarBrief()}
         ${this.state === 'ready' && pre.length ? `<ul class="log">${pre.map((p) => `<li class="${p.severity}"><b>${esc(p.label)}</b> — ${esc(p.consequence)}</li>`).join('')}</ul>` : ''}
-        ${noSim && this.state === 'ready' ? '<p class="muted">Para este cohete y este destino todavía no hay simulador de vuelo: el resultado se calcula automáticamente.</p>' : ''}
+        ${noSim && this.state === 'ready' ? `<p class="muted">${simText("flight.this-rocket-and-destination-do-not-have-an")}</p>` : ''}
         ${app.launchWindow ? `<p><b>${esc(this.windowLine())}</b></p>` : ''}
-        <p class="muted" id="pad-weather">${app.weather ? esc(describeWeather(app.weather, e.site.name)) : 'Consultando el clima real del sitio…'}</p>
+        <p class="muted" id="pad-weather">${app.weather ? esc(describeWeather(app.weather, e.site.name)) : simText("flight.checking-live-weather-at-the-launch-site")}</p>
         <div class="countdown" id="countdown" aria-live="assertive">${this.cdText ?? ''}</div>
-        ${this.state === 'error' ? '<p role="alert">No se pudo preparar el vuelo. Vuelve al centro de control.</p>' : ''}
-        <div class="actions"><button type="button" id="pad-exit">← Volver al centro de control</button></div>
-        ${app.attempts ? `<p class="muted">Intento número ${app.attempts + 1}${inp.difficulty === 'facil' ? ' (gratis en el nivel fácil)' : ''}.</p>` : ''}
+        ${this.state === 'error' ? `<p role="alert">${simText("flight.the-flight-could-not-be-prepared-return-to")}</p>` : ''}
+        <div class="actions"><button type="button" id="pad-exit">${simText("flight.return-to-mission-control-2")}</button></div>
+        ${app.attempts ? `<p class="muted">${simText("flight.attempt-0-1", app.attempts + 1, inp.difficulty === 'facil' ? simText("flight.free-on-easy") : '')}</p>` : ''}
         <div class="fact" id="pad-fact"></div>
       </div>`;
     this.stopFacts?.();
@@ -165,14 +166,14 @@ export class PadScene extends Phaser.Scene {
       if (n === 3 && hold && !holdDone) {
         holdDone = true;
         this.state = 'hold';
-        el().innerHTML = `<span class="hold">⏸ CUENTA EN ESPERA</span><small>${esc(hold.label)}: ${esc(hold.consequence)}</small>`;
+        el().innerHTML = `<span class="hold">${simText("flight.holding-the-countdown")}</span><small>${esc(hold.label)}: ${esc(hold.consequence)}</small>`;
         clearInterval(this.timer);
-        this.nextTick = setTimeout(() => { this.state = 'counting'; this.timer = setInterval(tick, 900); el().textContent = 'Seguimos…'; }, 3200);
+        this.nextTick = setTimeout(() => { this.state = 'counting'; this.timer = setInterval(tick, 900); el().textContent = simText("flight.resuming"); }, 3200);
         return;
       }
       if (n > 0) { el().textContent = `T − ${n}`; n--; return; }
       clearInterval(this.timer);
-      el().textContent = '¡DESPEGUE!';
+      el().textContent = simText("flight.liftoff-2");
       this.state = 'go';
       this.nextTick = setTimeout(() => app.nav.go('flight'), 700);
     };

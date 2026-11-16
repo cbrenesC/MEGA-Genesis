@@ -1,3 +1,4 @@
+import { simText } from "../../../src/i18n/catalog.js";
 // Motor de reglas del módulo LAUNCH.
 // Funciones puras: no tocan el DOM ni el almacenamiento, así se pueden probar con
 // `node --test` y reutilizar desde otros módulos. Ninguna cifra de juego está escrita
@@ -8,13 +9,13 @@ export { fmtKg, fmtMUSD, fmtPct };
 
 export const ORBIT_ORDER = ['LEO', 'SSO', 'GTO', 'TLI', 'ESCAPE'];
 export const FLIGHT_PHASES = [
-  { id: 'countdown', label: 'Cuenta regresiva', t: -10 },
-  { id: 'liftoff', label: 'Despegue', t: 0 },
-  { id: 'maxq', label: 'Momento de más presión del aire (Max-Q)', t: 70 },
-  { id: 'staging', label: 'Separar etapas', t: 160 },
-  { id: 'fairing', label: 'Soltar la punta (cofia)', t: 210 },
-  { id: 'insertion', label: 'Llegar a la órbita', t: 520 },
-  { id: 'deploy', label: 'Abrir la nave', t: 600 },
+  { id: 'countdown', get label() { return simText("flight.countdown"); }, t: -10 },
+  { id: 'liftoff', get label() { return simText("flight.liftoff"); }, t: 0 },
+  { id: 'maxq', get label() { return simText("flight.maximum-dynamic-pressure-max-q"); }, t: 70 },
+  { id: 'staging', get label() { return simText("flight.stage-separation"); }, t: 160 },
+  { id: 'fairing', get label() { return simText("flight.fairing-separation"); }, t: 210 },
+  { id: 'insertion', get label() { return simText("flight.orbital-insertion"); }, t: 520 },
+  { id: 'deploy', get label() { return simText("flight.spacecraft-deployment"); }, t: 600 },
 ];
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -219,90 +220,90 @@ export function evaluateLauncher(launcher, data, inputs, options = {}) {
 
   // 1. ¿Llega a ese destino?
   checks.push(cap.baseCapacityKg == null
-    ? { id: 'orbit', status: 'fail', label: 'Destino',
-      detail: `${launcher.name} no llega a ${place}: no tiene fuerza para un viaje tan largo. Prueba un cohete más grande.`,
-      why: 'Para ir más lejos hace falta mucha más velocidad, y eso significa mucho más combustible. Un cohete pequeño se queda sin fuerza antes de llegar.',
-      more: `Presupuesto de velocidad (delta-v) aproximado desde el suelo: ${orbitDef.deltaVKmS} km/s. Valor típico de libros de mecánica orbital.`, term: 'orbita-alta' }
-    : { id: 'orbit', status: 'ok', label: 'Destino',
-      detail: `Sí llega a ${place}. Puede subir hasta ${fmtKg(cap.baseCapacityKg)} de carga.`,
-      why: `Llegar hasta ahí pide un presupuesto de velocidad (delta-v) de unos ${orbitDef.deltaVKmS} km/s. ${speedLike(7.8)}: así de rápido hay que ir solo para quedarse en órbita.`,
-      more: `Δv aproximado desde el suelo, con las pérdidas por gravedad y aire: ${orbitDef.deltaVKmS} km/s. Capacidad: ${launcher.sources?.capacityKg ?? 'ver data/launchers.json'}.`, term: 'delta-v' });
+    ? { id: 'orbit', status: 'fail', label: simText("flight.destination"),
+      detail: simText("flight.0-cannot-reach-1-it-needs-more-energy", launcher.name, place),
+      why: simText("flight.distant-targets-require-more-change-in-speed-and"),
+      more: simText("flight.approximate-speed-change-budget-delta-v-from-earth", orbitDef.deltaVKmS), term: 'orbita-alta' }
+    : { id: 'orbit', status: 'ok', label: simText("flight.destination"),
+      detail: simText("flight.reaches-payload", place, fmtKg(cap.baseCapacityKg)),
+      why: simText("flight.reaching-this-destination-takes-about-0-km-s", orbitDef.deltaVKmS, speedLike(7.8)),
+      more: simText("flight.approximate-delta-v-from-earth-including-gravity-and", orbitDef.deltaVKmS, launcher.sources?.capacityKg ?? simText("flight.see-data-launchers-json")), term: 'delta-v' });
 
   // 2. Inclinación y sitio (o la órbita fija de un viaje compartido).
   if (fixedOrbit) {
     const dInc = target.inclinationDeg != null ? Math.abs(fixedOrbit.inclinationDeg - target.inclinationDeg) : 0;
     const dAlt = target.altitudeKm != null ? Math.abs(fixedOrbit.altitudeKm - target.altitudeKm) : 0;
     const off = diff.inclinationRules && (dInc > 5 || dAlt > 100);
-    checks.push({ id: 'inclination', status: off ? 'warn' : 'ok', label: 'Órbita exacta',
+    checks.push({ id: 'inclination', status: off ? 'warn' : 'ok', label: simText("flight.exact-orbit"),
       detail: off
-        ? `En un viaje compartido te dejan en la órbita de la misión principal (${fixedOrbit.altitudeKm} km de altura, ${fixedOrbit.inclinationDeg}° de inclinación), que no es la que pediste (${target.altitudeKm ?? '—'} km y ${target.inclinationDeg ?? '—'}°).`
-        : `Vas en el cohete de otra misión: tu órbita será de ${fixedOrbit.altitudeKm} km de altura y ${fixedOrbit.inclinationDeg}° de inclinación, y coincide con lo que necesitas.`,
-      why: 'En un viaje compartido no eliges la órbita. Si no coincide con la que necesita la ciencia, el equipo de ciencia tiene que aceptar el cambio.', term: 'rideshare' });
+        ? simText("flight.a-rideshare-drops-you-into-the-primary-mission", fixedOrbit.altitudeKm, fixedOrbit.inclinationDeg, target.altitudeKm ?? '—', target.inclinationDeg ?? '—')
+        : simText("flight.the-primary-mission-s-rocket-puts-you-into", fixedOrbit.altitudeKm, fixedOrbit.inclinationDeg),
+      why: simText("flight.a-rideshare-does-not-offer-a-choice-of"), term: 'rideshare' });
   } else if (diff.inclinationRules && orbitDef.needsInclination && target.inclinationDeg != null) {
     if (cap.inclinationBlocked) {
-      checks.push({ id: 'inclination', status: 'fail', label: 'Inclinación de la órbita',
-        detail: `Desde ${site.name} no se puede lanzar hacia una órbita con ${target.inclinationDeg}° de inclinación: el cohete pasaría sobre zonas con gente. Prueba otro sitio o un cohete que despegue de otro lugar.`,
-        why: 'Cada sitio solo puede lanzar en ciertas direcciones, para que el cohete (y sus pedazos) siempre caigan al mar.',
-        more: `Rango permitido en este sitio: de ${site.inclinationRangeDeg[0]}° a ${site.inclinationRangeDeg[1]}° (simplificado para el juego).`, term: 'inclinacion' });
+      checks.push({ id: 'inclination', status: 'fail', label: simText("flight.orbital-inclination-2"),
+        detail: simText("flight.you-cannot-launch-from-0-into-a-1-2", site.name, target.inclinationDeg),
+        why: simText("flight.launch-sites-only-permit-certain-flight-directions-to-2"),
+        more: simText("flight.allowed-inclination-from-this-site-0-to-1", site.inclinationRangeDeg[0], site.inclinationRangeDeg[1]), term: 'inclinacion' });
     } else if (cap.planeChangeDeg > 0) {
-      checks.push({ id: 'inclination', status: 'warn', label: 'Inclinación de la órbita',
-        detail: `Esa órbita queda más cerca del ecuador que ${site.name} (${Math.abs(site.latitudeDeg)}° de latitud). Para lograrla hay que girar la órbita ${cap.planeChangeDeg}°, y eso gasta mucho combustible: el cohete solo puede llevar el ${Math.round(cap.factor * 100)} % de su carga normal.`,
-        why: 'Girar una órbita es una de las maniobras más caras que existen. Por eso las misiones cerca del ecuador prefieren sitios cerca del ecuador.',
-        more: `Giro de ${cap.planeChangeDeg}° ⇒ Δv extra de ${cap.planeChangeDvKmS} km/s. Fórmula: Δv = 2·v·sen(Δi/2), con v = ${data.rules.physics.leoOrbitalSpeedKmS} km/s.`, term: 'inclinacion' });
+      checks.push({ id: 'inclination', status: 'warn', label: simText("flight.orbital-inclination-2"),
+        detail: simText("flight.this-orbit-is-closer-to-the-equator-than", site.name, Math.abs(site.latitudeDeg), cap.planeChangeDeg, Math.round(cap.factor * 100)),
+        why: simText("flight.plane-changes-are-expensive-in-fuel-near-equatorial"),
+        more: simText("flight.plane-change-of-0-requires-1-km-s", cap.planeChangeDeg, cap.planeChangeDvKmS, data.rules.physics.leoOrbitalSpeedKmS), term: 'inclinacion' });
     } else {
-      checks.push({ id: 'inclination', status: 'ok', label: 'Inclinación de la órbita',
-        detail: `Desde ${site.name} sí puedes llegar a una órbita con ${target.inclinationDeg}° de inclinación, sin gastar combustible extra.`,
-        why: 'Desde un sitio de lanzamiento es fácil llegar a órbitas igual de inclinadas que su latitud, o más. Hacerlas menos inclinadas sale caro.', term: 'inclinacion' });
+      checks.push({ id: 'inclination', status: 'ok', label: simText("flight.orbital-inclination-2"),
+        detail: simText('flight.inclination-allowed', site.name, target.inclinationDeg),
+        why: simText('flight.inclination-easy'), term: 'inclinacion' });
     }
   }
 
   // 3. Peso de la nave y margen.
   if (cap.baseCapacityKg != null && !cap.inclinationBlocked) {
-    const label = { green: 'Margen cómodo', yellow: 'Margen justo', red: 'Margen arriesgado', blocked: 'No cabe' }[mStatus];
-    checks.push({ id: 'mass', status: mStatus === 'blocked' ? 'fail' : mStatus === 'green' ? 'ok' : 'warn', color: mStatus, label: `Peso de tu nave · ${label}`,
+    const label = { green: simText("flight.comfortable-margin"), yellow: simText("flight.tight-margin"), red: simText("flight.risky-margin"), blocked: simText("flight.does-not-fit") }[mStatus];
+    checks.push({ id: 'mass', status: mStatus === 'blocked' ? 'fail' : mStatus === 'green' ? 'ok' : 'warn', color: mStatus, label: simText("flight.spacecraft-mass-0-2", label),
       detail: marginKg >= 0
-        ? `Tu nave pesa ${fmtKg(launchMassKg)}. El cohete puede subir ${fmtKg(capacityKg)}, así que ocupa ${usesPart(launchMassKg / capacityKg)} y te sobran ${fmtKg(marginKg)} (${round(marginPct, 1)} %).`
-        : `Tu nave es demasiado pesada para este cohete: pesa ${fmtKg(-marginKg)} más de lo que puede subir. Prueba un cohete más grande o pídele al equipo de la nave que le quite peso.`,
-      why: `Casi todas las naves engordan mientras las construyen (cables, tornillos, cambios de diseño). Por eso conviene dejar al menos ${thresholds.greenPct} de cada 100 kg libres.`,
-      more: `margen = capacidad − masa de la nave = ${fmtKg(capacityKg)} − ${fmtKg(launchMassKg)}. Semáforo: verde ≥ ${thresholds.greenPct} %, amarillo ≥ ${thresholds.yellowPct} %.`, term: 'margen' });
+        ? simText("flight.mass-margin-summary", fmtKg(launchMassKg), fmtKg(capacityKg), usesPart(launchMassKg / capacityKg), fmtKg(marginKg), round(marginPct, 1))
+        : simText("flight.your-payload-is-0-too-heavy-for-this", fmtKg(-marginKg)),
+      why: simText("flight.spacecraft-often-get-heavier-during-development-try-to", thresholds.greenPct),
+      more: simText("flight.margin-capacity-payload-mass-0-1-green-2-2", fmtKg(capacityKg), fmtKg(launchMassKg), thresholds.greenPct, thresholds.yellowPct), term: 'margen' });
   }
 
   // 4. Que la nave entre en la punta del cohete.
   const fits = sc.diameterM <= launcher.fairing.diameterM && sc.heightM <= launcher.fairing.heightM;
-  checks.push({ id: 'fairing', status: fits ? 'ok' : 'fail', label: 'Espacio en la punta (cofia)',
+  checks.push({ id: 'fairing', status: fits ? 'ok' : 'fail', label: simText("flight.payload-fairing-2"),
     detail: fits
-      ? `Tu nave doblada (${sc.diameterM} m de ancho × ${sc.heightM} m de alto) cabe en la punta que la protege (cofia): hay ${launcher.fairing.diameterM} m × ${launcher.fairing.heightM} m.`
-      : `Tu nave doblada (${sc.diameterM} m × ${sc.heightM} m) no cabe en la punta del cohete (cofia), que mide ${launcher.fairing.diameterM} m × ${launcher.fairing.heightM} m. Prueba un cohete con la punta más grande o pide un diseño más plegable.`,
-    why: 'No basta con que el cohete aguante el peso: la nave también tiene que entrar físicamente en la punta, bien doblada.', term: 'cofia' });
+      ? simText("flight.your-folded-spacecraft-0-m-wide-1-m-2", sc.diameterM, sc.heightM, launcher.fairing.diameterM, launcher.fairing.heightM)
+      : simText("flight.your-folded-spacecraft-0-m-1-m-does", sc.diameterM, sc.heightM, launcher.fairing.diameterM, launcher.fairing.heightM),
+    why: simText("flight.the-payload-must-not-only-meet-the-mass-3"), term: 'cofia' });
 
   // 4b. Confiabilidad: no bloquea, pero avisa si el riesgo es alto.
   const warnBelow = rules.reliability?.warnBelow ?? 0.9;
   const failOdds = oneInN(1 - launcher.reliability);
-  checks.push({ id: 'reliability', status: launcher.reliability < warnBelow ? 'warn' : 'ok', label: 'Seguridad del cohete',
+  checks.push({ id: 'reliability', status: launcher.reliability < warnBelow ? 'warn' : 'ok', label: simText("flight.rocket-reliability"),
     detail: launcher.reliability < warnBelow
-      ? `Con este cohete, ${outOfHundred(launcher.reliability)}. Falla ${failOdds}. Es mucho riesgo para una nave que solo tienes una vez.`
-      : `Con este cohete, ${outOfHundred(launcher.reliability)}. Falla ${failOdds}: es bastante seguro.`,
-    why: 'Un cohete barato pero poco probado puede salir caro si hay que construir otra nave. Para un CubeSat barato puede valer la pena; para una misión grande, casi nunca.',
-    more: `Confiabilidad usada en el juego: ${launcher.reliability} (${launcher.sources?.reliability ?? 'ver data/launchers.json'}).`, term: 'confiabilidad' });
+      ? simText("flight.with-this-rocket-0-it-fails-1-that", outOfHundred(launcher.reliability), failOdds)
+      : simText("flight.with-this-rocket-0-it-fails-1-so-2", outOfHundred(launcher.reliability), failOdds),
+    why: simText("flight.a-low-cost-less-tested-rocket-can-become-2"),
+    more: simText("flight.reliability-used-by-the-game-0-1", launcher.reliability, launcher.sources?.reliability ?? simText("flight.see-data-launchers-json")), term: 'confiabilidad' });
 
   // 5. Presupuesto.
   const budgetStatus = budgetAfter < 0 ? 'fail' : budgetAfter < inputs.budget.totalMUSD * 0.05 ? 'warn' : 'ok';
-  checks.push({ id: 'budget', status: budgetStatus, label: 'Dinero',
+  checks.push({ id: 'budget', status: budgetStatus, label: simText("flight.budget-2"),
     detail: budgetAfter < 0
-      ? `Este lanzamiento cuesta ${fmtMUSD(totalCost)} (${costLike(totalCost)}) y solo tienes ${fmtMUSD(available)}. Busca un cohete más barato o pide más dinero al equipo de dirección.`
-      : `Este lanzamiento cuesta ${fmtMUSD(totalCost)} (${costLike(totalCost)})${date.delayCostMUSD ? `, y ${fmtMUSD(date.delayCostMUSD)} son por llegar tarde` : ''}. Tienes ${fmtMUSD(available)}, así que te quedarían ${fmtMUSD(budgetAfter)}.`,
-    why: budgetStatus === 'warn' ? 'Te quedaría muy poco dinero para imprevistos de los otros equipos.' : 'El dinero del cohete sale del mismo presupuesto que los instrumentos y las operaciones.', term: 'presupuesto' });
+      ? simText("flight.this-launch-costs-0-1-but-you-only", fmtMUSD(totalCost), costLike(totalCost), fmtMUSD(available))
+      : simText("flight.this-launch-costs-0-1-2-you-have", fmtMUSD(totalCost), costLike(totalCost), date.delayCostMUSD ? simText("flight.including-0-in-delay-costs", fmtMUSD(date.delayCostMUSD)) : '', fmtMUSD(available), fmtMUSD(budgetAfter)),
+    why: budgetStatus === 'warn' ? simText("flight.that-leaves-little-money-for-unexpected-costs-2") : simText("flight.the-rocket-shares-the-same-budget-as-instruments-2"), term: 'presupuesto' });
 
   // 6. Calendario y ventana.
-  checks.push({ id: 'schedule', status: date.delayMonths > 0 ? 'warn' : 'ok', label: 'Fecha',
-    detail: `El primer cupo libre es dentro de ${date.availableMonth} meses${date.waitedForWindow ? `, pero el mejor momento para viajar a ese destino empieza en el mes ${date.launchMonth}` : ''}. Querías salir en el mes ${inputs.schedule.monthsToTargetDate}.${date.delayMonths > 0 ? ` Llegarías ${date.delayMonths} meses tarde.` : ' ¡Llegas a tiempo!'}`,
-    why: date.waitedForWindow ? 'Si pierdes ese momento, hay que esperar a que los planetas vuelvan a acomodarse bien (en Marte, unos 26 meses).' : 'Los cohetes tienen lista de espera. Llegar tarde atrasa la ciencia y mantiene al equipo cobrando sin volar.', term: 'ventana' });
+  checks.push({ id: 'schedule', status: date.delayMonths > 0 ? 'warn' : 'ok', label: simText("flight.schedule"),
+    detail: simText("flight.the-first-slot-is-in-0-months-1", date.availableMonth, date.waitedForWindow ? simText("flight.but-the-best-transfer-window-opens-in-month", date.launchMonth) : '', inputs.schedule.monthsToTargetDate, date.delayMonths > 0 ? simText("flight.you-would-be-0-months-late", date.delayMonths) : simText("flight.you-are-on-schedule-2")),
+    why: date.waitedForWindow ? simText("flight.missing-the-transfer-window-can-mean-waiting-for-2") : simText("flight.rockets-have-waiting-lists-delays-postpone-science-operations-2"), term: 'ventana' });
 
   // 7. GTO desde latitud alta (solo difícil).
   if (gtoExtraDvMs > 0) {
-    checks.push({ id: 'gto', status: gtoExtraDvMs > 100 ? 'warn' : 'ok', label: 'Costo extra para tu nave',
-      detail: `Lanzar desde ${Math.abs(site.latitudeDeg)}° de latitud obliga a tu nave a hacer ${gtoExtraDvMs} m/s más de maniobra que si saliera del ecuador. Gastará unos ${fmtKg(gtoExtraPropKg)} de combustible y vivirá ${lifetimeYears} años.`,
-      why: 'El cohete deja la órbita inclinada igual que la latitud del sitio. Enderezarla hasta el ecuador lo paga la nave con su propio combustible.', term: 'gto' });
+    checks.push({ id: 'gto', status: gtoExtraDvMs > 100 ? 'warn' : 'ok', label: simText("flight.extra-cost-for-the-spacecraft-2"),
+      detail: simText("flight.launching-from-0-latitude-adds-1-m-s", Math.abs(site.latitudeDeg), gtoExtraDvMs, fmtKg(gtoExtraPropKg), lifetimeYears),
+      why: simText("flight.the-rocket-leaves-the-spacecraft-in-an-inclined-2"), term: 'gto' });
   }
 
   const compatible = checks.every((c) => c.status !== 'fail');
@@ -344,14 +345,14 @@ export function buildSuggestions(evaluation, allEvaluations, data, inputs) {
   const failed = new Set(evaluation.checks.filter((c) => c.status === 'fail').map((c) => c.id));
   const others = allEvaluations.filter((e) => e.launcherId !== evaluation.launcherId && e.compatible);
   const byCost = [...others].sort((a, b) => a.totalCostMUSD - b.totalCostMUSD);
-  const names = (list) => list.slice(0, 3).map((e) => `${e.launcher.name} (${fmtMUSD(e.totalCostMUSD)}, sobra ${e.marginPct} % de peso)`).join('; ');
+  const names = (list) => list.slice(0, 3).map((e) => simText("flight.0-1-2-payload-margin", e.launcher.name, fmtMUSD(e.totalCostMUSD), e.marginPct)).join('; ');
 
   if (failed.size && byCost.length) {
-    out.push({ kind: 'launcher', role: 'launch', text: `Prueba otro cohete que sí sirva: ${names(byCost)}.` });
+    out.push({ kind: 'launcher', role: 'launch', text: simText("flight.try-a-compatible-rocket-0", names(byCost)) });
   }
   if (failed.has('orbit')) {
     const reachable = ORBIT_ORDER.filter((id) => (evaluation.launcher.capacityKg[id] ?? 0) >= sc.massKg);
-    if (reachable.length) out.push({ kind: 'orbit', role: 'science', text: `Con ${evaluation.launcher.name} tu nave sí podría ir a: ${reachable.join(', ')}. Cambiar de destino cambia la ciencia, así que coméntalo con el equipo de ciencia.` });
+    if (reachable.length) out.push({ kind: 'orbit', role: 'science', text: simText("flight.with-0-your-spacecraft-could-reach-1-check", evaluation.launcher.name, reachable.join(', ')) });
   }
   if (failed.has('mass') || evaluation.marginStatus === 'red') {
     const goalPct = (data.rules.massMargin[inputs.difficulty] ?? data.rules.massMargin.normal).greenPct;
@@ -360,32 +361,32 @@ export function buildSuggestions(evaluation, allEvaluations, data, inputs) {
     const target = failed.has('mass') ? deficitKg : needKg;
     if (target > 0) {
       const instrument = [...(sc.instruments ?? [])].sort((a, b) => a.massKg - b.massKg).find((i) => i.massKg >= target);
-      out.push({ kind: 'mass', role: 'spacecraft', amountKg: target, text: `Pídele al equipo de la nave que le quite ${fmtKg(target)} de peso${failed.has('mass') ? ' para que entre en este cohete' : ` para dejar un margen de ${goalPct} %`}${instrument ? ` (por ejemplo, sin "${instrument.name}", que pesa ${fmtKg(instrument.massKg)}; habría menos ciencia)` : ' (estructura más liviana, baterías más chicas o un instrumento menos)'}.` });
+      out.push({ kind: 'mass', role: 'spacecraft', amountKg: target, text: simText("flight.ask-the-spacecraft-team-to-cut-0-of", fmtKg(target), failed.has('mass') ? simText("flight.to-fit-this-rocket") : simText("flight.to-leave-a-margin-of-0", goalPct), instrument ? simText("flight.for-example-remove-0-which-weighs-1-at", instrument.name, fmtKg(instrument.massKg)) : simText("flight.try-a-lighter-structure-smaller-batteries-or-fewer")) });
       const ops = operationalPropellant(sc);
       const extraOffload = target;
       if (diff.propellantOffload && ops > 0 && evaluation.offloadKg + extraOffload <= ops) {
         const life = round(lifetimeAfterLoss(sc, evaluation.offloadKg + extraOffload + evaluation.gtoExtraPropKg), 1);
-        out.push({ kind: 'offload', role: 'spacecraft', amountKg: extraOffload, text: `Otra salida: cargar ${fmtKg(extraOffload)} menos de combustible. La nave entra, pero vivirá menos: de ${sc.designLifetimeYears} años baja a ${life}.` });
+        out.push({ kind: 'offload', role: 'spacecraft', amountKg: extraOffload, text: simText("flight.another-option-carry-0-less-propellant-the-spacecraft", fmtKg(extraOffload), sc.designLifetimeYears, life) });
       }
     }
   }
   if (failed.has('fairing')) {
     const bigger = byCost.filter((e) => e.launcher.fairing.diameterM >= sc.diameterM);
-    out.push({ kind: 'fairing', role: 'spacecraft', text: `Rediseña la nave para que se doble más (paneles y antenas que se despliegan)${bigger.length ? ` o usa un cohete con la punta más grande: ${names(bigger)}` : ''}.` });
+    out.push({ kind: 'fairing', role: 'spacecraft', text: simText("flight.redesign-the-spacecraft-to-fold-more-compactly-0", bigger.length ? simText("flight.or-use-a-rocket-with-a-larger-fairing", names(bigger)) : '') });
   }
   if (failed.has('inclination')) {
-    out.push({ kind: 'site', role: 'launch', text: diff.siteChoice ? 'Prueba otro sitio de lanzamiento para el mismo cohete, o un cohete que despegue más cerca del ecuador (Kourou, Kwajalein).' : 'Elige un cohete que despegue desde un sitio con la dirección adecuada.' });
+    out.push({ kind: 'site', role: 'launch', text: diff.siteChoice ? simText("flight.try-another-site-for-this-rocket-or-a") : simText("flight.pick-a-rocket-that-launches-in-the-right") });
   }
   if (failed.has('budget')) {
     const cheaper = byCost.filter((e) => e.budgetAfterMUSD >= 0);
-    out.push({ kind: 'budget', role: 'mission', text: `${cheaper.length ? `Estos sí te alcanzan: ${names(cheaper)}. ` : ''}O pídele más dinero al equipo de dirección (tendrían que recortar otra parte).` });
+    out.push({ kind: 'budget', role: 'mission', text: simText("flight.0-you-can-also-ask-mission-management-to-2", cheaper.length ? simText("flight.these-rockets-are-within-budget-0", names(cheaper)) : '') });
   }
   if (evaluation.date.delayMonths > 0) {
     const sooner = others.filter((e) => e.date.delayMonths < evaluation.date.delayMonths).sort((a, b) => a.date.launchMonth - b.date.launchMonth);
-    if (sooner.length) out.push({ kind: 'schedule', role: 'launch', text: `Para no llegar tarde, mira: ${names(sooner)}.` });
+    if (sooner.length) out.push({ kind: 'schedule', role: 'launch', text: simText("flight.to-stay-on-schedule-consider-0", names(sooner)) });
   }
   if (evaluation.marginStatus === 'yellow' && !failed.size) {
-    out.push({ kind: 'margin', role: 'spacecraft', text: 'El margen está justo. Avisa al equipo de la nave: si la nave engorda, tienen que consultarte antes.' });
+    out.push({ kind: 'margin', role: 'spacecraft', text: simText("flight.mass-margin-is-tight-the-spacecraft-team-needs") });
   }
   return out;
 }
@@ -395,19 +396,19 @@ export function buildRequests(evaluation, inputs) {
   const requests = [];
   const sc = inputs.spacecraft;
   if (evaluation.offloadKg > 0) {
-    requests.push({ toRole: 'spacecraft', type: 'propellant-offload', amountKg: evaluation.offloadKg, text: `Vas a despegar con ${fmtKg(evaluation.offloadKg)} menos de combustible, así que la nave vivirá ${evaluation.lifetimeYears} años (diseñada para ${sc.designLifetimeYears}).` });
+    requests.push({ toRole: 'spacecraft', type: 'propellant-offload', amountKg: evaluation.offloadKg, text: simText("flight.you-will-launch-with-0-less-fuel-the", fmtKg(evaluation.offloadKg), evaluation.lifetimeYears, sc.designLifetimeYears) });
   }
   if (evaluation.marginStatus === 'yellow' || evaluation.marginStatus === 'red') {
-    requests.push({ toRole: 'spacecraft', type: 'mass-cap', amountKg: Math.max(0, Math.floor(evaluation.marginKg)), text: `Casi no sobra peso (${evaluation.marginPct} %): la nave no puede engordar más de ${fmtKg(Math.max(0, evaluation.marginKg))}.` });
+    requests.push({ toRole: 'spacecraft', type: 'mass-cap', amountKg: Math.max(0, Math.floor(evaluation.marginKg)), text: simText("flight.payload-margin-is-tight-0-the-spacecraft-can-2", evaluation.marginPct, fmtKg(Math.max(0, evaluation.marginKg))) });
   }
   if (evaluation.fixedOrbit) {
-    requests.push({ toRole: 'science', type: 'orbit-change', text: `Viaje compartido: tu órbita será de ${evaluation.fixedOrbit.altitudeKm} km de altura y ${evaluation.fixedOrbit.inclinationDeg}° de inclinación.` });
+    requests.push({ toRole: 'science', type: 'orbit-change', text: simText("flight.rideshare-orbit-0-km-altitude-at-1-inclination", evaluation.fixedOrbit.altitudeKm, evaluation.fixedOrbit.inclinationDeg) });
   }
   if (evaluation.gtoExtraPropKg > 0) {
-    requests.push({ toRole: 'spacecraft', type: 'extra-delta-v', amountKg: evaluation.gtoExtraPropKg, text: `La nave tendrá que hacer ${evaluation.gtoExtraDvMs} m/s más de maniobra para quedarse fija sobre el ecuador.` });
+    requests.push({ toRole: 'spacecraft', type: 'extra-delta-v', amountKg: evaluation.gtoExtraPropKg, text: simText("flight.the-spacecraft-needs-another-0-m-s-of-2", evaluation.gtoExtraDvMs) });
   }
   if (evaluation.date.delayMonths > 0) {
-    requests.push({ toRole: 'mission', type: 'schedule-delay', text: `El lanzamiento sale ${evaluation.date.delayMonths} meses después de la fecha que querían.` });
+    requests.push({ toRole: 'mission', type: 'schedule-delay', text: simText("flight.the-launch-is-0-months-later-than-planned-2", evaluation.date.delayMonths) });
   }
   return requests;
 }
@@ -450,7 +451,7 @@ export function simulateLaunch(evaluation, data, inputs, { seed = 1, eventsEnabl
   let extraLifetimeLossPct = 0;
 
   const base = evaluation.fixedOrbit ?? inputs.orbit;
-  const achieved = { type: inputs.orbit.type, altitudeKm: base.altitudeKm ?? null, inclinationDeg: base.inclinationDeg ?? null, note: 'Llegaste a la órbita que querías.' };
+  const achieved = { type: inputs.orbit.type, altitudeKm: base.altitudeKm ?? null, inclinationDeg: base.inclinationDeg ?? null, note: simText("flight.you-reached-the-target-orbit") };
   if (inputs.orbit.type === 'GTO') achieved.inclinationDeg = round(Math.abs(evaluation.site.latitudeDeg), 1);
 
   if (eventsEnabled) {
@@ -458,12 +459,12 @@ export function simulateLaunch(evaluation, data, inputs, { seed = 1, eventsEnabl
       const days = Math.round(randBetween(ev.weather.minDays, ev.weather.maxDays));
       const cost = round(days * ev.weather.costMUSDPerDay, 2);
       delayDays += days; extraCost += cost;
-      events.push({ id: 'weather', phase: 'countdown', label: ev.weather.label, consequence: `Hubo mal clima en ${evaluation.site.name}: esperaron ${days} días y costó ${fmtMUSD(cost)} más.`, explain: ev.weather.explain, costMUSD: cost, delayDays: days, severity: 'minor' });
+      events.push({ id: 'weather', phase: 'countdown', label: ev.weather.label, consequence: simText("flight.bad-weather-at-0-delayed-the-launch-by", evaluation.site.name, days, fmtMUSD(cost)), explain: ev.weather.explain, costMUSD: cost, delayDays: days, severity: 'minor' });
     }
     if (p.minorAnomaly != null && rng() < p.minorAnomaly) {
       const a = ev.minorAnomaly;
       delayDays += a.delayDays; extraCost += a.costMUSD;
-      events.push({ id: 'minorAnomaly', phase: 'countdown', label: a.label, consequence: `Revisaron el cohete: ${a.delayDays} días de retraso y ${fmtMUSD(a.costMUSD)} más.`, explain: a.explain, costMUSD: a.costMUSD, delayDays: a.delayDays, severity: 'minor' });
+      events.push({ id: 'minorAnomaly', phase: 'countdown', label: a.label, consequence: simText("flight.the-rocket-was-inspected-adding-0-days-and", a.delayDays, fmtMUSD(a.costMUSD)), explain: a.explain, costMUSD: a.costMUSD, delayDays: a.delayDays, severity: 'minor' });
     }
     if (p.failure != null && rng() < p.failure) {
       if (rng() < (diff.partialFailureShare ?? 0)) {
@@ -486,12 +487,12 @@ export function simulateLaunch(evaluation, data, inputs, { seed = 1, eventsEnabl
       if (operationalPropellant(sc) > 0 && sc.ispS) {
         const kg = round(propellantForDeltaV(evaluation.launchMassKg, dv, sc.ispS, rules.physics.g0), 1);
         lostPropKg += kg;
-        achieved.note = `La nave corrigió su órbita con su propio motor y gastó ${fmtKg(kg)} de combustible.`;
-        consequence = `El cohete dejó la nave un poco corrida. La nave la corrigió con su motor (${dv} m/s) y gastó ${fmtKg(kg)} de combustible.`;
+        achieved.note = simText("flight.the-spacecraft-corrected-its-orbit-with-its-own", fmtKg(kg));
+        consequence = simText("flight.the-rocket-was-slightly-off-target-the-spacecraft", dv, fmtKg(kg));
       } else {
         extraLifetimeLossPct += o.noPropulsionLifetimeLossPct;
-        achieved.note = 'La nave no tiene motor para corregir, así que se queda en esta órbita algo distinta.';
-        consequence = `La nave no tiene motor para corregirse y pierde cerca de ${o.noPropulsionLifetimeLossPct} % de su vida útil (la órbita decae antes o los datos sirven menos).`;
+        achieved.note = simText("flight.without-an-engine-the-spacecraft-stays-in-a-2");
+        consequence = simText("flight.the-spacecraft-cannot-correct-its-orbit-and-loses", o.noPropulsionLifetimeLossPct);
       }
       events.push({ id: 'orbitOffset', phase: 'insertion', label: o.label, consequence, explain: o.explain, deltaVMs: dv, severity: 'moderate' });
     }
@@ -507,17 +508,17 @@ export function simulateLaunch(evaluation, data, inputs, { seed = 1, eventsEnabl
     if (achieved.altitudeKm != null) achieved.altitudeKm = Math.round(achieved.altitudeKm * 0.6);
     if (canRecover) {
       lifetime *= 1 - lossPct / 100;
-      achieved.note = 'La última etapa se apagó antes de tiempo. La nave usó gran parte de su combustible para subir sola a la órbita correcta.';
-      events.push({ id: 'partialFailure', phase: 'insertion', label: 'Falla parcial: quedaste en una órbita más baja', consequence: `La nave sube con su propio motor y pierde cerca de ${lossPct} % de su vida útil.`, explain: ev.failure.explain, severity: 'major' });
+      achieved.note = simText("flight.the-final-stage-shut-down-early-the-spacecraft");
+      events.push({ id: 'partialFailure', phase: 'insertion', label: simText("flight.partial-failure-you-reached-a-lower-orbit-2"), consequence: simText("flight.the-spacecraft-raises-its-orbit-with-its-own", lossPct), explain: ev.failure.explain, severity: 'major' });
     } else {
       failed = true;
-      achieved.note = 'Sin motor propio, la nave no pudo subir y volvió a entrar en la atmósfera.';
-      events.push({ id: 'partialFailure', phase: 'insertion', label: 'Falla parcial: órbita demasiado baja', consequence: 'La nave no tiene motor para subir sola, así que se perdió.', explain: ev.failure.explain, severity: 'fatal' });
+      achieved.note = simText("flight.without-its-own-engine-the-spacecraft-could-not-2");
+      events.push({ id: 'partialFailure', phase: 'insertion', label: simText("flight.partial-failure-orbit-too-low"), consequence: simText("flight.the-spacecraft-had-no-engine-to-raise-its-2"), explain: ev.failure.explain, severity: 'fatal' });
     }
   }
   if (failed && !events.some((e) => e.severity === 'fatal')) {
     const phase = FLIGHT_PHASES.find((ph) => ph.id === failurePhase);
-    events.push({ id: 'failure', phase: failurePhase, label: ev.failure.label, consequence: `El cohete falló durante «${phase.label}» y la nave se perdió.`, explain: ev.failure.explain, severity: 'fatal' });
+    events.push({ id: 'failure', phase: failurePhase, label: ev.failure.label, consequence: simText("flight.the-rocket-failed-during-0-and-the-spacecraft", phase.label), explain: ev.failure.explain, severity: 'fatal' });
   }
 
   lifetime = failed ? 0 : round(lifetime, 1);

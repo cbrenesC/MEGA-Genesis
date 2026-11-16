@@ -1,4 +1,5 @@
 export const MISSION_EXIT = 'mega:mission-exit';
+export const ROVER_PROGRESS = 'mega:rover-progress';
 export const MISSION_COMPLETE = 'mega:mission-complete';
 export const ROVER_SAVE_KEY = 'megaGenesis.rover.save.v1';
 export const PREPARATION_KEY = 'megaGenesis.stationPlans.v1';

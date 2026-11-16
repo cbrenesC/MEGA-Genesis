@@ -10,6 +10,8 @@ export const randomSeed = () => Math.floor(Math.random() * 999999) + 1;
 
 export const app = {
   data: null,
+  campaign: null,
+  delivery: null,
   teamMode: false,
   selectedId: null,
   options: {}, // por lanzador: { siteId, propellantOffloadKg }
