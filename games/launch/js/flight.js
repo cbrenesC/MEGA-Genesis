@@ -1,4 +1,4 @@
-import { simText } from "../../../src/i18n/catalog.js";
+import { localizedNumber, simText } from "../../../src/i18n/catalog.js";
 // Física del vuelo interactivo del módulo LAUNCH (versión 2).
 //
 // Es un módulo PURO (sin Phaser ni DOM): lo usa la escena de vuelo para mover el cohete y
@@ -627,7 +627,7 @@ export class FlightSim {
         if (hit <= PHYS.LAND_SPEED) {
           this.landing = { speed: hit, t: this.t };
           if (this.mission) this.mission.landed = true;
-          this.addLog(simText("lunarFlight.the-capsule-touched-down-at-0-m-s", hit.toFixed(1)), 'ok');
+          this.addLog(simText("lunarFlight.the-capsule-touched-down-at-0-m-s", localizedNumber(hit, 1, 1)), 'ok');
           this.finish('splashdown');
         } else {
           this.destroy('crash', this.chute && !this.chute.torn ? simText("lunarFlight.the-capsule-reached-the-surface-at-0-m", Math.round(hit)) : simText("lunarFlight.the-capsule-hit-the-surface-at-0-m", Math.round(hit)));
@@ -658,7 +658,7 @@ export class FlightSim {
       this.stats.entryT = this.t; this.stats.entrySpeed = aero.v;
       this.stats.entryAngleDeg = Math.asin(clamp(-this.radialSpeed / Math.max(this.speed, 1), -1, 1)) / DEG;
       if (this.mission) this.mission.entry = true;
-      this.addLog(simText("lunarFlight.reentry-the-spacecraft-enters-the-atmosphere-at-0", (aero.v / 1000).toFixed(1)), 'warn');
+      this.addLog(simText("lunarFlight.reentry-the-spacecraft-enters-the-atmosphere-at-0", localizedNumber(aero.v / 1000, 1, 1)), 'warn');
     }
     const reentry = Boolean(craft) && this.stats.entryT != null;
     if (!reentry) {
@@ -1102,7 +1102,7 @@ export const wasDestroyed = (sim) => DESTROYED.includes(sim.endReason);
 /** Puntaje (0–100) de la misión lunar de ida y vuelta: cada parte premia una meta cumplida y qué tan bien quedó. */
 export function lunarScore(sim) {
   const m = sim.mission; const W = LUNAR_SCORE; const st = sim.stats;
-  const km = (v) => Math.round(v).toLocaleString('es');
+  const km = (v) => localizedNumber(v);
   const parts = [];
   parts.push({ id: 'leo', label: simText("lunarFlight.earth-parking-orbit"), points: m.leo ? W.leo : 0, max: W.leo,
     note: m.leo ? simText("lunarFlight.you-reached-a-0-1-km-orbit", km(m.parking.periKm), km(m.parking.apoKm)) : simText("lunarFlight.you-did-not-reach-a-stable-orbit-around") });
@@ -1129,7 +1129,7 @@ export function lunarScore(sim) {
     const gPart = clamp(1 - (st.maxG - gLim) / 6, 0, 1);
     const shieldPart = clamp(sim.heat.shieldLeft / 0.3, 0, 1);
     land = W.landing * (0.6 + 0.2 * gPart + 0.2 * shieldPart);
-    landNote = simText("lunarFlight.splashdown-at-0-m-s-reentry-peaked-at", sim.landing.speed.toFixed(1), st.maxG.toFixed(1), st.maxG > gLim ? simText("lunarFlight.too-high-for-the-crew-try-a-shallower") : '', Math.round((1 - sim.heat.shieldLeft) * 100));
+    landNote = simText("lunarFlight.splashdown-at-0-m-s-reentry-peaked-at", localizedNumber(sim.landing.speed, 1, 1), localizedNumber(st.maxG, 1, 1), st.maxG > gLim ? simText("lunarFlight.too-high-for-the-crew-try-a-shallower") : '', Math.round((1 - sim.heat.shieldLeft) * 100));
   } else if (sim.endReason === 'burn') landNote = simText("lunarFlight.the-spacecraft-burned-up-during-reentry");
   else if (sim.endReason === 'gforce') landNote = simText("lunarFlight.the-capsule-entered-too-steeply-and-could-not");
   else if (sim.endReason === 'crash' && m.entry) landNote = simText("lunarFlight.the-capsule-survived-reentry-but-reached-the-surface");

@@ -12,7 +12,7 @@ export function lunarRoverScenario(data) {
   if (!lunar) return null;
   const l = LUNAR_LANDER;
   return {
-    ...lunar, id: LUNAR_ROVER, label: 'Misión científica con rover lunar',
+    ...lunar, id: LUNAR_ROVER, label: message('station.scenario.lunar-rover'),
     objective: message('flightData.mock.lunar-rover.objective'),
     spacecraft: {
       ...lunar.spacecraft, name: 'Selene Rover', massKg: l.dryKg + l.propellantKg,

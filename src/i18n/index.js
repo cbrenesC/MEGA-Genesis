@@ -1,6 +1,6 @@
 import { getPreferences, updatePreferences } from '../welcome/core/consent.js';
 
-import { message, normalizeLanguage, setCatalogLanguage, supported } from './catalog.js';
+import { localizedNumber, message, normalizeLanguage, setCatalogLanguage, supported } from './catalog.js';
 export { normalizeLanguage };
 const requestedLanguage = new URL(location.href).searchParams.get('lang');
 let language = supported(requestedLanguage) ? requestedLanguage : normalizeLanguage(getPreferences().language);
@@ -9,16 +9,8 @@ setCatalogLanguage(language);
 export const getLanguage = () => language;
 export const t = (key, params = {}, locale = language) => message(key, params, locale);
 
-const numberFormats = new Map();
 export function formatNumber(value, digits = 0) {
-  const key = `${language}:${digits}`;
-  if (!numberFormats.has(key)) {
-    numberFormats.set(key, new Intl.NumberFormat(language === 'es' ? 'es-CR' : 'en-US', {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-    }));
-  }
-  return numberFormats.get(key).format(value);
+  return localizedNumber(value, digits, digits, language);
 }
 
 const localizedAttributes = {
@@ -52,10 +44,8 @@ export function setLanguage(locale, { remember = true } = {}) {
   setCatalogLanguage(language);
   if (remember) updatePreferences({ language });
   const url = new URL(location.href);
-  if (url.searchParams.has('lang')) {
-    url.searchParams.set('lang', language);
-    history.replaceState(history.state, '', url);
-  }
+  url.searchParams.set('lang', language);
+  if (url.href !== location.href) history.replaceState(history.state, '', url);
   localizeDOM();
   window.dispatchEvent(new CustomEvent('sms-language-changed', { detail: { language } }));
 }

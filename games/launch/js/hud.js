@@ -1,4 +1,4 @@
-import { catalogLanguage, simText } from "../../../src/i18n/catalog.js";
+import { localizedNumber, simText } from "../../../src/i18n/catalog.js";
 // Panel de control del vuelo (HTML encima del canvas), compacto y según el momento del vuelo.
 //
 // Lo que se ve siempre: altura, velocidad, combustible y la palanca de empuje. Lo demás aparece sólo cuando sirve:
@@ -11,7 +11,7 @@ import { PHYS } from './flight.js';
 import { esc } from './screens.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const fmt = (v, d = 0) => v.toLocaleString(catalogLanguage() === 'en' ? 'en-US' : 'es', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (v, d = 0) => localizedNumber(v, d, d);
 
 const TERM = (id, label) => `<button class="term" data-term="${id}" aria-label="${esc(label)}">?</button>`;
 

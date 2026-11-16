@@ -1,4 +1,4 @@
-import { simText } from "../../../src/i18n/catalog.js";
+import { localizedNumber, simText } from "../../../src/i18n/catalog.js";
 // Une el vuelo interactivo (flight.js) con las reglas del juego (rules.js).
 //
 //  - planFlightEvents(): decide, con la semilla, qué imprevistos habrá (clima, falsa alarma,
@@ -160,9 +160,9 @@ export function resolveFlight({ sim, plan, evaluation, inputs, data, ref, autopi
   // --- el cohete sobrevivió: ¿llegó a la órbita?
   const parkingOk = el.periAlt >= PHYS.PERI_OK;
   if (!parkingOk) {
-    events.push({ id: 'noOrbit', phase: 'insertion', label: simText("flight.you-did-not-reach-orbit"), consequence: periKm < 0 ? simText("flight.your-lowest-point-was-0-km-underground-so", Math.abs(Math.round(periKm)).toLocaleString('es')) : simText("flight.your-lowest-point-was-0-km-still-inside", Math.round(periKm)),
+    events.push({ id: 'noOrbit', phase: 'insertion', label: simText("flight.you-did-not-reach-orbit"), consequence: periKm < 0 ? simText("flight.your-lowest-point-was-0-km-underground-so", localizedNumber(Math.abs(periKm))) : simText("flight.your-lowest-point-was-0-km-still-inside", Math.round(periKm)),
       explain: simText("flight.for-a-stable-orbit-the-lowest-point-periapsis"), severity: 'fatal' });
-    story.push(periKm < 0 ? simText("flight.your-lowest-point-was-0-km-underground-the", Math.abs(Math.round(periKm)).toLocaleString('es')) : simText("flight.your-lowest-point-was-0-km-inside-the", Math.round(periKm)));
+    story.push(periKm < 0 ? simText("flight.your-lowest-point-was-0-km-underground-the", localizedNumber(Math.abs(periKm))) : simText("flight.your-lowest-point-was-0-km-inside-the", Math.round(periKm)));
     return { ...base, result: 'falla', headline: simText("flight.you-did-not-reach-orbit"), achievedOrbit: null, lifetimeYears: 0, story, failureKind: 'no-orbit' };
   }
 
@@ -279,15 +279,15 @@ export function lunarFlightData(sim) {
 function resolveLunar({ sim, base, events, story, sc }) {
   const m = sim.mission; const st = sim.stats;
   const achievedOrbit = lunarAchieved(sim);
-  const km = (v) => Math.round(v).toLocaleString('es');
-  story.push(simText("lunarFlight.the-journey-lasted-0-days", base.flightData.lunar.days.toLocaleString('es')));
-  if (m.bestOrbit) story.push(simText("lunarFlight.you-reached-a-0-1-km-lunar-orbit-2", km(m.bestOrbit.periKm), km(m.bestOrbit.apoKm), m.lunarRevs.toLocaleString('es', { maximumFractionDigits: 1 })));
+  const km = (v) => localizedNumber(v);
+  story.push(simText("lunarFlight.the-journey-lasted-0-days", localizedNumber(base.flightData.lunar.days, 2)));
+  if (m.bestOrbit) story.push(simText("lunarFlight.you-reached-a-0-1-km-lunar-orbit-2", km(m.bestOrbit.periKm), km(m.bestOrbit.apoKm), localizedNumber(m.lunarRevs, 1)));
   else if (m.soi) story.push(simText("lunarFlight.you-passed-within-0-km-of-the-moon-2", km(m.minMoonAlt / 1000)));
   if (sim.landing) {
     const gLim = sim.craft?.gLimit ?? 9;
-    story.push(simText("lunarFlight.the-capsule-entered-at-0-km-s-peaked", (st.entrySpeed / 1000).toLocaleString('es', { maximumFractionDigits: 1 }), st.maxG.toLocaleString('es', { maximumFractionDigits: 1 }), Math.round((1 - sim.heat.shieldLeft) * 100), sim.landing.speed.toLocaleString('es', { maximumFractionDigits: 1 })));
+    story.push(simText("lunarFlight.the-capsule-entered-at-0-km-s-peaked", localizedNumber(st.entrySpeed / 1000, 1), localizedNumber(st.maxG, 1), Math.round((1 - sim.heat.shieldLeft) * 100), sim.landing.speed.toLocaleString('es', { maximumFractionDigits: 1 })));
     const rough = st.maxG > gLim + 4;
-    if (st.maxG > gLim) events.push({ id: 'highG', phase: 'insertion', label: simText("lunarFlight.rough-reentry"), consequence: simText("lunarFlight.the-crew-experienced-0-g-the-target-is", st.maxG.toFixed(1), gLim), explain: simText("lunarFlight.a-steep-entry-causes-sudden-deceleration-a-course"), severity: rough ? 'major' : 'moderate' });
+    if (st.maxG > gLim) events.push({ id: 'highG', phase: 'insertion', label: simText("lunarFlight.rough-reentry"), consequence: simText("lunarFlight.the-crew-experienced-0-g-the-target-is", localizedNumber(st.maxG, 1, 1), gLim), explain: simText("lunarFlight.a-steep-entry-causes-sudden-deceleration-a-course"), severity: rough ? 'major' : 'moderate' });
     if (m.lunarOrbit && !rough) return { ...base, result: 'exito', headline: simText("lunarFlight.mission-accomplished-you-reached-the-moon-and-returned"), achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
     if (m.lunarOrbit) return { ...base, result: 'exito_parcial', headline: simText("lunarFlight.you-made-it-to-the-moon-and-back"), achievedOrbit, lifetimeYears: sc.designLifetimeYears, story, lossPct: 0 };
     if (m.soi) {

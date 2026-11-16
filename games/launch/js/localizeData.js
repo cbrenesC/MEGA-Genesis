@@ -14,10 +14,16 @@ export function localizeLaunchData(data) {
   const map = (list, prefix, keys) => list?.map(item => ({ ...item, ...fields(item, `${prefix}.${item.id}`, keys) }));
   const record = (dict, prefix, keys) => Object.fromEntries(Object.entries(dict ?? {})
     .map(([id, item]) => [id, { ...item, ...fields(item, `${prefix}.${id}`, keys) }]));
+  const localizeStages = stages => stages.map(stage => ({
+    ...stage, name: translate(`stage.${stage.nameKey}`, stage.name),
+  }));
   return {
     ...data,
-    launchers: map(data.launchers, 'rocket', ['provider', 'class', 'summary']),
-    sites: map(data.sites, 'site', ['country', 'weatherNote', 'source']),
+    launchers: map(data.launchers, 'rocket', ['name', 'provider', 'class', 'summary'])?.map(launcher => ({
+      ...launcher,
+      sources: fields(launcher.sources ?? {}, `rocket.${launcher.id}.sources`, Object.keys(launcher.sources ?? {})),
+    })),
+    sites: map(data.sites, 'site', ['name', 'country', 'weatherNote', 'source']),
     orbits: map(data.orbits, 'orbit', ['name', 'short', 'plain', 'examples']),
     facts: map(data.facts, 'fact', ['text', 'source']),
     missions: map(data.missions, 'reference', ['name', 'note']),
@@ -27,10 +33,20 @@ export function localizeLaunchData(data) {
       difficulty: record(data.rules.difficulty, 'difficulty', ['description', 'label']),
       events: record(data.rules.events, 'event', ['label', 'explain']),
     },
+    flight: data.flight && {
+      ...data.flight,
+      vehicles: Object.fromEntries(Object.entries(data.flight.vehicles ?? {}).map(([id, vehicle]) => [
+        id, {
+          ...vehicle,
+          ...(vehicle.stages && { stages: localizeStages(vehicle.stages) }),
+          ...(vehicle.transferStages && { transferStages: localizeStages(vehicle.transferStages) }),
+        },
+      ])),
+    },
     mocks: {
       ...data.mocks,
       scenarios: data.mocks.scenarios.map(scenario => ({
-        ...scenario, objective: translate(`mock.${scenario.id}.objective`, scenario.objective),
+        ...scenario, ...fields(scenario, `mock.${scenario.id}`, ['label', 'objective']),
         spacecraft: {
           ...scenario.spacecraft,
           instruments: scenario.spacecraft.instruments.map(instrument => ({

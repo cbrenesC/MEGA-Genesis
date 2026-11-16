@@ -1,4 +1,4 @@
-import { catalogLanguage, simText } from "../../../src/i18n/catalog.js";
+import { localizedNumber, simText } from "../../../src/i18n/catalog.js";
 // Reglas deterministas del módulo lunar (sin Phaser, sin DOM, sin azar ni reloj real).
 // Todo lo que cambia el estado de la misión pasa por aquí: la escena y la interfaz solo leen y dibujan.
 // Unidades: energía en "u", potencia en "u/s", masa en kg, distancia en px del terreno.
@@ -160,7 +160,7 @@ export function validateBuild(build) {
   return { ok: reasons.length === 0, reasons, missing, stats };
 }
 export function fmt(n, d = 1) {
-  return Number(n).toLocaleString(catalogLanguage() === 'en' ? 'en-US' : 'es-ES', { maximumFractionDigits: d });
+  return localizedNumber(n, d);
 }
 
 // ---------- Misión ----------

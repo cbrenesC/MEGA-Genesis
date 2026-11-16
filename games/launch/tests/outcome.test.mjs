@@ -138,7 +138,7 @@ test('contrato de salida v2: schemaVersion 2, conserva los campos de la v1 y agr
 
 test('los pesos se muestran con su valor real, sin comparaciones con objetos', () => {
   assert.equal(plain.massLike, undefined);
-  assert.match(fmtKg(3000), /^3\.?000 kg$/);
+  assert.equal(fmtKg(3000), new Intl.NumberFormat('es-CR').format(3000) + ' kg');
   assert.equal(fmtKg(549054), '549,1 toneladas');
 });
 

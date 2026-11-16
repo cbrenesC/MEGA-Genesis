@@ -40,6 +40,6 @@ El astronauta y los cuatro tripulantes del centro de control (Durman, Josué, Lu
 
 ## Idiomas
 
-El juego incluye inglés (predeterminado) y español. Podés cambiar el idioma durante la bienvenida, en Configuración o en cualquiera de las dos misiones. Los enlaces conservan el idioma mediante `?lang=en` o `?lang=es`, incluso si decidís jugar sin guardar. Con tu permiso, el navegador también recuerda la selección para próximas visitas.
+El juego incluye inglés (predeterminado) y español. Podés cambiar el idioma durante la bienvenida, en Configuración y en las dos prácticas independientes. Las simulaciones principales usan el idioma del centro de control al iniciarse. Los enlaces conservan el idioma mediante `?lang=en` o `?lang=es`, incluso si decidís jugar sin guardar. Con tu permiso, el navegador también recuerda la selección para próximas visitas.
 
-Los textos de interfaz, del canvas y los subtítulos viven en `src/i18n/en.json` y `src/i18n/es.json`. Cada texto nuevo debe tener la misma clave en ambos catálogos. Usá `data-i18n` para texto estático, `data-i18n-aria` para etiquetas accesibles y `t()` para mensajes dinámicos. El video del comandante conserva su audio original y usa subtítulos sincronizados en ambos idiomas.
+Los textos de interfaz, del canvas y los subtítulos viven en `src/i18n/en.json` y `src/i18n/es.json`. Cada texto nuevo debe tener la misma clave en ambos catálogos. Usá `data-i18n` para texto estático, `data-i18n-aria` para etiquetas accesibles y `t()` o `simText()` para mensajes dinámicos. Al agregar un cohete, sitio o etapa, incluí también sus nombres y notas en ambos catálogos. El video del comandante conserva su audio original y usa subtítulos sincronizados en ambos idiomas.

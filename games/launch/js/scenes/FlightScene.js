@@ -1,4 +1,4 @@
-import { simText } from "../../../../src/i18n/catalog.js";
+import { localizedNumber, simText } from "../../../../src/i18n/catalog.js";
 import Phaser from 'phaser';
 // Vuelo interactivo: vista lateral 2D en pixel art, controles táctiles y de teclado, telemetría y pistas.
 //
@@ -49,12 +49,12 @@ const SPACE_FRAME_ALT = 180000; // m: arriba de esto el humo ya no vive "sobre e
 const wrapPi = (a) => { let x = a; while (x > Math.PI) x -= 2 * Math.PI; while (x < -Math.PI) x += 2 * Math.PI; return x; };
 const fmtDur = (s) => {
   if (!Number.isFinite(s)) return '—';
-  if (s >= 2 * 86400) return simText("lunarFlight.0-days", (s / 86400).toLocaleString('es', { maximumFractionDigits: 1 }));
+  if (s >= 2 * 86400) return simText("lunarFlight.0-days", localizedNumber(s / 86400, 1));
   if (s >= 2 * 3600) return simText("lunarFlight.0-hours", Math.round(s / 3600));
   if (s >= 120) return simText("lunarFlight.0-minutes", Math.round(s / 60));
   return simText("lunarFlight.0-seconds", Math.max(0, Math.round(s)));
 };
-const kmTxt = (m) => `${Math.round(m / 1000).toLocaleString('es')} km`;
+const kmTxt = (m) => `${localizedNumber(m / 1000)} km`;
 const MILESTONES = [
   ['tli', simText("lunarFlight.bound-for-the-moon"), 'ok'], ['soi', simText("lunarFlight.moon-s-sphere-of-influence"), 'ok'], ['lunarOrbit', simText("lunarFlight.lunar-orbit-2"), 'ok'],
   ['tei', simText("lunarFlight.heading-home"), 'ok'], ['left', simText("lunarFlight.back-in-earth-s-sphere-of-influence"), 'info'], ['entry', simText("lunarFlight.reentry-2"), 'warn'], ['landed', null, 'ok'],
@@ -745,7 +745,7 @@ export class FlightScene extends Phaser.Scene {
       // amerizaje: salpicadura y la cápsula flotando mientras llega el barco
       if (!this.spaceFrame && this.onWater()) this.particles.splash({ x: this.groundS(), y: 0, n: this.reduced ? 14 : 46 });
       if (!this.reduced) this.cam.kick(0.5);
-      this.hud.message(simText("lunarFlight.0-at-1-m-s-the-crew-is", this.onWater() ? simText("lunarFlight.splashdown-3") : simText("lunarFlight.touchdown-2"), sim.landing.speed.toFixed(1)), 'ok');
+      this.hud.message(simText("lunarFlight.0-at-1-m-s-the-crew-is", this.onWater() ? simText("lunarFlight.splashdown-3") : simText("lunarFlight.touchdown-2"), localizedNumber(sim.landing.speed, 1, 1)), 'ok');
     } else this.hud.message(sim.orbitReached ? simText('flight.flight-complete-let-s-see-how-you-did') : simText('flight.flight-complete'), 'ok');
   }
 
@@ -784,7 +784,7 @@ export class FlightScene extends Phaser.Scene {
     // en la plataforma con poco empuje: el cohete pesa más de lo que empuja
     if (sim.status === 'flying' && sim.grounded && !this.ignition) {
       const twNow = sim.thrustToWeight(Math.max(hud.controls.throttle, sim.throttle * 0.999));
-      if (hud.controls.throttle > 0.02 && twNow < 1) warnings.push([simText("flight.thrust-0-times-the-rocket-s-weight-is", twNow.toFixed(2)), 'warn']);
+      if (hud.controls.throttle > 0.02 && twNow < 1) warnings.push([simText("flight.thrust-0-times-the-rocket-s-weight-is", localizedNumber(twNow, 2, 2)), 'warn']);
     }
 
     // recomendaciones (más detalladas en fácil, solo pistas visuales en normal)
@@ -868,24 +868,24 @@ export class FlightScene extends Phaser.Scene {
 
     // --- lectura: lo que la trayectoria promete ahora mismo
     const passRead = (km) => {
-      if (km == null) return { label: simText("lunarFlight.lunar-approach"), value: simText("lunarFlight.no-encounter"), kind: 'bad', goal: 'ideal: 110 km' };
+      if (km == null) return { label: simText("lunarFlight.lunar-approach"), value: simText("lunarFlight.no-encounter"), kind: 'bad', goal: simText('lunarFlight.ideal-altitude', 110) };
       const alt = Math.abs(km);
-      if (km < 0 && alt < 1) return { label: simText("lunarFlight.lunar-approach"), value: 'choca', kind: 'bad', goal: 'ideal: 110 km' };
+      if (km < 0 && alt < 1) return { label: simText("lunarFlight.lunar-approach"), value: simText('lunarFlight.predicted-impact'), kind: 'bad', goal: simText('lunarFlight.ideal-altitude', 110) };
       const kind = km >= LUNAR.PERI_MIN / 1000 && km <= LUNAR.PERI_MAX / 1000 ? (Math.abs(km - 110) < 40 ? 'good' : 'warn') : 'bad';
-      return { label: simText("lunarFlight.lunar-approach"), value: km < 0 ? simText("lunarFlight.0-km-far-side-approach", Math.round(alt).toLocaleString('es')) : `${Math.round(km).toLocaleString('es')} km`, kind, goal: 'ideal: 110 km' };
+      return { label: simText("lunarFlight.lunar-approach"), value: km < 0 ? simText("lunarFlight.0-km-far-side-approach", localizedNumber(alt)) : `${localizedNumber(km)} km`, kind, goal: simText('lunarFlight.ideal-altitude', 110) };
     };
     const periRead = (km) => {
-      if (km == null) return { label: simText("lunarFlight.lowest-point-on-return"), value: simText("lunarFlight.no-return"), kind: 'bad', goal: 'ideal: 60 km' };
+      if (km == null) return { label: simText("lunarFlight.lowest-point-on-return"), value: simText("lunarFlight.no-return"), kind: 'bad', goal: simText('lunarFlight.ideal-altitude', 60) };
       const kind = km >= LUNAR.ENTRY_MIN / 1000 && km <= LUNAR.ENTRY_MAX / 1000 ? (Math.abs(km - 60) <= 5 ? 'good' : 'warn') : 'bad';
-      return { label: simText("lunarFlight.lowest-point-on-return"), value: km < -5000 ? simText("lunarFlight.overshoot") : `${Math.round(km).toLocaleString('es')} km`, kind, goal: 'ideal: 60 km' };
+      return { label: simText("lunarFlight.lowest-point-on-return"), value: km < -5000 ? simText("lunarFlight.overshoot") : `${localizedNumber(km)} km`, kind, goal: simText('lunarFlight.ideal-altitude', 60) };
     };
     const r = this.burnReadout;
     if (burning && r) {
       if ('passKm' in r) ctx.readout = passRead(r.passKm);
       else if ('perigeeKm' in r) ctx.readout = periRead(r.perigeeKm);
-      else if ('periKm' in r) ctx.readout = { label: simText("lunarFlight.lunar-orbit"), value: r.apoKm == null ? simText("lunarFlight.0-km-unbound", Math.round(r.periKm)) : `${Math.round(r.periKm)} × ${Math.round(r.apoKm).toLocaleString('es')} km`, kind: r.apoKm != null && r.apoKm - r.periKm < 80 ? 'good' : 'warn', goal: 'redonda' };
+      else if ('periKm' in r) ctx.readout = { label: simText("lunarFlight.lunar-orbit"), value: r.apoKm == null ? simText("lunarFlight.0-km-unbound", Math.round(r.periKm)) : `${Math.round(r.periKm)} × ${localizedNumber(r.apoKm)} km`, kind: r.apoKm != null && r.apoKm - r.periKm < 80 ? 'good' : 'warn', goal: simText('lunarFlight.circular-target') };
     } else if (plan.check && flying) ctx.readout = plan.check.goal === 'moon' ? passRead(plan.check.value == null ? null : plan.check.value / 1000) : periRead(plan.check.value == null ? null : plan.check.value / 1000);
-    else if (ph === 'approach' && plan.window) ctx.readout = { label: simText("lunarFlight.lowest-point-above-the-moon"), value: plan.window.periAlt < 0 ? 'choca' : kmTxt(plan.window.periAlt), kind: plan.window.periAlt > LUNAR.PERI_MIN ? 'good' : 'bad', goal: `en ${fmtDur(plan.window.eta)}` };
+    else if (ph === 'approach' && plan.window) ctx.readout = { label: simText("lunarFlight.lowest-point-above-the-moon"), value: plan.window.periAlt < 0 ? simText('lunarFlight.predicted-impact') : kmTxt(plan.window.periAlt), kind: plan.window.periAlt > LUNAR.PERI_MIN ? 'good' : 'bad', goal: simText('lunarFlight.approach-in', fmtDur(plan.window.eta)) };
     if (ctx.readout) ctx.readout.text = `${ctx.readout.label}|${ctx.readout.value}|${ctx.readout.goal ?? ''}|${ctx.readout.kind ?? ''}`;
 
     // --- mensajes
@@ -893,7 +893,7 @@ export class FlightScene extends Phaser.Scene {
     const warn = [];
     if (emptyStage && flying) { ctx.pulseSep = hints; warn.push([simText("lunarFlight.this-stage-is-out-of-fuel-separate-it"), 'warn']); }
     if (act === 'entry' && !sim.capsuleOnly) { ctx.pulseSep = true; warn.push([simText("lunarFlight.release-the-service-module-now-space-the-heat"), 'bad']); }
-    if (sim.capsuleOnly && sim.gNow > (sim.craft.gLimit ?? 9)) warn.push([simText("lunarFlight.high-deceleration-0-g", sim.gNow.toFixed(1)), 'warn']);
+    if (sim.capsuleOnly && sim.gNow > (sim.craft.gLimit ?? 9)) warn.push([simText("lunarFlight.high-deceleration-0-g", localizedNumber(sim.gNow, 1, 1)), 'warn']);
     if (ph === 'approach' && plan.window && plan.window.periAlt < LUNAR.PERI_MIN / 2 && !burning) warn.push([simText("lunarFlight.the-trajectory-passes-dangerously-close-to-or-into"), 'bad']);
     if (auto) msg = ph === 'landed' ? null : simText("lunarFlight.autopilot-0", LUNAR_PHASE_LABEL[ph].toLowerCase());
     else if (burning) {

@@ -15,7 +15,10 @@ export class BootScene extends Phaser.Scene {
       app.data = localizeLaunchData(await loadData());
       const plan = readMissionPlan(location.hash);
       const review = plan && reviewFlightPlan(app.data, plan);
-      if (!review?.ready) throw new Error(t('station.prepareFirst'));
+      if (!review?.ready) {
+        this.showError('station.prepareFirst');
+        return;
+      }
       app.campaign = review.campaign ? { runId: plan.campaignRun, build: plan.roverBuild } : null;
       app.teamMode = plan.teamMode === true;
       app.acks = Object.fromEntries(review.requiredRoles.map(role => [role, true]));
@@ -34,12 +37,19 @@ export class BootScene extends Phaser.Scene {
         this.scene.start('FlightScene');
       } else this.scene.start('PadScene');
     } catch (error) {
-      document.querySelector('#boot .boot-bar').hidden = true;
-      const el = document.getElementById('boot-error');
-      el.hidden = false;
-      el.textContent = error.message;
-      document.getElementById('boot-back').hidden = false;
-      document.getElementById('boot-back').focus();
+      console.error('Launch setup failed', error);
+      this.showError('station.loadError');
     }
+  }
+
+  showError(key) {
+    document.getElementById('boot').hidden = false;
+    document.querySelector('#boot .boot-bar').hidden = true;
+    const el = document.getElementById('boot-error');
+    el.dataset.i18n = key;
+    el.textContent = t(key);
+    el.hidden = false;
+    document.getElementById('boot-back').hidden = false;
+    document.getElementById('boot-back').focus();
   }
 }
