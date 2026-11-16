@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { loadData } from '../state.js';
 import { app } from '../store.js';
 import { reviewFlightPlan } from '../../../../src/missions/flightPlan.js';
+import { prepareLaunch } from '../flow.js';
 import { readMissionPlan } from '../../../../src/missions/missionTransfer.js';
 import { localizeLaunchData } from '../localizeData.js';
 import { t } from '../../../../src/i18n/index.js';
@@ -28,7 +29,10 @@ export class BootScene extends Phaser.Scene {
       app.launchWindow = review.launchWindow;
       app.confirmed = true;
       document.getElementById('boot').hidden = true;
-      this.scene.start('PadScene');
+      if (new URLSearchParams(location.search).get('testReturn') === '1' && review.resolved.scenario.id === 'moonReturn') {
+        await prepareLaunch();
+        this.scene.start('FlightScene');
+      } else this.scene.start('PadScene');
     } catch (error) {
       document.querySelector('#boot .boot-bar').hidden = true;
       const el = document.getElementById('boot-error');
