@@ -28,7 +28,7 @@ export function renderRoverStation(part, build, { translate, number }) {
           const key = `${id}.${c.id}`;
           return `<button type="button" class="opt${active ? ' is-selected' : ''}" data-component="${id}" data-option="${c.id}" data-focus="${id}-${c.id}" aria-pressed="${active}">
             <span class="tag">${tr('roverUI.chosen')}</span><b class="name">${tr(`component.${key}`)}</b>
-            <span class="nums"><span class="chip">${c.mass} kg</span><span class="chip">${c.cost} cr</span></span>
+            <span class="nums"><span class="chip">${c.mass} kg</span><span class="chip">${n(c.cost, c.cost % 1 ? 1 : 0)} M US$</span></span>
             <span class="facts">${factsFor[id](c)}</span><span class="trade">${tr(`trade.${key}`)}</span>
           </button>`;
         }).join('')}
@@ -38,7 +38,7 @@ export function renderRoverStation(part, build, { translate, number }) {
   const missing = CATEGORIES.filter(c => !COMPONENTS[c.id].some(option => option.id === build[c.id]));
   const warnings = [
     ...(missing.length ? [tr('roverMissing', { parts: missing.map(c => translate(`station.field.${c.id}`)).join(', ') })] : []),
-    ...(stats.mass > LIMITS.mass || stats.cost > LIMITS.credits ? [tr('roverLimits')] : []),
+    ...(stats.mass > LIMITS.mass || stats.cost > LIMITS.budgetMUSD ? [tr('roverLimits')] : []),
   ];
   const meter = (key, value, max, unit) => {
     const ratio = value / max;
@@ -57,7 +57,7 @@ export function renderRoverStation(part, build, { translate, number }) {
     <aside class="side">
       <section class="panel"><h3>${tr('roverUI.preview')}</h3><div class="preview" data-rover-preview></div></section>
       <section class="panel"><h3>${tr('roverUI.resources')}</h3>
-        ${meter('mass', stats.mass, LIMITS.mass, 'kg')}${meter('cost', stats.cost, LIMITS.credits, 'cr')}
+        ${meter('mass', stats.mass, LIMITS.mass, 'kg')}${meter('cost', stats.cost, LIMITS.budgetMUSD, 'M US$')}
         <div class="stats">
           ${stat('battery', stats.capacity ? `${stats.capacity} u` : '—')}
           ${stat('solar', stats.solar ? `+${n(stats.solar, 1)} u/s` : '—')}

@@ -1,6 +1,7 @@
 // Pixel art generado por código (sin imágenes externas). Lo usan tanto la vista previa del constructor
 // (canvas 2D normal) como las texturas de Phaser, así el rover de la previsualización es el mismo del terreno.
 import { CRATERS, ROCKS, WORLD, PHOTO_DEFS, START } from './rules.js';
+import { globeSample, CLOUD } from '../../launch/js/scenes/earth.js'; // la misma Tierra (continentes reales) que el módulo de lanzamiento
 
 export const ROVER_GRID = { w: 34, h: 26 };
 
@@ -61,6 +62,10 @@ export function roverCanvas(build, px = 4) {
 // Se calcula un campo de "brillo" a 1/4 de resolución (luz desde arriba a la izquierda), se cuantiza a una rampa de
 // 9 grises azulados con tramado ordenado y se amplía sin suavizado: aspecto pixel art con relieve real.
 const RAMP = ['#161c27', '#1e2633', '#283241', '#343f50', '#415065', '#505f76', '#62738b', '#778aa2', '#92a5bb', '#b4c3d4'].map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+const hexRamp = (list) => list.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+// Dos tipos de suelo, como en la Luna real: tierras altas claras (anortosita, gris cálido) y mares oscuros (basalto, gris azulado).
+const RAMP_HIGH = hexRamp(['#15161b', '#202127', '#2d2e35', '#3d3e45', '#505157', '#66666b', '#7e7d80', '#989693', '#b5b2aa', '#d6d1c4']);
+const RAMP_MARE = hexRamp(['#0e131c', '#151c28', '#1d2634', '#273242', '#323f52', '#3f4e63', '#4f5f76', '#63748c', '#7c8da5', '#9aabc0']);
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 const clampf = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (t) => t * t * (3 - 2 * t);
@@ -85,13 +90,13 @@ function stampCrater(L, gw, gh, cx, cy, r, noise, rnd, opts = {}) {
     const nz = noise(x * .35, y * .35, 2) - .5;
     if (d < 0.8) {                                       // suelo oscuro con sombra proyectada por el reborde
       const shade = clampf(((dx + dy) / (2 * r * .8)) + .5, 0, 1);
-      const floor = .15 + shade * 1.5 + nz * .9;
+      const floor = .9 + shade * 3.6 + nz * .9; // el borde proyecta sombra arriba-izquierda; el fondo se aclara hacia la luz
       L[i] = L[i] + (floor - L[i]) * clampf(amp * 1.4, 0, 1);
       if (opts.peak && d < .17) L[i] = 3.2 + (-lit) * 1.1 + nz;
       else if (opts.peak && d < .26) L[i] = Math.max(L[i], 1.4 + lit * .5);
     } else if (d < 1.0) {                                // pared interior: la cara hacia la luz (abajo-derecha) se ilumina
       const w = (d - .8) / .2;
-      const wall = 1.1 + w * (1.8 + 2.2 * lit);
+      const wall = 1.8 + w * (2.4 + 3.0 * lit);
       L[i] = L[i] + (wall - L[i]) * clampf(amp * 1.2, 0, 1) * (opts.terraces && ((d * 40) | 0) % 5 === 0 ? .6 : 1);
     } else if (d < 1.2) {                                // cresta del reborde
       const c = 1 - (d - 1) / .2, up = Math.max(0, -lit);
@@ -112,26 +117,58 @@ function stampCrater(L, gw, gh, cx, cy, r, noise, rnd, opts = {}) {
     }
   }
 }
-function stampRock(L, gw, gh, cx, cy, r) {
-  for (let y = Math.floor(cy - r * 2); y <= Math.ceil(cy + r * 2.4); y++) for (let x = Math.floor(cx - r * 2); x <= Math.ceil(cx + r * 2.4); x++) {
+// Roca iluminada desde arriba-izquierda con sombra LARGA hacia abajo-derecha (Sol bajo, como cerca del polo lunar).
+function stampRock(L, gw, gh, cx, cy, r, long = 2.4) {
+  const reach = r * (1.2 + long);
+  for (let y = Math.floor(cy - r * 2); y <= Math.ceil(cy + reach + r); y++) for (let x = Math.floor(cx - r * 2); x <= Math.ceil(cx + reach + r); x++) {
     if (x < 0 || y < 0 || x >= gw || y >= gh) continue;
     const i = y * gw + x, dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) / r;
-    const sdx = x - (cx + r * .9), sdy = y - (cy + r * .9);                   // sombra proyectada hacia abajo-derecha
-    if (Math.hypot(sdx, sdy) / (r * 1.05) < 1 && d >= 1) L[i] = Math.min(L[i], 0.2);
-    if (d < 1) { const lit = -(dx + dy) / (1.4142 * (Math.hypot(dx, dy) || 1)); L[i] = 4.6 + lit * 1.6 * Math.min(1, d + .2) - (d > .8 ? .8 : 0); }
+    if (d < 1) { const lit = -(dx + dy) / (1.4142 * (Math.hypot(dx, dy) || 1)); L[i] = 6.4 + lit * 2.6 * Math.min(1, d + .2) - (d > .8 ? 1.2 : 0); continue; }
+    // sombra: a lo largo de la diagonal, se afina y se aclara con la distancia
+    const along = (dx + dy) / 1.4142, across = Math.abs(dx - dy) / 1.4142;
+    if (along > 0 && along < reach && across < r * (1 - along / (reach * 1.15))) L[i] = Math.min(L[i], 1.3 + 2.2 * (along / reach) ** 1.5);
+  }
+}
+// Macizo montañoso del borde del terreno: cara iluminada, cara en sombra y cresta.
+function stampPeak(L, gw, gh, cx, cy, r, noise) {
+  for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r * 2.2); y++) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r * 2.2); x++) {
+    if (x < 0 || y < 0 || x >= gw || y >= gh) continue;
+    const i = y * gw + x, dx = x - cx, dy = y - cy, dist = Math.hypot(dx, dy) || .001, d = dist / r;
+    if (d < 1) {
+      const h = 1 - d, lit = -(dx + dy) / (1.4142 * dist), nz = noise(x * .5, y * .5, 2) - .5;
+      L[i] = 4.6 + lit * (1.6 + 2.6 * h) + h * 1.4 + nz * 1.6 + (Math.abs(dx - dy) < .8 ? 1 : 0);
+    } else { const along = (dx + dy) / 1.4142, across = Math.abs(dx - dy) / 1.4142; if (along > 0 && along < r * 2 && across < r * (1 - along / (r * 2.3))) L[i] = Math.min(L[i], .4 + 1.2 * (along / (r * 2))); }
   }
 }
 
+function prngAt(seed) { return prng(seed); }
+/** Destellos de hielo de agua en el fondo siempre en sombra de los cráteres grandes (coordenadas del mundo). */
+export function iceSpots() {
+  const rnd = prngAt(909), out = [];
+  for (const c of CRATERS) { if (c.r < 76) continue;
+    for (let k = 0; k < 9; k++) { const a = 3.3 + rnd() * 1.9, d = c.r * (.12 + rnd() * .5); out.push({ x: Math.round(c.x + Math.cos(a) * d), y: Math.round(c.y + Math.sin(a) * d), big: rnd() > .7 }); } }
+  return out;
+}
+// Grieta sinuosa (rima) al este del terreno: sólo decorativa.
+const RILLE = [[1530, 30], [1562, 210], [1502, 390], [1556, 575], [1512, 760], [1560, 970]];
+
 export function terrainCanvas() {
   const S = 4, gw = WORLD.w / S, gh = WORLD.h / S, rnd = prng(2024), noise = makeNoise(11);
-  const L = new Float32Array(gw * gh);
+  const L = new Float32Array(gw * gh), M = new Float32Array(gw * gh), Hh = new Float32Array(gw * gh);
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) Hh[y * gw + x] = noise(x / 46, y / 46, 4) * .7 + noise(x / 14, y / 14, 3) * .3;
+  const hAt = (x, y) => Hh[clampf(y, 0, gh - 1) * gw + clampf(x, 0, gw - 1)];
   for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
-    let n = noise(x / 46, y / 46, 4) * .62 + noise(x / 9, y / 9, 3) * .38;
-    const mare = noise(x / 110 + 17, y / 110 + 5, 3);                  // «mares» extensos más oscuros
-    let v = 3.3 + (n - .5) * 3.6 - Math.max(0, mare - .5) * 5.5;
+    const n = noise(x / 46, y / 46, 4) * .62 + noise(x / 9, y / 9, 3) * .38;
+    const mare = noise(x / 110 + 17, y / 110 + 5, 3);                  // «mares» de basalto, extensos y más oscuros
+    const m = clampf((mare - .46) * 7, 0, 1); M[y * gw + x] = m;
+    let v = 4.7 + (n - .5) * 3.0 - m * 1.5;
+    v += (hAt(x - 1, y - 1) - hAt(x + 1, y + 1)) * 15;                 // relieve: las laderas hacia la luz se aclaran
     v += (BAYER[(y & 3) * 4 + (x & 3)] / 16 - .5) * .85;                // tramado ordenado
     L[y * gw + x] = v;
   }
+  // Crestas arrugadas de los mares (bandas claras y largas)
+  for (let k = 0; k < 5; k++) { let x = rnd() * gw, y = rnd() * gh, a = rnd() * 6.28;
+    for (let t = 0; t < 70; t++) { a += (rnd() - .5) * .5; x += Math.cos(a); y += Math.sin(a); const xi = x | 0, yi = y | 0; if (xi < 1 || yi < 1 || xi >= gw - 1 || yi >= gh - 1) break; if (M[yi * gw + xi] > .4) { L[yi * gw + xi] += 1; L[(yi + 1) * gw + xi + 1] -= .8; } } }
   // Zona de aterrizaje chamuscada por el motor de descenso (radial)
   const sx = START.x / S, sy = START.y / S;
   for (let y = Math.floor(sy - 22); y <= sy + 22; y++) for (let x = Math.floor(sx - 22); x <= sx + 22; x++) {
@@ -140,31 +177,63 @@ export function terrainCanvas() {
     const a = Math.atan2(dy, dx), streak = .6 + .4 * Math.sin(a * 11 + noise(x * .2, y * .2, 1) * 6);
     L[y * gw + x] -= (1 - d) * (1.6 + streak * .9);
   }
+  // Rima: canal oscuro con la pared este iluminada
+  for (let s0 = 0; s0 < RILLE.length - 1; s0++) { const [ax, ay] = RILLE[s0], [bx, by] = RILLE[s0 + 1];
+    for (let t = 0; t <= 1; t += .004) { const u = t * t * (3 - 2 * t), x = Math.round((ax + (bx - ax) * u) / S + Math.sin((ay + (by - ay) * t) / 60) * 1.5), y = Math.round((ay + (by - ay) * t) / S);
+      if (y < 0 || y >= gh) continue;
+      for (const [o, dv] of [[-2, -.5], [-1, -1.9], [0, -2.6], [1, -1.6], [2, 1.5], [3, .7]]) { const xx = x + o; if (xx >= 0 && xx < gw) L[y * gw + xx] = dv < 0 ? Math.min(L[y * gw + xx], 3.4 + dv) : Math.max(L[y * gw + xx], 4.4 + dv); } } }
   // Cráteres pequeños decorativos (sin colisión)
-  for (let i = 0; i < 150; i++) {
-    const x = rnd() * gw, y = rnd() * gh, r = 1.4 + Math.pow(rnd(), 2.2) * 5.5;
+  for (let i = 0; i < 240; i++) {
+    const x = rnd() * gw, y = rnd() * gh, r = 1.2 + Math.pow(rnd(), 2.4) * 5.5;
     if (CRATERS.some((c) => Math.hypot(x - c.x / S, y - c.y / S) < c.r / S * 1.4 + r) || ROCKS.some((c) => Math.hypot(x - c.x / S, y - c.y / S) < c.r / S + r)) continue;
     stampCrater(L, gw, gh, x, y, r, noise, rnd, { amp: .8 });
   }
   for (const c of CRATERS) stampCrater(L, gw, gh, c.x / S, c.y / S, c.r / S, noise, rnd, { rays: true, ejecta: true, peak: c.r >= 80, terraces: c.r >= 90 });
-  for (const k of ROCKS) stampRock(L, gw, gh, k.x / S, k.y / S, k.r / S);
-  for (let i = 0; i < 70; i++) { const x = rnd() * gw, y = rnd() * gh; if (!CRATERS.some((c) => Math.hypot(x - c.x / S, y - c.y / S) < c.r / S * 1.3)) stampRock(L, gw, gh, x, y, .8 + rnd() * 1.4); } // guijarros
-  // Marco rocoso y viñeta del límite del terreno
-  for (let i = 0; i < 220; i++) { const e = rnd(), x = e < .5 ? rnd() * gw : (rnd() > .5 ? rnd() * 5 : gw - rnd() * 5), y = e < .5 ? (rnd() > .5 ? rnd() * 5 : gh - rnd() * 5) : rnd() * gh; stampRock(L, gw, gh, x, y, 1.2 + rnd() * 3); }
-  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) { const e = Math.min(x, y, gw - 1 - x, gh - 1 - y); if (e < 14) L[y * gw + x] -= Math.pow(1 - e / 14, 2) * 3.4; }
+  // Fondo de los cráteres grandes: sombra permanente (ahí se conserva el hielo)
+  for (const c of CRATERS) { if (c.r < 76) continue; const cx = c.x / S, cy = c.y / S, r = c.r / S;
+    for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) { const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) / r; if (d < .62 && dx + dy < -r * .12) L[y * gw + x] = Math.min(L[y * gw + x], .3 + d * 1.2); } }
+  // Bloques expulsados alrededor de los cráteres grandes (decorativos, pequeños)
+  for (const c of CRATERS) for (let k = 0; k < 16; k++) { const a = rnd() * 6.2832, d = (c.r / S) * (1.28 + rnd() * .7); stampRock(L, gw, gh, c.x / S + Math.cos(a) * d, c.y / S + Math.sin(a) * d, .7 + rnd() * .9, 2); }
+  for (const k of ROCKS) stampRock(L, gw, gh, k.x / S, k.y / S, k.r / S, 2.6);
+  for (let i = 0; i < 90; i++) { const x = rnd() * gw, y = rnd() * gh; if (!CRATERS.some((c) => Math.hypot(x - c.x / S, y - c.y / S) < c.r / S * 1.3)) stampRock(L, gw, gh, x, y, .7 + rnd() * 1.1, 1.5); } // guijarros
+  // Cordillera del borde y viñeta del límite del terreno
+  for (let i = 0; i < 64; i++) { const side = i % 4, t = rnd(), r = 3 + rnd() * 3.2;
+    const x = side === 0 ? t * gw : side === 1 ? t * gw : side === 2 ? rnd() * 1.5 : gw - rnd() * 1.5, y = side === 0 ? rnd() * 1.5 : side === 1 ? gh - rnd() * 1.5 : t * gh;
+    stampPeak(L, gw, gh, x, y, r, noise); }
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) { const e = Math.min(x, y, gw - 1 - x, gh - 1 - y); if (e < 12) L[y * gw + x] -= Math.pow(1 - e / 12, 2) * 2.4; }
 
   const small = document.createElement('canvas'); small.width = gw; small.height = gh;
   const g = small.getContext('2d'), img = g.createImageData(gw, gh);
   for (let i = 0; i < L.length; i++) {
-    const c = RAMP[clampf(Math.round(L[i]), 0, RAMP.length - 1)]; img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
+    const x = i % gw, y = (i / gw) | 0;
+    const ramp = M[i] > BAYER[(y & 3) * 4 + (x & 3)] / 16 + .03 ? RAMP_MARE : RAMP_HIGH;   // el borde entre mar y tierras altas se trama
+    const c = ramp[clampf(Math.round(L[i]), 0, ramp.length - 1)]; img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
   }
   g.putImageData(img, 0, 0);
   // Destellos de polvo brillante
-  for (let i = 0; i < 160; i++) { g.fillStyle = rnd() > .5 ? '#a9bbd0' : '#6f8199'; g.fillRect(rnd() * gw | 0, rnd() * gh | 0, 1, 1); }
+  for (let i = 0; i < 200; i++) { g.fillStyle = rnd() > .5 ? '#c9c6bd' : '#7f8ea2'; g.fillRect(rnd() * gw | 0, rnd() * gh | 0, 1, 1); }
+  // Hielo de agua en las sombras permanentes y un parche de suelo anaranjado (vidrio volcánico, como el que halló el Apolo 17)
+  for (const sp of iceSpots()) { g.fillStyle = sp.big ? '#d6f1ff' : '#7fc4ee'; g.fillRect(Math.round(sp.x / S), Math.round(sp.y / S), 1, 1); if (sp.big) { g.fillStyle = '#5aa6d6'; g.fillRect(Math.round(sp.x / S) + 1, Math.round(sp.y / S), 1, 1); } }
+  for (let k = 0; k < 14; k++) { g.fillStyle = k % 3 ? '#a8713c' : '#c98a4a'; g.fillRect(Math.round(1318 / S + (rnd() - .5) * 7), Math.round(884 / S + (rnd() - .5) * 4), 1, 1); }
   for (const p of PHOTO_DEFS) paintLandmark(g, p, S);
   const big = document.createElement('canvas'); big.width = WORLD.w; big.height = WORLD.h;
   const b = big.getContext('2d'); b.imageSmoothingEnabled = false; b.drawImage(small, 0, 0, WORLD.w, WORLD.h);
   return big;
+}
+
+/** Luz del Sol bajo sobre todo el terreno: más clara arriba a la izquierda, penumbra abajo a la derecha (tramada). */
+export function lightCanvas() {
+  const S = 8, gw = WORLD.w / S, gh = WORLD.h / S;
+  const c = document.createElement('canvas'); c.width = gw; c.height = gh;
+  const g = c.getContext('2d'), img = g.createImageData(gw, gh);
+  for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+    const t = (x / gw + y / gh) / 2, i = (y * gw + x) * 4, dth = BAYER[(y & 3) * 4 + (x & 3)] / 16 - .5;
+    const dark = clampf((t - .42) * 1.5 + dth * .12, 0, 1), warm = clampf((.3 - t) * 1.6 + dth * .1, 0, 1);
+    if (warm > 0) { img.data[i] = 255; img.data[i + 1] = 236; img.data[i + 2] = 200; img.data[i + 3] = Math.round(warm * 5) / 5 * 30; }
+    else { img.data[i] = 4; img.data[i + 1] = 8; img.data[i + 2] = 24; img.data[i + 3] = Math.round(dark * 6) / 6 * 58; }
+  }
+  g.putImageData(img, 0, 0);
+  return c;
 }
 
 // Puntos de interés dibujados directamente en la rejilla del terreno.
@@ -211,60 +280,96 @@ export function poiCanvas(px = 3) {
   return c;
 }
 
-// Planeta Tierra en pixel art (océanos, continentes, nubes, terminador y halo).
+// Planeta Tierra en pixel art con los CONTINENTES REALES (mismo mapa que el módulo de lanzamiento), nubes y la
+// parte de noche: desde la Luna la Tierra se ve con fases.
+const EARTH_COL = { 0: [31, 95, 174], 1: [63, 143, 74], 2: [194, 164, 101], 3: [238, 244, 250] };
 export function earthCanvas(size = 64) {
   const c = document.createElement('canvas'); c.width = size; c.height = size;
-  const g = c.getContext('2d'), noise = makeNoise(5), r = size / 2 - 1;
+  const g = c.getContext('2d'), r = size / 2 - 1;
   const img = g.createImageData(size, size);
+  const lon0 = -55 * Math.PI / 180;                                          // se ven América, el Atlántico y África
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const dx = (x - r - 1) / r, dy = (y - r - 1) / r, d = Math.hypot(dx, dy), i = (y * size + x) * 4;
     if (d > 1) continue;
-    const nx = dx, ny = dy, nz = Math.sqrt(1 - d * d);
-    const land = noise(nx * 2.4 + 3, ny * 2.4 + 1, 4) > .54, cloud = noise(nx * 4 + 9, ny * 4 + 2, 3) > .62;
-    let col = land ? [66, 140, 84] : [28, 82, 170];
-    if (land && noise(nx * 5, ny * 5, 2) > .6) col = [150, 135, 90];
-    if (cloud) col = [226, 236, 246];
-    const light = clampf(-(nx * .6 + ny * .5) * .9 + nz * .55 + .1, .08, 1.15);
+    const nz = Math.sqrt(1 - d * d);
+    const s = globeSample(dx, -dy, .22, lon0);
+    let col = s & CLOUD ? [240, 246, 252] : EARTH_COL[s & 7];
+    const light = clampf(-(dx * .62 + dy * .45) * 1.05 + nz * .5 + .12, .07, 1.12);
     const q = Math.round(light * 5) / 5;                                    // sombreado en bandas (pixel art)
+    if (d > .93) col = [col[0] * .6 + 60, col[1] * .6 + 90, col[2] * .6 + 110]; // borde azulado: la atmósfera
     img.data[i] = Math.min(255, col[0] * q); img.data[i + 1] = Math.min(255, col[1] * q); img.data[i + 2] = Math.min(255, col[2] * q); img.data[i + 3] = 255;
   }
   g.putImageData(img, 0, 0);
   return c;
 }
 
-// Cielo para briefing/construcción/resultados: estrellas por capas, Vía Láctea tramada, Tierra y horizonte lunar con módulo.
+// Cielo para la espera y los resultados: estrellas por capas, Vía Láctea tramada, la Tierra real con halo, dos
+// cordilleras con el Sol rasante, llanura con cráteres en perspectiva, rocas con sombra larga, módulo, rover y huellas.
 export function skyCanvas(w, h) {
   const S = 3, gw = Math.ceil(w / S), gh = Math.ceil(h / S), rnd = prng(77), noise = makeNoise(31);
   const small = document.createElement('canvas'); small.width = gw; small.height = gh;
   const g = small.getContext('2d'), img = g.createImageData(gw, gh);
-  const top = [3, 8, 18], bot = [11, 36, 74];
+  const top = [2, 5, 13], bot = [9, 24, 52];
   for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
     const t = y / gh, i = (y * gw + x) * 4;
     const band = Math.max(0, 1 - Math.abs((x / gw * .6 + y / gh * .8) - .62) * 5.2);             // banda diagonal de la Vía Láctea
     const mw = band * noise(x / 14, y / 14, 4) * (BAYER[(y & 3) * 4 + (x & 3)] / 16 + .25);
-    for (let k = 0; k < 3; k++) img.data[i + k] = top[k] + (bot[k] - top[k]) * t * t + mw * [70, 62, 96][k];
+    for (let k = 0; k < 3; k++) img.data[i + k] = top[k] + (bot[k] - top[k]) * t * t + mw * [78, 66, 104][k];
     img.data[i + 3] = 255;
   }
   g.putImageData(img, 0, 0);
-  for (let i = 0; i < gw * gh / 160; i++) {                                                          // estrellas
-    const x = rnd() * gw | 0, y = rnd() * gh * .8 | 0, k = rnd(); g.fillStyle = k > .93 ? '#ffd166' : k > .8 ? '#6ce2cf' : k > .4 ? '#eaf4ff' : '#7f93b2'; g.fillRect(x, y, 1, 1);
+  const R = (x, y, ww, hh, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(ww)), Math.max(1, Math.round(hh))); };
+  for (let i = 0; i < gw * gh / 130; i++) {                                                          // estrellas
+    const x = rnd() * gw | 0, y = rnd() * gh * .78 | 0, k = rnd(); R(x, y, 1, 1, k > .93 ? '#ffd9a0' : k > .82 ? '#a8d8ff' : k > .4 ? '#eaf4ff' : '#6f83a2');
     if (k > .965) { g.fillStyle = 'rgba(234,244,255,.45)'; g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y - 1, 1, 3); }
   }
-  // Tierra con halo
-  const es = Math.round(Math.min(gw, gh) * .2), ex = Math.round(gw * .8), ey = Math.round(gh * .22);
-  for (let k = 5; k >= 1; k--) { g.fillStyle = `rgba(80,160,255,${.035 * (6 - k)})`; g.beginPath(); g.arc(ex, ey, es / 2 + k * 3, 0, 6.2832); g.fill(); }
+  // La Tierra (continentes reales) con halo
+  const es = Math.round(Math.min(gw, gh) * .26), ex = Math.round(gw * .78), ey = Math.round(gh * .24);
+  for (let k = 6; k >= 1; k--) { g.fillStyle = `rgba(80,160,255,${.03 * (7 - k)})`; g.beginPath(); g.arc(ex, ey, es / 2 + k * 3, 0, 6.2832); g.fill(); }
   g.drawImage(earthCanvas(es), ex - es / 2, ey - es / 2);
-  // Horizonte lunar
-  const hy = Math.round(gh * .8), R = Math.max(gw, gh) * 1.4;
-  g.save(); g.beginPath(); g.arc(gw / 2, hy + R, R, 0, 6.2832); g.clip();
-  g.fillStyle = '#4b5a70'; g.fillRect(0, hy - 2, gw, gh);
-  for (let y = hy; y < gh; y++) for (let x = 0; x < gw; x++) { const n = noise(x / 12, y / 5, 3) + (BAYER[(y & 3) * 4 + (x & 3)] / 16 - .5) * .35; g.fillStyle = n > .62 ? '#5d6e85' : n > .45 ? '#46556b' : '#34415a'; g.fillRect(x, y, 1, 1); }
-  for (let i = 0; i < 26; i++) { const cx = rnd() * gw, cy = hy + 4 + rnd() * (gh - hy), cr = 2 + rnd() * 9; g.fillStyle = '#222c3c'; g.beginPath(); g.ellipse(cx, cy, cr, cr * .32, 0, 0, 6.2832); g.fill(); g.fillStyle = '#7c8ea6'; g.fillRect(cx - cr, cy - 1, cr * .6, 1); }
-  g.restore();
-  g.fillStyle = '#9fb2cc'; g.fillRect(0, hy - 2, gw, 1);                                              // línea de luz del horizonte
-  const lx = Math.round(gw * .22), ly = hy + 3;                                                       // módulo y bandera en silueta
-  g.fillStyle = '#c9d4e2'; g.fillRect(lx - 5, ly - 6, 10, 5); g.fillStyle = '#8c6a22'; g.fillRect(lx - 4, ly - 5, 8, 1); g.fillStyle = '#7f8ea2'; g.fillRect(lx - 7, ly - 1, 14, 1); g.fillRect(lx - 6, ly - 2, 1, 2); g.fillRect(lx + 5, ly - 2, 1, 2);
-  g.fillStyle = '#e9eef5'; g.fillRect(lx + 12, ly - 10, 1, 10); g.fillStyle = '#6ce2cf'; g.fillRect(lx + 13, ly - 10, 5, 3);
+  // Dos cordilleras: el Sol llega rasante desde la izquierda (caras claras a la izquierda, sombras a la derecha)
+  const hy = Math.round(gh * .74);
+  const ridge = (base, amp, scale, seedOff, dark, mid, lit) => {
+    const hs = []; for (let x = -6; x < gw + 6; x++) hs.push(amp * (noise(x / scale + seedOff, seedOff, 3) * 1.5 + Math.abs(Math.sin(x / (scale * 1.7) + seedOff)) * .5));
+    for (let x = 0; x < gw; x++) {
+      const hgt = Math.round(hs[x + 6]), slope = hs[x + 6] - hs[x + 1];                                 // pendiente suavizada (5 px)
+      const y0 = base - hgt, sunny = slope > .4;                                                        // sube hacia la derecha = cara que mira al Sol
+      R(x, y0, 1, base - y0 + 2, dark);
+      R(x, y0, 1, Math.max(1, Math.round(hgt * (sunny ? .45 : .25))), sunny ? lit : mid);
+      if (sunny && ((x + y0) & 1)) R(x, y0 + Math.round(hgt * .45), 1, Math.max(1, Math.round(hgt * .15)), lit);  // trama entre luz y sombra
+      R(x, y0, 1, 1, sunny ? '#e6e2d6' : mid);
+    }
+  };
+  ridge(hy + 2, gh * .13, 26, 3.1, '#1a2130', '#2a3345', '#5f6877');
+  ridge(hy + 4, gh * .06, 30, 9.7, '#232b3a', '#394456', '#8a8d8e');
+  // Llanura
+  for (let y = hy; y < gh; y++) for (let x = 0; x < gw; x++) { const n = noise(x / 16, (y - hy) / 4, 3) + (BAYER[(y & 3) * 4 + (x & 3)] / 16 - .5) * .32 - (y - hy) / (gh - hy) * .12; R(x, y, 1, 1, n > .64 ? '#7c7b78' : n > .5 ? '#5f6066' : n > .36 ? '#484b55' : '#353945'); }
+  R(0, hy - 1, gw, 1, '#b9b5a8');                                                                      // línea de luz del horizonte
+  for (let i = 0; i < 30; i++) {                                                                       // cráteres en perspectiva
+    const cy = hy + 4 + Math.pow(rnd(), 1.4) * (gh - hy - 6), k = (cy - hy) / (gh - hy), cx = rnd() * gw, cr = 2 + k * (4 + rnd() * 12);
+    g.fillStyle = '#1b202b'; g.beginPath(); g.ellipse(cx, cy, cr, cr * .3, 0, 0, 6.2832); g.fill();
+    g.fillStyle = '#2b313d'; g.beginPath(); g.ellipse(cx + cr * .2, cy + cr * .06, cr * .7, cr * .2, 0, 0, 6.2832); g.fill();
+    R(cx - cr * .1, cy - cr * .3 - 1, cr * 1.05, 1, '#c9c6bd'); R(cx + cr * .75, cy - cr * .12, cr * .3, 1, '#a9a69c');
+  }
+  for (let i = 0; i < 34; i++) {                                                                       // rocas con sombra larga
+    const y = hy + 3 + rnd() * (gh - hy - 4), k = (y - hy) / (gh - hy), x = rnd() * gw, s = 1 + Math.round(k * 3 * rnd());
+    R(x + s, y, s * 4, 1, 'rgba(8,10,18,.6)'); R(x, y - s + 1, s, s, '#8e8d8a'); R(x, y - s + 1, s, 1, '#dcd8cc');
+  }
+  // Módulo de aterrizaje (lámina dorada, patas, antena) y bandera
+  const lx = Math.round(gw * .2), ly = hy + Math.round((gh - hy) * .3);
+  R(lx - 2, ly, 26, 1, 'rgba(8,10,18,.6)');
+  R(lx - 7, ly - 9, 14, 7, '#8c6a22'); R(lx - 6, ly - 8, 12, 5, '#d9a441'); R(lx - 6, ly - 8, 12, 1, '#f6dc8a'); R(lx - 6, ly - 8, 2, 5, '#eec35f');
+  R(lx - 3, ly - 13, 6, 4, '#b8c2cd'); R(lx - 3, ly - 13, 6, 1, '#eef2f6'); R(lx + 1, ly - 12, 1, 1, '#6ce2cf');
+  for (const sd of [-1, 1]) { R(lx + sd * 8 - (sd < 0 ? 1 : 0), ly - 3, 1, 3, '#9aa7b8'); R(lx + sd * 9 - (sd < 0 ? 2 : 0), ly - 1, 3, 1, '#cfd8e3'); R(lx + sd * 5, ly - 4, 4, 1, '#7f8ea2'); }
+  R(lx + 4, ly - 17, 1, 5, '#9aa7b8'); R(lx + 2, ly - 19, 5, 2, '#e6edf6'); R(lx + 4, ly - 20, 1, 1, '#ff7b7b');
+  R(lx + 16, ly - 12, 1, 12, '#e9eef5'); R(lx + 17, ly - 12, 6, 4, '#6ce2cf'); R(lx + 17, ly - 12, 6, 1, '#b8fff4');
+  // Rover a lo lejos con sus huellas
+  const rx = Math.round(gw * .52), ry = hy + Math.round((gh - hy) * .46);
+  for (let t = 0; t < 46; t += 2) { R(lx + 22 + (rx - lx - 26) * (t / 46), ly + (ry - ly) * (t / 46), 1, 1, 'rgba(8,10,18,.55)'); R(lx + 22 + (rx - lx - 26) * (t / 46), ly + 2 + (ry - ly) * (t / 46), 1, 1, 'rgba(8,10,18,.4)'); }
+  R(rx + 3, ry + 1, 14, 1, 'rgba(8,10,18,.6)');
+  R(rx - 5, ry - 4, 10, 3, '#b3bfce'); R(rx - 5, ry - 4, 10, 1, '#e6edf6'); R(rx - 4, ry - 6, 8, 1, '#2f6bff'); R(rx - 4, ry - 7, 8, 1, '#6fa0ff');
+  for (const ox of [-4, 0, 4]) R(rx + ox - 1, ry - 1, 2, 2, '#141b26');
+  R(rx - 4, ry - 9, 1, 3, '#7f8ea2'); R(rx - 5, ry - 10, 3, 1, '#2a3444'); R(rx + 4, ry - 8, 1, 2, '#7f8ea2'); R(rx + 3, ry - 9, 3, 1, '#e6edf6');
   const big = document.createElement('canvas'); big.width = gw * S; big.height = gh * S;
   const b = big.getContext('2d'); b.imageSmoothingEnabled = false; b.drawImage(small, 0, 0, big.width, big.height);
   return big;

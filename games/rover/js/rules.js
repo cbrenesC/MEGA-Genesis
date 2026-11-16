@@ -1,8 +1,12 @@
 // Reglas deterministas del módulo lunar (sin Phaser, sin DOM, sin azar ni reloj real).
 // Todo lo que cambia el estado de la misión pasa por aquí: la escena y la interfaz solo leen y dibujan.
-// Unidades: energía en "u", potencia en "u/s", masa en kg, costo en créditos, distancia en px del terreno.
+// Unidades: energía en "u", potencia en "u/s", masa en kg, distancia en px del terreno.
+// Costo en MILLONES DE DÓLARES (M US$): la misma moneda que el módulo de lanzamiento. Las cifras son aproximadas
+// para el juego, del orden de un rover lunar pequeño de tipo comercial (decenas de millones de dólares).
 
-export const LIMITS = Object.freeze({ mass: 145, credits: 850 });
+export const LIMITS = Object.freeze({ mass: 145, budgetMUSD: 85 });
+/** Dinero como en el módulo de lanzamiento: millones de dólares. */
+export const fmtCost = (m) => `${String(Math.round(m * 10) / 10).replace('.', ',')} M US$`;
 export const WORLD = Object.freeze({ w: 1600, h: 1000 });
 export const START = Object.freeze({ x: 800, y: 900 });
 export const RULES = Object.freeze({
@@ -35,38 +39,38 @@ export const CATEGORIES = Object.freeze([
 // Catálogo. Cada opción lleva sus números; `trade` es la consecuencia en una frase.
 export const COMPONENTS = {
   chassis: [
-    { id: 'ligero', name: 'Chasis ligero', mass: 38, cost: 180, speed: 80, moveDraw: 1.6, bumpMul: 1, trade: 'Rápido y eficiente, pero sin blindaje: los choques gastan más energía.' },
-    { id: 'estandar', name: 'Chasis estándar', mass: 52, cost: 260, speed: 70, moveDraw: 2.0, bumpMul: 0.8, trade: 'Equilibrado en velocidad, consumo y resistencia.' },
-    { id: 'reforzado', name: 'Chasis reforzado', mass: 68, cost: 340, speed: 58, moveDraw: 2.6, bumpMul: 0.4, trade: 'Aguanta choques, pero es lento, pesado y gasta más al moverse.' },
+    { id: 'ligero', name: 'Chasis ligero', mass: 38, cost: 18, speed: 80, moveDraw: 1.6, bumpMul: 1, trade: 'Rápido y eficiente, pero sin blindaje: los choques gastan más energía.' },
+    { id: 'estandar', name: 'Chasis estándar', mass: 52, cost: 26, speed: 70, moveDraw: 2.0, bumpMul: 0.8, trade: 'Equilibrado en velocidad, consumo y resistencia.' },
+    { id: 'reforzado', name: 'Chasis reforzado', mass: 68, cost: 34, speed: 58, moveDraw: 2.6, bumpMul: 0.4, trade: 'Aguanta choques, pero es lento, pesado y gasta más al moverse.' },
   ],
   wheels: [
-    { id: 'ligeras', name: 'Ruedas ligeras', mass: 10, cost: 70, speedMul: 1.1, drawMul: 0.9, bumpMul: 1.5, trade: 'Baratas y veloces, pero sufren más en los choques.' },
-    { id: 'estandar', name: 'Ruedas estándar', mass: 14, cost: 90, speedMul: 1.0, drawMul: 1.0, bumpMul: 1.0, trade: 'Opción neutra para casi cualquier terreno.' },
-    { id: 'todoterreno', name: 'Ruedas todoterreno', mass: 20, cost: 150, speedMul: 0.95, drawMul: 1.15, bumpMul: 0.5, trade: 'Reducen a la mitad el daño por choques, a costa de masa y consumo.' },
+    { id: 'ligeras', name: 'Ruedas ligeras', mass: 10, cost: 7, speedMul: 1.1, drawMul: 0.9, bumpMul: 1.5, trade: 'Baratas y veloces, pero sufren más en los choques.' },
+    { id: 'estandar', name: 'Ruedas estándar', mass: 14, cost: 9, speedMul: 1.0, drawMul: 1.0, bumpMul: 1.0, trade: 'Opción neutra para casi cualquier terreno.' },
+    { id: 'todoterreno', name: 'Ruedas todoterreno', mass: 20, cost: 15, speedMul: 0.95, drawMul: 1.15, bumpMul: 0.5, trade: 'Reducen a la mitad el daño por choques, a costa de masa y consumo.' },
   ],
   battery: [
-    { id: 'pequena', name: 'Batería pequeña', mass: 10, cost: 80, capacity: 60, trade: 'Ligera, pero obliga a esperar recargas solares entre tareas.' },
-    { id: 'media', name: 'Batería media', mass: 18, cost: 140, capacity: 100, trade: 'Autonomía razonable para una ruta con paradas.' },
-    { id: 'grande', name: 'Batería grande', mass: 28, cost: 220, capacity: 150, trade: 'Mucha autonomía, pero pesa y consume presupuesto.' },
+    { id: 'pequena', name: 'Batería pequeña', mass: 10, cost: 8, capacity: 60, trade: 'Ligera, pero obliga a esperar recargas solares entre tareas.' },
+    { id: 'media', name: 'Batería media', mass: 18, cost: 14, capacity: 100, trade: 'Autonomía razonable para una ruta con paradas.' },
+    { id: 'grande', name: 'Batería grande', mass: 28, cost: 22, capacity: 150, trade: 'Mucha autonomía, pero pesa y consume presupuesto.' },
   ],
   solar: [
-    { id: 'basico', name: 'Panel básico', mass: 6, cost: 60, gen: 0.6, trade: 'Recarga lenta: conviene una batería grande.' },
-    { id: 'medio', name: 'Panel medio', mass: 11, cost: 120, gen: 1.2, trade: 'Recarga útil durante análisis y transmisiones.' },
-    { id: 'avanzado', name: 'Panel avanzado', mass: 16, cost: 200, gen: 2.0, trade: 'Recarga rápida: permite una batería más pequeña.' },
+    { id: 'basico', name: 'Panel básico', mass: 6, cost: 6, gen: 0.6, trade: 'Recarga lenta: conviene una batería grande.' },
+    { id: 'medio', name: 'Panel medio', mass: 11, cost: 12, gen: 1.2, trade: 'Recarga útil durante análisis y transmisiones.' },
+    { id: 'avanzado', name: 'Panel avanzado', mass: 16, cost: 20, gen: 2.0, trade: 'Recarga rápida: permite una batería más pequeña.' },
   ],
   instrument: [
-    { id: 'espectrometro', name: 'Espectrómetro', mass: 12, cost: 150, analysisTime: 4, analysisEnergy: 12, quality: 1.0, trade: 'Análisis equilibrado y económico.' },
-    { id: 'taladro', name: 'Taladro de núcleo', mass: 22, cost: 210, analysisTime: 6, analysisEnergy: 18, quality: 1.5, trade: 'Mayor valor científico por muestra, pero lento y costoso en energía.' },
-    { id: 'laser', name: 'Láser de ablación', mass: 15, cost: 190, analysisTime: 3, analysisEnergy: 15, quality: 1.2, trade: 'Análisis rápido con buen valor, a un precio medio-alto.' },
+    { id: 'espectrometro', name: 'Espectrómetro', mass: 12, cost: 15, analysisTime: 4, analysisEnergy: 12, quality: 1.0, trade: 'Análisis equilibrado y económico.' },
+    { id: 'taladro', name: 'Taladro de núcleo', mass: 22, cost: 21, analysisTime: 6, analysisEnergy: 18, quality: 1.5, trade: 'Mayor valor científico por muestra, pero lento y costoso en energía.' },
+    { id: 'laser', name: 'Láser de ablación', mass: 15, cost: 19, analysisTime: 3, analysisEnergy: 15, quality: 1.2, trade: 'Análisis rápido con buen valor, a un precio medio-alto.' },
   ],
   camera: [
-    { id: 'basica', name: 'Cámara básica', mass: 4, cost: 40, draw: 0.1, dataMul: 1.0, photoTime: 1.2, photoEnergy: 2, trade: 'Consumo mínimo; fotos y paquetes de datos de valor estándar.' },
-    { id: 'hd', name: 'Cámara HD', mass: 8, cost: 90, draw: 0.3, dataMul: 1.5, photoTime: 0.8, photoEnergy: 3.5, trade: 'Fotos más rápidas y datos que valen 50 % más, pero gasta energía constantemente.' },
+    { id: 'basica', name: 'Cámara básica', mass: 4, cost: 4, draw: 0.1, dataMul: 1.0, photoTime: 1.2, photoEnergy: 2, trade: 'Consumo mínimo; fotos y paquetes de datos de valor estándar.' },
+    { id: 'hd', name: 'Cámara HD', mass: 8, cost: 9, draw: 0.3, dataMul: 1.5, photoTime: 0.8, photoEnergy: 3.5, trade: 'Fotos más rápidas y datos que valen 50 % más, pero gasta energía constantemente.' },
   ],
   comms: [
-    { id: 'baja', name: 'Antena de baja ganancia', mass: 5, cost: 50, txTime: 3, txEnergy: 10, trade: 'Barata, pero transmite despacio y con más energía.' },
-    { id: 'media', name: 'Antena media', mass: 9, cost: 100, txTime: 2, txEnergy: 8, trade: 'Buena relación entre tiempo, energía y masa.' },
-    { id: 'alta', name: 'Antena de alta ganancia', mass: 14, cost: 170, txTime: 1.5, txEnergy: 6, trade: 'Transmisión rápida y eficiente, pero pesada y cara.' },
+    { id: 'baja', name: 'Antena de baja ganancia', mass: 5, cost: 5, txTime: 3, txEnergy: 10, trade: 'Barata, pero transmite despacio y con más energía.' },
+    { id: 'media', name: 'Antena media', mass: 9, cost: 10, txTime: 2, txEnergy: 8, trade: 'Buena relación entre tiempo, energía y masa.' },
+    { id: 'alta', name: 'Antena de alta ganancia', mass: 14, cost: 17, txTime: 1.5, txEnergy: 6, trade: 'Transmisión rápida y eficiente, pero pesada y cara.' },
   ],
 };
 
@@ -93,10 +97,10 @@ export const PHOTO_DEFS = Object.freeze([
 ]);
 export const PHOTO_STATES = Object.freeze(['available', 'captured', 'transmitted']);
 export const SAMPLE_DEFS = Object.freeze([
-  { id: 'S1', kind: 'Regolito claro', x: 630, y: 260, value: 1.0 },
-  { id: 'S2', kind: 'Basalto oscuro', x: 1350, y: 860, value: 1.2 },
-  { id: 'S3', kind: 'Fragmento de cráter', x: 210, y: 540, value: 1.1, hidden: true },
-  { id: 'S4', kind: 'Polvo de alta cresta', x: 1380, y: 300, value: 0.9, hidden: true },
+  { id: 'S1', kind: 'Anortosita de tierras altas', x: 630, y: 260, value: 1.0 },
+  { id: 'S2', kind: 'Basalto de mar lunar', x: 1350, y: 860, value: 1.2 },
+  { id: 'S3', kind: 'Brecha de impacto', x: 210, y: 540, value: 1.1, hidden: true },
+  { id: 'S4', kind: 'Regolito con hielo de agua', x: 1380, y: 300, value: 0.9, hidden: true },
 ]);
 export const SAMPLE_STATES = Object.freeze(['available', 'collected', 'analyzed', 'transmitted']);
 
@@ -151,7 +155,7 @@ export function validateBuild(build) {
   const missing = CATEGORIES.filter((c) => c.required && !getComponent(c.id, build && build[c.id])).map((c) => c.label);
   if (missing.length) reasons.push(`Falta elegir: ${missing.join(', ')}.`);
   if (stats.mass > LIMITS.mass) reasons.push(`Masa ${fmt(stats.mass)}/${LIMITS.mass} kg: reduce ${fmt(stats.mass - LIMITS.mass)} kg.`);
-  if (stats.cost > LIMITS.credits) reasons.push(`Presupuesto ${stats.cost}/${LIMITS.credits} créditos: reduce ${stats.cost - LIMITS.credits}.`);
+  if (stats.cost > LIMITS.budgetMUSD) reasons.push(`Presupuesto ${fmtCost(stats.cost)} de ${fmtCost(LIMITS.budgetMUSD)}: reduce ${fmtCost(stats.cost - LIMITS.budgetMUSD)}.`);
   return { ok: reasons.length === 0, reasons, missing, stats };
 }
 export function fmt(n, d = 1) {
@@ -378,7 +382,7 @@ export function evaluate(m) {
   const energyPct = st.capacity ? Math.round((m.battery / st.capacity) * 100) : 0;
   const bonusEnergy = ok ? Math.round(energyPct * 0.5) : 0;
   const bonusTime = ok ? Math.max(0, Math.round((1 - m.elapsed / RULES.timeLimit) * 100)) : 0;
-  const bonusBudget = ok ? Math.max(0, Math.floor((LIMITS.credits - st.cost) / 10)) : 0;
+  const bonusBudget = ok ? Math.max(0, Math.floor(LIMITS.budgetMUSD - st.cost)) : 0; // 1 punto por cada millón sin gastar
   const penalty = Math.min(40, m.bumps * 5);
   const score = Math.max(0, science + data + photos + discoveries + bonusEnergy + bonusTime + bonusBudget - penalty);
   const rating = !ok ? 'X' : score >= 900 ? 'A' : score >= 720 ? 'B' : 'C';
@@ -406,7 +410,7 @@ export function evaluate(m) {
   if (ok && m.elapsed > RULES.timeLimit * 0.7) suggestions.push('Terminaste con poco margen de tiempo: un chasis más rápido o menos paradas mejorarían el bono de tiempo.');
   if (p.photosTransmitted < 2) suggestions.push('Fotografiar y transmitir puntos de interés suma puntos extra; una cámara HD los vale 50 % más.');
   if (p.discovered === 0) suggestions.push('No usaste el escáner: las muestras ocultas (S3 y S4) solo aparecen al escanear a menos de ' + RULES.scanRange + ' px.');
-  if (LIMITS.credits - st.cost >= 200) suggestions.push(`Sobraron ${LIMITS.credits - st.cost} créditos: un instrumento de más calidad o una cámara HD aumentarían la puntuación.`);
+  if (LIMITS.budgetMUSD - st.cost >= 20) suggestions.push(`Sobraron ${fmtCost(LIMITS.budgetMUSD - st.cost)}: un instrumento de más calidad o una cámara HD aumentarían la puntuación.`);
   if (ok && !suggestions.length) suggestions.push('Configuración y ruta muy equilibradas: prueba otra combinación para superar tu puntuación.');
   const explanation = ok
     ? `Misión completada: analizaste y transmitiste ${p.transmitted} muestras únicas en ${fmt(m.elapsed, 0)} s, con ${energyPct} % de batería restante. Puntuación ${score} (calificación ${rating}).`

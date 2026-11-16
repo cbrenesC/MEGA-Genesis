@@ -30,8 +30,9 @@ test('cada componente actualiza masa, costo, consumo, solar y batería', () => {
   ok(R.computeBuild(R.selectComponent(good(), 'camera', 'hd')).idleDraw > base.idleDraw);
   for (const cat of R.CATEGORIES) for (const c of R.COMPONENTS[cat.id]) { const s = R.computeBuild(R.selectComponent(good(), cat.id, c.id)); const old = R.getComponent(cat.id, good()[cat.id]); eq(+(s.mass - base.mass).toFixed(2), c.mass - old.mass, cat.id + ' masa'); eq(s.cost - base.cost, c.cost - old.cost, cat.id + ' costo'); }
 });
-test('límites 145 kg / 850 cr y razones específicas', () => {
-  eq(R.LIMITS, { mass: 145, credits: 850 });
+test('límites 145 kg / 85 M US$ (misma moneda que el lanzamiento) y razones específicas', () => {
+  eq(R.LIMITS, { mass: 145, budgetMUSD: 85 });
+  eq(R.fmtCost(82), '82 M US$'); eq(R.fmtCost(8.5), '8,5 M US$');
   ok(R.validateBuild(good()).ok);
   let v = R.validateBuild(R.emptyBuild()); ok(!v.ok && /Falta elegir: Chasis/.test(v.reasons[0]));
   let heavy = { chassis: 'reforzado', wheels: 'todoterreno', battery: 'grande', solar: 'avanzado', instrument: 'taladro', camera: 'hd', comms: 'alta' };

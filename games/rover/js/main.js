@@ -4,9 +4,9 @@
 import {
   WORLD, RULES, SAMPLE_DEFS,
   emptyBuild, validateBuild, createMission, step, startAction, availability,
-  progress, evaluate, snapshot, restoreMission, fmt, dataPackets, allAcked,
+  progress, evaluate, snapshot, restoreMission, fmt, fmtCost, dataPackets, allAcked,
 } from './rules.js';
-import { roverCanvas, terrainCanvas, sampleCanvas, poiCanvas, earthCanvas, skyCanvas } from './art.js';
+import { roverCanvas, terrainCanvas, sampleCanvas, poiCanvas, earthCanvas, skyCanvas, lightCanvas, iceSpots } from './art.js';
 import Phaser from 'phaser';
 import '@fontsource/press-start-2p/latin-400.css';
 import { getLanguage, localizeDOM, t } from '../../../src/i18n/index.js';
@@ -247,9 +247,16 @@ class ExploreScene extends Phaser.Scene {
     this.tracks = T.createCanvas('tracks', WORLD.w, WORLD.h);
     this.add.image(0, 0, 'terrain').setOrigin(0);
     this.add.image(0, 0, 'tracks').setOrigin(0);
+    // Luz del Sol rasante sobre todo el terreno (cálida arriba-izquierda, penumbra abajo-derecha)
+    if (!T.exists('sunlight')) T.addCanvas('sunlight', lightCanvas());
+    this.add.image(0, 0, 'sunlight').setOrigin(0).setDisplaySize(WORLD.w, WORLD.h).setDepth(.5);
+    this.ambience();
     for (const p of m.photos) if (p.state === 'available') this.makePoi(p);
     for (const s of m.samples) if (s.state === 'available' && s.revealed) this.makeSample(s, false);
-    this.shadow = this.add.ellipse(m.rover.x, m.rover.y + 20, 56, 13, 0x000000, .4).setDepth(2);
+    // Sombra larga del rover (Sol bajo) y faros que iluminan el suelo por delante
+    this.shadow = this.add.ellipse(m.rover.x, m.rover.y + 20, 74, 14, 0x000000, .46).setDepth(2);
+    this.beam = this.add.graphics().setDepth(1.5);
+    this.plume = this.add.graphics().setDepth(2.5);
     this.rover = this.add.image(m.rover.x, m.rover.y, 'rover').setOrigin(.5, .72).setScale(.6).setDepth(3);
     this.fx = this.add.graphics().setDepth(5);
     const cam = this.cameras.main; cam.setBounds(0, 0, WORLD.w, WORLD.h); cam.setBackgroundColor('#050b16'); cam.startFollow(this.rover, true, .12, .12);
@@ -264,6 +271,26 @@ class ExploreScene extends Phaser.Scene {
     this.events.once('shutdown', () => { this.scale.off('resize', this.layout); window.removeEventListener('resize', this.layout); this.ro.disconnect(); });
     if (app.paused) this.tweens.pauseAll();
     this.syncVisuals(); refreshHud();
+  }
+  // Vida del escenario: hielo que destella en las sombras de los cráteres, baliza del módulo, luces del borde del cráter
+  // y la sombra de un orbitador que cruza de vez en cuando. Sólo decoración: no toca las reglas.
+  ambience() {
+    const calm = !animateCamera();
+    for (const sp of iceSpots()) {
+      const q = this.add.rectangle(sp.x, sp.y, sp.big ? 4 : 3, sp.big ? 4 : 3, sp.big ? 0xd6f1ff : 0x8fd0f5, .9).setDepth(.6);
+      if (!calm) this.tweens.add({ targets: q, alpha: .15, duration: 700 + Math.random() * 1600, yoyo: true, repeat: -1, delay: Math.random() * 1500 });
+    }
+    const lander = this.m.photos.find((p) => p.id === 'P1');
+    if (lander) {
+      const beacon = this.add.rectangle(lander.x, lander.y - 4, 5, 5, 0xff5959, 1).setDepth(1.2);
+      const halo = this.add.circle(lander.x, lander.y - 4, 14, 0xff5959, .25).setDepth(1.1);
+      if (!calm) { this.tweens.add({ targets: beacon, alpha: .1, duration: 520, yoyo: true, repeat: -1 }); this.tweens.add({ targets: halo, alpha: 0, scale: 2.2, duration: 1040, repeat: -1 }); }
+    }
+    if (!calm) this.time.addEvent({ delay: 26000, loop: true, startAt: 18000, callback: () => { // sombra del orbitador que retransmite a la Tierra
+      const y = 120 + Math.random() * (WORLD.h - 240), sat = this.add.container(-60, y).setDepth(.7).setAlpha(.32);
+      sat.add([this.add.rectangle(0, 0, 14, 8, 0x000000), this.add.rectangle(-16, 0, 14, 5, 0x000000), this.add.rectangle(16, 0, 14, 5, 0x000000)]);
+      this.tweens.add({ targets: sat, x: WORLD.w + 60, y: y + 160, duration: 5200, onComplete: () => sat.destroy() });
+    } });
   }
   makeSample(s, animate) {
     const tint = Phaser.Display.Color.HexStringToColor(TINTS[s.id] || '#6ce2cf').color;
@@ -324,7 +351,22 @@ class ExploreScene extends Phaser.Scene {
     }
     const drop = m.phase === 'landing' ? Math.pow(1 - m.t / RULES.landingTime, 2) * 280 : 0;
     this.rover.setPosition(r.x, r.y - drop).setFlipX(r.facing < 0).setAngle(r.moving ? Math.sin(ex * 22) * 1.2 : 0);
-    this.shadow.setPosition(r.x, r.y + 20).setScale(1 - drop / 500).setAlpha(.4 - drop / 900);
+    this.shadow.setPosition(r.x + 10 + drop * .5, r.y + 22 + drop * .5).setScale(1 - drop / 500).setAlpha(.46 - drop / 800);
+    // Faros: cono de luz hacia donde mira el rover (se apaga sin energía)
+    const beam = this.beam; beam.clear();
+    if (m.phase !== 'landing' && !m.noPower) {
+      const f = r.facing > 0 ? 1 : -1, bx = r.x + f * 26, by = r.y + 6;
+      beam.fillStyle(0xfff3c4, .1).fillTriangle(bx, by - 4, bx + f * 120, by - 34, bx + f * 120, by + 40);
+      beam.fillStyle(0xfff3c4, .1).fillTriangle(bx, by - 2, bx + f * 78, by - 16, bx + f * 78, by + 24);
+    }
+    // Descenso: llama del motor bajo el rover y anillo de polvo que crece al acercarse al suelo
+    const plume = this.plume; plume.clear();
+    if (drop > 2) {
+      const k = Math.min(1, drop / 280), fl = 26 + Math.sin(ex * 60) * 6;
+      plume.fillStyle(0xff7a3d, .9).fillTriangle(r.x - 9, r.y - drop + 16, r.x + 9, r.y - drop + 16, r.x, r.y - drop + 16 + fl);
+      plume.fillStyle(0xffe08a, .95).fillTriangle(r.x - 5, r.y - drop + 16, r.x + 5, r.y - drop + 16, r.x, r.y - drop + 16 + fl * .6);
+      for (let i = 0; i < 14; i++) { const a = (i / 14) * 6.2832 + ex * 2, rad = (1 - k) * 90 + 14; plume.fillStyle(0xb9b5a8, .5 * (1 - k)).fillRect(r.x + Math.cos(a) * rad - 3, r.y + 16 + Math.sin(a) * rad * .35 - 3, 6, 6); }
+    }
     // Efectos por acción (dependen solo del estado, así que la pausa los congela)
     const fx = this.fx; fx.clear();
     const a = m.action;
@@ -342,14 +384,22 @@ class ExploreScene extends Phaser.Scene {
   trail(delta) { // huellas de las ruedas y polvo; solo cuando el rover se mueve de verdad
     const m = this.m, r = m.rover; if (!r.moving) return;
     if (Math.hypot(r.x - this.lastTrack.x, r.y - this.lastTrack.y) >= 7) {
-      const ctx = this.tracks.getContext(); ctx.fillStyle = 'rgba(8,12,20,.32)';
-      for (const ox of [-16, 8]) ctx.fillRect(Math.round((r.x + ox) / 3) * 3, Math.round((r.y + 12) / 3) * 3, 6, 3);
+      const ctx = this.tracks.getContext();
+      const dx = r.x - this.lastTrack.x, dy = r.y - this.lastTrack.y, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+      for (const side of [-1, 1]) { // dos rodadas paralelas, con el borde iluminado
+        const tx = Math.round((r.x + nx * side * 12) / 3) * 3, ty = Math.round((r.y + 14 + ny * side * 7) / 3) * 3;
+        ctx.fillStyle = 'rgba(6,8,14,.42)'; ctx.fillRect(tx, ty, 6, 3);
+        ctx.fillStyle = 'rgba(220,214,200,.16)'; ctx.fillRect(tx - 3, ty - 3, 6, 3);
+      }
       this.tracks.refresh(); this.lastTrack = { x: r.x, y: r.y };
     }
     this.dustT += delta; if (this.dustT > 110 && this.puffs < 30) {
       this.dustT = 0; this.puffs++;
-      const q = this.add.rectangle(r.x - r.facing * 22 + (Math.random() - .5) * 8, r.y + 18, 7, 7, 0xaeb9c9, .55).setDepth(2);
-      this.tweens.add({ targets: q, x: q.x - r.facing * 18, y: q.y - 8, scale: 2.2, alpha: 0, duration: 650, onComplete: () => { q.destroy(); this.puffs--; } });
+      // en la Luna no hay aire: el polvo sale en arco y cae, no queda flotando
+      const q = this.add.rectangle(r.x - r.facing * 22 + (Math.random() - .5) * 8, r.y + 18, 6, 6, Math.random() > .5 ? 0xc9c6bd : 0x8e8d8a, .7).setDepth(2);
+      this.tweens.add({ targets: q, x: q.x - r.facing * (14 + Math.random() * 18), duration: 520, onComplete: () => { q.destroy(); this.puffs--; } });
+      this.tweens.add({ targets: q, y: q.y - 12 - Math.random() * 8, duration: 260, yoyo: true, ease: 'Quad.easeOut' });
+      this.tweens.add({ targets: q, alpha: 0, delay: 300, duration: 220 });
     }
   }
   update(_t, delta) {
@@ -379,7 +429,7 @@ function renderResults() {
     <div class="grid2"><section class="panel"><h2>Objetivos</h2><ul class="objs">${r.objectives.map((o) => `<li class="${o.done ? 'done' : ''}"><span class="chk">${o.done ? '✔' : '○'}</span>${o.label}${o.main ? ' <span class="chip">principal</span>' : ''}</li>`).join('')}</ul></section>
       <section class="panel"><h2>Puntuación</h2><table class="bd">${r.breakdown.map((b) => `<tr><td>${b.label}</td><td class="${b.points < 0 ? 'bad' : ''}">${b.points > 0 ? '+' : ''}${b.points}</td></tr>`).join('')}<tr class="tot"><td>Total</td><td>${r.score}</td></tr></table></section></div>
     <section class="panel"><h2>Informe de datos</h2>${bars ? `<div class="res-pkts">${bars}</div>` : '<p class="muted">No se recogió ningún dato.</p>'}</section>
-    <div class="grid2"><section class="panel"><h2>Resumen</h2><div class="stats"><span>Recogidas</span><b>${p.collected}</b><span>Analizadas</span><b>${p.analyzed} / ${p.goal}</b><span>Transmitidas</span><b>${p.transmitted} / ${p.goal}</b><span>Fotos transmitidas</span><b>${p.photosTransmitted} / ${p.photoTotal}</b><span>Ocultas descubiertas</span><b>${p.discovered} / ${p.hiddenTotal}</b><span>Batería final</span><b>${r.energyPct} %</b><span>Tiempo</span><b>${fmt(r.elapsed, 0)} s</b><span>Choques</span><b>${r.bumps}</b><span>Masa / costo</span><b>${fmt(r.stats.mass)} kg · ${r.stats.cost} cr</b></div></section>
+    <div class="grid2"><section class="panel"><h2>Resumen</h2><div class="stats"><span>Recogidas</span><b>${p.collected}</b><span>Analizadas</span><b>${p.analyzed} / ${p.goal}</b><span>Transmitidas</span><b>${p.transmitted} / ${p.goal}</b><span>Fotos transmitidas</span><b>${p.photosTransmitted} / ${p.photoTotal}</b><span>Ocultas descubiertas</span><b>${p.discovered} / ${p.hiddenTotal}</b><span>Batería final</span><b>${r.energyPct} %</b><span>Tiempo</span><b>${fmt(r.elapsed, 0)} s</b><span>Choques</span><b>${r.bumps}</b><span>Masa / costo</span><b>${fmt(r.stats.mass)} kg · ${fmtCost(r.stats.cost)}</b></div></section>
     <section class="panel"><h2>Cómo mejorar</h2><ul class="list">${r.suggestions.map((s) => `<li>${s}</li>`).join('')}</ul>
       <p class="muted" style="margin-top:8px;font-size:.85rem">Puntuación y sugerencias calculadas con reglas fijas a partir de tu partida; no hay decisiones arbitrarias.</p></section></div>
     <div class="row"><button class="primary" data-cmd="retry">Reintentar con este rover</button><button data-cmd="exit">Volver al centro de control</button></div></div>`;
