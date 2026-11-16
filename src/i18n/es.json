@@ -1857,5 +1857,6 @@
   "medals.requirement.launch": "Llega al resultado del vuelo.",
   "medals.requirement.rover": "Llega al resultado del rover.",
   "medals.requirement.lunarGold": "Alcanza la órbita lunar y regresa a salvo a la Tierra.",
-  "medals.requirement.roverGold": "Cumple el objetivo principal de la misión del rover."
+  "medals.requirement.roverGold": "Cumple el objetivo principal de la misión del rover.",
+  "medals.saveReward": "Guardar medalla"
 }
