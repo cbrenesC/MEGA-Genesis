@@ -7,7 +7,8 @@ import { evaluateLauncher } from '../js/rules.js';
 import { FlightSim, vehicleFor, runAutopilot, referenceRun, bestProgram, programGrid, missionRotationBonus, PHYS } from '../js/flight.js';
 import { planFlightEvents, resolveFlight, resolveAutomatic, hohmannDv } from '../js/outcome.js';
 import { buildLaunchOutput, SCHEMA_VERSION } from '../js/state.js';
-import { massLike, speedLike, costLike, oneInN, fmtMUSD, fmtKg } from '../js/plain.js';
+import * as plain from '../js/plain.js';
+import { speedLike, costLike, oneInN, fmtMUSD, fmtKg } from '../js/plain.js';
 
 const load = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../data/${name}.json`, import.meta.url)), 'utf8'));
 const data = {
@@ -135,9 +136,13 @@ test('contrato de salida v2: schemaVersion 2, conserva los campos de la v1 y agr
 
 // --- Lenguaje para secundaria ---------------------------------------------------------------
 
-test('comparaciones cotidianas: masa, velocidad y costo', () => {
-  assert.match(massLike(950), /carro pequeño/);
-  assert.match(massLike(60000), /buses escolares/);
+test('los pesos se muestran con su valor real, sin comparaciones con objetos', () => {
+  assert.equal(plain.massLike, undefined);
+  assert.match(fmtKg(3000), /^3\.?000 kg$/);
+  assert.equal(fmtKg(549054), '549,1 toneladas');
+});
+
+test('frases de velocidad, costo y probabilidad', () => {
   assert.match(speedLike(7.8), /Costa Rica.*58 segundos/);
   assert.match(costLike(75), /300 casas/);
   assert.equal(oneInN(0.1), '1 de cada 10');

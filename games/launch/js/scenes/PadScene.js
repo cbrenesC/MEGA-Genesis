@@ -5,7 +5,7 @@ import { app, inputs, current, reducedMotion } from '../store.js';
 import { esc } from '../screens.js';
 import { prepareLaunch } from '../flow.js';
 import { rotateFacts } from '../ui.js';
-import { fmtKg, massLike } from '../plain.js';
+import { fmtKg } from '../plain.js';
 import { PixelView, FlightRenderer } from './render.js';
 import { ParticleSystem } from '../particles.js';
 import { CAMERA } from '../world.js';
@@ -115,6 +115,17 @@ export class PadScene extends Phaser.Scene {
     return `<br>El cohete completo pesa <b>${tons(f.liftoffKg)} toneladas</b> al despegar, con <b>${tons(f.propKg)} t</b> de combustible (${app.rocketFuelPct} % del tanque).`;
   }
 
+  /** Misión lunar de ida y vuelta: qué lleva la nave y qué pasos tiene el viaje. */
+  lunarBrief() {
+    const lunar = app.lunar ?? null;
+    const sc = inputs().spacecraft;
+    if (!sc.return || sc.return.profile !== 'lunarReturn') return '';
+    const d = lunar?.craftDef;
+    const parts = d ? `Tu nave tiene dos partes: el <b>módulo de servicio</b> (motor y ${fmtKg(d.propellantKg)} de combustible para frenar en la Luna y volver) y la <b>cápsula</b> (${fmtKg(d.capsuleKg)}), con el <b>escudo térmico</b> en la base y los <b>paracaídas</b> en la punta.` : '';
+    return `<p>${parts}</p>
+      <p><b>Plan de vuelo:</b> ① órbita de la Tierra · ② inyección hacia la Luna · ③ frenado y órbita lunar · ④ inyección de regreso · ⑤ soltar el módulo de servicio y reentrada · ⑥ paracaídas y amerizaje. El viaje dura unos ${sc.missionDays ?? 11} días: usa ⏩ <b>Saltar</b> para adelantar el tiempo y el <b>mapa (M)</b> para ver la trayectoria.</p>`;
+  }
+
   renderOverlay() {
     const e = current();
     const inp = inputs();
@@ -125,8 +136,9 @@ export class PadScene extends Phaser.Scene {
       <div class="pad-card">
         <span class="kicker">PLATAFORMA DE LANZAMIENTO · ${esc(e.site.name)}</span>
         <h2>${esc(e.launcher.name)} con ${esc(inp.spacecraft.name ?? 'tu nave')}</h2>
-        <p>Tu nave pesa ${massLike(e.launchMassKg)} (${fmtKg(e.launchMassKg)}) y va hacia <b>${esc(e.orbitDef.short ?? e.orbitDef.name)}</b>.${this.fuelLine()}
+        <p>Tu nave (la carga que va en la punta) pesa <b>${fmtKg(e.launchMassKg)}</b> y va hacia <b>${esc(e.orbitDef.short ?? e.orbitDef.name)}</b>.${this.fuelLine()}
         ${this.state === 'prep' ? '<br><span class="muted">Revisando el cohete y el clima…</span>' : ''}</p>
+        ${this.lunarBrief()}
         ${this.state === 'ready' && pre.length ? `<ul class="log">${pre.map((p) => `<li class="${p.severity}"><b>${esc(p.label)}</b> — ${esc(p.consequence)}</li>`).join('')}</ul>` : ''}
         ${noSim && this.state === 'ready' ? '<p class="muted">Para este cohete y este destino todavía no hay simulador de vuelo: el resultado se calcula automáticamente.</p>' : ''}
         ${app.launchWindow ? `<p><b>${esc(this.windowLine())}</b></p>` : ''}

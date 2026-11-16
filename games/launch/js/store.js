@@ -31,6 +31,8 @@ export const app = {
   sim: null, // FlightSim en curso
   vehicleInfo: null,
   reference: null,
+  lunar: null, // misión lunar de ida y vuelta: { vehicle, craftDef, opts } (flow.lunarSetup)
+  lunarView: null, // lo que comparte el vuelo con el mapa: { guide, plan, readout }
 };
 
 export const inputs = () => app.resolved.inputs;

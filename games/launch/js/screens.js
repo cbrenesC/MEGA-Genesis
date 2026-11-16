@@ -1,7 +1,7 @@
 // Read-only flight resources and results. Mission preparation lives in Mission Control.
 import { buildRequests, matchReferenceMission } from './rules.js';
 import { ROLES } from './state.js';
-import { fmtKg, fmtMUSD, fmtMUSDShort } from './plain.js';
+import { fmtKg, fmtMUSD, fmtMUSDShort, lifeText } from './plain.js';
 import { app, inputs, current, currentOutput } from './store.js';
 
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -19,6 +19,13 @@ const RESULT_TEXT = {
   falla: { icon: '✖', title: 'Misión perdida', text: 'Esta vez no se pudo. Pasa en la vida real, incluso a los mejores equipos: de cada falla se aprende mucho. Mira abajo qué pasó y qué cambiarías.' },
 };
 
+// Misión lunar de ida y vuelta: el éxito no es "quedar en órbita" sino volver a casa.
+const RESULT_TEXT_LUNAR = {
+  exito: { icon: '✔', title: '¡Éxito! La tripulación fue a la Luna y volvió a casa', text: 'Órbita de la Tierra, inyección hacia la Luna, órbita lunar, inyección de regreso, reentrada y amerizaje: hiciste el viaje completo, como las misiones Apolo 8 y Artemis.' },
+  exito_parcial: { icon: '◐', title: 'Éxito parcial: la misión no salió completa', text: 'Algo del plan quedó sin cumplir o salió más brusco de lo debido. Mira abajo qué parte faltó y cómo mejorarla.' },
+  falla: { icon: '✖', title: 'Misión perdida', text: 'Esta vez no se pudo. Un viaje a la Luna tiene muchos pasos y cada uno tiene que salir bien; mira abajo en cuál falló y qué cambiarías.' },
+};
+
 const sourceTag = (key) => (app.resolved.sources[key] === 'estacion'
   ? '<span class="tag shared">centro de control</span>'
   : app.resolved.sources[key] === 'compartido'
@@ -31,12 +38,13 @@ export function renderResult() {
   if (!e || !f) return '<p>Todavía no hay resultado.</p>';
   const sc = inputs().spacecraft;
   const out = currentOutput('lanzado');
-  const txt = RESULT_TEXT[f.result];
+  const fd = f.flightData;
+  const lunar = fd?.lunar ?? null;
+  const txt = (lunar ? RESULT_TEXT_LUNAR : RESULT_TEXT)[f.result];
   const ao = f.achievedOrbit;
   const orbitText = ao
-    ? (ao.periapsisKm != null ? `${ao.periapsisKm} × ${ao.apoapsisKm} km` : `${esc(ao.type)}${ao.altitudeKm != null ? ` · ${ao.altitudeKm} km` : ''}`) + (ao.inclinationDeg != null && inputs().orbit.type !== 'GTO' ? ` · ${ao.inclinationDeg}°` : '')
+    ? (ao.periapsisKm != null ? `${ao.periapsisKm} × ${ao.apoapsisKm} km${ao.type === 'LUNA' ? ' (Luna)' : ''}` : `${esc(ao.type)}${ao.altitudeKm != null ? ` · ${ao.altitudeKm} km` : ''}`) + (ao.inclinationDeg != null && inputs().orbit.type !== 'GTO' ? ` · ${ao.inclinationDeg}°` : '')
     : 'ninguna';
-  const fd = f.flightData;
   const pilot = f.pilot;
   const match = matchReferenceMission(app.data.missions, inputs().orbit.type, sc.massKg, e.launcherId);
   const m = match.closest;
@@ -47,13 +55,32 @@ export function renderResult() {
     <h2>Tu puntaje de pilotaje: <span class="score">${pilot.total}</span><small>/100</small></h2>
     <ul class="score-parts">${pilot.parts.map((p) => `<li><div class="sp-head"><span>${esc(p.label)}</span><b>${p.points} / ${p.max}</b></div><div class="sp-bar"><i style="width:${(p.points / p.max) * 100}%"></i></div><small>${esc(p.note)}</small></li>`).join('')}</ul>
     <details><summary>¿Cómo se calcula este puntaje?</summary>
-      <p>Sumas hasta 100 puntos: <b>50</b> por qué tan cerca quedó tu órbita de la que pedía la misión, <b>25</b> por el combustible que te sobró, <b>15</b> por no pasarte del límite de presión del aire (Max-Q) y <b>10</b> por separar bien las etapas y la cofia.</p>
-      <p class="more"><b>Ver más:</b> el combustible se compara con lo que deja el piloto automático en la misma misión (con la mitad ya es puntaje completo). Max-Q: se descuenta de forma gradual hasta 1,5 veces el límite de 40 kPa.</p>
+      ${pilot.how ? `<p>${esc(pilot.how)}</p>` : `<p>Sumas hasta 100 puntos: <b>50</b> por qué tan cerca quedó tu órbita de la que pedía la misión, <b>25</b> por el combustible que te sobró, <b>15</b> por no pasarte del límite de presión del aire (Max-Q) y <b>10</b> por separar bien las etapas y la cofia.</p>
+      <p class="more"><b>Ver más:</b> el combustible se compara con lo que deja el piloto automático en la misma misión (con la mitad ya es puntaje completo). Max-Q: se descuenta de forma gradual hasta 1,5 veces el límite de 40 kPa.</p>`}
     </details>
     ${fd?.autopilot ? '<p class="muted">Usaste el piloto automático: en las misiones difíciles, pilotear tú mismo da más puntos.</p>' : ''}
   </article>` : '';
 
-  const flightCard = fd ? `
+  const dash = (v, unit = '') => (v == null ? '—' : `${v.toLocaleString('es')}${unit}`);
+  const flightCard = lunar ? `
+  <article class="card">
+    <h2>Datos de tu viaje</h2>
+    <div class="kpis">
+      <div class="kpi"><span>Duración del viaje</span><b>${dash(lunar.days, ' días')}</b></div>
+      <div class="kpi"><span>Órbita lunar</span><b>${lunar.lunarOrbitKm ? `${lunar.lunarOrbitKm.periapsis} × ${lunar.lunarOrbitKm.apoapsis} km` : '—'}</b></div>
+      <div class="kpi"><span>Vueltas a la Luna</span><b>${lunar.lunarOrbitKm ? dash(lunar.lunarRevs) : '—'}</b></div>
+      <div class="kpi"><span>Lo más cerca de la Luna</span><b>${dash(lunar.closestToMoonKm, ' km')}</b></div>
+      <div class="kpi"><span>Velocidad de reentrada</span><b>${dash(lunar.entrySpeedKmS, ' km/s')}</b></div>
+      <div class="kpi"><span>Fuerza g máxima</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.maxG, ' g')}</b></div>
+      <div class="kpi"><span>Calor máximo en el escudo</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.peakHeatWcm2, ' W/cm²')}</b></div>
+      <div class="kpi"><span>Escudo térmico que sobró</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.shieldLeftPct, ' %')}</b></div>
+      <div class="kpi"><span>Paracaídas abiertos a</span><b>${dash(lunar.chuteSpeedMs, ' m/s')}</b></div>
+      <div class="kpi"><span>Velocidad al tocar el agua</span><b>${dash(lunar.landingSpeedMs, ' m/s')}</b></div>
+      <div class="kpi"><span>Presión máxima del aire (subida)</span><b>${fd.maxQKPa} kPa</b></div>
+      <div class="kpi"><span>Combustible que sobró</span><b>${fd.fuelLeftPct} %</b></div>
+    </div>
+    ${fd.stagingTimes.length ? `<p class="muted">Separaciones: ${fd.stagingTimes.map((s) => `${s.stage > (fd.stagingTimes.length - 1) && lunar.reached.includes('left') ? 'módulo de servicio' : `etapa ${s.stage}`} (${s.altitudeKm.toLocaleString('es')} km)`).join(' · ')}.</p>` : ''}
+  </article>` : fd ? `
   <article class="card">
     <h2>Datos de tu vuelo</h2>
     <div class="kpis">
@@ -76,7 +103,7 @@ export function renderResult() {
     <div class="kpis">
       <div class="kpi"><span>Cohete</span><b>${esc(e.launcher.name)}</b></div>
       <div class="kpi"><span>Órbita lograda</span><b>${orbitText}</b></div>
-      <div class="kpi"><span>Vida de la nave</span><b>${f.lifetimeYears} / ${sc.designLifetimeYears} años</b></div>
+      <div class="kpi"><span>${sc.missionDays ? 'Duración planeada' : 'Vida de la nave'}</span><b>${lifeText(sc, f.lifetimeYears)}</b></div>
       <div class="kpi"><span>Costo del lanzamiento</span><b>${fmtMUSD(out.cost.totalMUSD)}</b></div>
       <div class="kpi"><span>Dinero que queda</span><b class="${out.budgetAfterMUSD < 0 ? 'status-red' : ''}">${fmtMUSD(out.budgetAfterMUSD)}</b></div>
       <div class="kpi"><span>Lanzamiento</span><b>mes ${e.date.launchMonth}${f.delayDays ? ` + ${f.delayDays} días` : ''}</b></div>
@@ -126,7 +153,7 @@ export function renderResources({ compact = false } = {}) {
       <span class="pill" title="Dinero que te queda: ${fmtMUSD(remaining)}"><b>💲</b> ${fmtMUSDShort(remaining)}</span>
       <span class="pill ${st ? `status-${st.cls}` : ''}" title="Espacio libre en el cohete"><b>⚖</b> ${e ? `${st.icon} ${e.marginPct} %` : '—'}</span>
       <span class="pill" title="Mes de lanzamiento"><b>📅</b> ${e ? `mes ${e.date.launchMonth}` : `mes ${schedule.monthsToTargetDate}`}</span>
-      <span class="pill" title="Vida de la nave en años"><b>⏳</b> ${lifetime}/${sc.designLifetimeYears} a</span>
+      <span class="pill" title="${sc.missionDays ? 'Duración de la misión en días' : 'Vida de la nave en años'}"><b>⏳</b> ${sc.missionDays ? `${sc.missionDays} d` : `${lifetime}/${sc.designLifetimeYears} a`}</span>
     </div>`;
   }
   return `
@@ -152,7 +179,7 @@ export function renderResources({ compact = false } = {}) {
     </div>
     <div class="res">
       <h3>⏳ Vida y riesgo</h3>
-      <div class="row"><span>Vida de la nave</span><b>${lifetime} / ${sc.designLifetimeYears} años</b></div>
+      <div class="row"><span>${sc.missionDays ? 'Duración planeada' : 'Vida de la nave'}</span><b>${lifeText(sc, f ? lifetime : sc.designLifetimeYears)}</b></div>
       <div class="row"><span>De cada 100 lanzamientos</span><b>${e ? `${Math.round(e.reliability * 100)} salen bien` : '—'}</b></div>
       <div class="row"><span>Resultado</span><b>${f ? { exito: '✔ Éxito', exito_parcial: '◐ Parcial', falla: '✖ Falla' }[f.result] : app.confirmed ? 'Listo para lanzar' : 'Pendiente'}</b></div>
     </div>

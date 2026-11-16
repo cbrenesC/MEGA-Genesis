@@ -88,13 +88,16 @@ export const rocketStyle = (vehicle) => STYLES[vehicle.designId ?? vehicle.id] ?
 // ---------------------------------------------------------------------------
 
 /** Medidas del cohete en píxeles del lienzo pequeño (proporcionales al catálogo, pero siempre caben en pantalla). */
+/** Etapas del cohete propiamente dicho (el módulo de servicio de la nave se dibuja aparte). */
+const rocketStages = (vehicle) => vehicle.stages.filter((s) => !s.service);
+
 export function rocketDims(vehicle) {
   const lg = Math.log10(Math.max(vehicle.stackKg, 1000));
   const total = Math.round(Math.max(30, Math.min(50, 30 + (20 * (lg - 4)) / 2.7)));
   const hw = Math.round(Math.max(2, Math.min(6, 1.5 + vehicle.diameterM * 0.55)));
   const fairingH = Math.round(total * 0.24);
   const bodyH = total - fairingH;
-  const masses = vehicle.stages.map((s) => s.dryKg + s.propKg);
+  const masses = rocketStages(vehicle).map((s) => s.dryKg + s.propKg);
   const sum = masses.reduce((a, b) => a + b, 0);
   const stageH = masses.map((m) => Math.max(4, Math.round((m / sum) * bodyH)));
   // ajusta para que sumen exactamente bodyH
@@ -108,14 +111,14 @@ function layout(vehicle) {
   return memo(`layout|${vehicle.id}|${vehicle.stackKg}|${vehicle.stages.length}`, () => {
     const d = rocketDims(vehicle);
     const st = rocketStyle(vehicle);
-    const n = vehicle.stages.length;
+    const n = rocketStages(vehicle).length;
     const par = st.parallel && n >= 2 ? st.parallel : null;
     // etapas de arriba hacia abajo: la última va arriba
     const tops = []; let y = d.fairingH;
     for (let i = n - 1; i >= 0; i--) { tops[i] = y; y += d.stageH[i]; }
     const bottom = d.fairingH + d.bodyH; // y (sin margen) del borde inferior del cuerpo
     // cada etapa como bloque { top, h }: con propulsores laterales el núcleo ocupa también el alto de la "etapa 0"
-    const seg = vehicle.stages.map((_, i) => ({ top: tops[i], h: d.stageH[i] }));
+    const seg = rocketStages(vehicle).map((_, i) => ({ top: tops[i], h: d.stageH[i] }));
     let side = null;
     if (par) {
       seg[1] = { top: tops[1], h: d.stageH[1] + d.stageH[0] };
@@ -228,7 +231,8 @@ function fairingRows(L, r) {
  * Devuelve { canvas, cx, cy, base, dims, tops, nozzleY, flameHw }: (cx, cy) = centro de giro; nozzleY = y de la tobera encendida.
  */
 export function rocketSprite(vehicle, stage, fairing) {
-  return memo(`rocket|${vehicle.id}|${vehicle.stackKg}|${stage}|${fairing}`, () => {
+  if (vehicle.craft && stage >= rocketStages(vehicle).length) return craftSprite(stage >= vehicle.stages.length ? 'capsule' : 'full');
+  return memo(`rocket|${vehicle.id}|${vehicle.stackKg}|${stage}|${fairing}|${vehicle.craft ? 1 : 0}`, () => {
     const L = layout(vehicle);
     const { d, st, par, cx } = L;
     const g = new Grid(L.W, L.H);
@@ -245,6 +249,8 @@ export function rocketSprite(vehicle, stage, fairing) {
       if (st.fairingBand) band(g, cx, Math.round(fh * 0.6), fairingRows(L, Math.round(fh * 0.6)), st.fairingBand, st.fairingBand);
       if (st.logo) g.set(cx - 1, Math.round(fh * 0.55), st.logo);
       if (st.spike) { g.set(cx, 0, PAL.metal[0]); g.set(cx, 1, PAL.metal[0]); g.set(cx, 2, PAL.metal[1]); for (let x = -1; x <= 1; x++) g.set(cx + x, 3, WHITE[1]); }
+    } else if (vehicle.craft) {
+      miniCraft(g, cx, d.fairingH, d.hw);
     } else {
       const bh = Math.max(5, Math.round(d.fairingH * 0.7));
       const bw = Math.max(1, Math.round(d.hw * 0.7));
@@ -272,6 +278,11 @@ export function rocketSprite(vehicle, stage, fairing) {
  * Cada una: { canvas, cx, cy, centerFromBase (px desde la tobera del cohete hasta su centro), side, lateral (px hacia un lado) }.
  */
 export function stageDebris(vehicle, index) {
+  if (vehicle.craft && index >= rocketStages(vehicle).length) {
+    // el módulo de servicio suelto: se va hacia atrás desde la base de la cápsula
+    const spr = craftSprite('service');
+    return [{ ...spr, centerFromBase: -spr.h / 2 - 1, side: 0, lateral: 0 }];
+  }
   return memo(`debris|${vehicle.id}|${vehicle.stackKg}|${index}`, () => {
     const L = layout(vehicle);
     const { d, par } = L;
@@ -318,6 +329,164 @@ export function fairingSprite(vehicle, side) {
     for (let k = 0; k <= hw; k++) g.set(side < 0 ? hw - k : k, fh - 1, pal[3]);
     const baseY = d.total + d.bell;
     return { canvas: g.build(), cx: (side < 0 ? hw : 0) + 1, cy: 1 + Math.round(fh / 2), centerFromBase: baseY - fh / 2, w: hw + 1, h: fh };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// La nave de ida y vuelta: módulo de servicio + cápsula con escudo térmico y paracaídas
+// ---------------------------------------------------------------------------
+
+const SHIELD = ['#6b4a32', '#4f3524', '#3a2619', '#24170f']; // escudo térmico (resina oscura)
+const FOIL = ['#f6d98a', '#e0b85a', '#b98d3a', '#8a6626']; // lámina dorada aislante
+const CAPS = ['#f4f7fb', '#d5dde7', '#aab6c6', '#7a889c', '#525f73'];
+
+/** La nave pequeña que se ve en la punta del cohete cuando se suelta la cofia (base de la nave en y = bottom). */
+function miniCraft(g, cx, bottom, hw) {
+  const w = Math.max(2, hw - 1);
+  const smH = Math.max(3, Math.round(w * 1.1)); const capH = Math.max(3, Math.round(w * 1.2));
+  body(g, cx, bottom - smH, smH, w, WHITE);
+  band(g, cx, bottom - smH, w, FOIL[1], FOIL[2]);
+  band(g, cx, bottom - 1, w, PAL.metal[1], PAL.metal[2]);
+  band(g, cx, bottom - smH - 1, w, SHIELD[0], SHIELD[2]); // escudo térmico
+  for (let r = 0; r < capH; r++) { const half = Math.max(0, Math.round(w * (1 - (r + 1) / (capH + 1)))); for (let x = -half; x <= half; x++) g.set(cx + x, bottom - smH - 2 - r, shade(CAPS, w === 0 ? 0 : x / w)); }
+  g.set(cx, bottom - smH - 3, '#27405f'); // ventana
+  // paneles solares plegados contra el módulo de servicio
+  for (let r = 1; r < smH - 1; r++) { g.set(cx - w - 1, bottom - smH + r, PAL.panel[1]); g.set(cx + w + 1, bottom - smH + r, PAL.panel[2]); }
+}
+
+/**
+ * Sprites de la nave cuando vuela sola (más grande y detallada que sobre el cohete):
+ *   'full'    = módulo de servicio (motor, tanques, paneles solares desplegados) + cápsula
+ *   'capsule' = la cápsula sola: cono blanco con ventanas y el escudo térmico en la base
+ *   'service' = el módulo de servicio suelto
+ * Devuelve lo mismo que rocketSprite: { canvas, cx, cy, base, dims, nozzleY, flameHw, w, h }.
+ */
+export function craftSprite(kind = 'full') {
+  return memo(`craft|${kind}`, () => {
+    const capH = 11; const capHw = 7; // cápsula: 15 px de base
+    const smH = 13; const smHw = 6; const bellH = 5; const panel = 13;
+    const withCap = kind !== 'service'; const withSm = kind !== 'capsule';
+    const W = (withSm ? panel * 2 + smHw * 2 + 5 : capHw * 2 + 5);
+    const top = 2; // sitio para el túnel de acople
+    const H = top + (withCap ? capH + 2 : 0) + (withSm ? smH + bellH : 0) + 1;
+    const g = new Grid(W, H);
+    const cx = Math.floor(W / 2);
+    let y = top;
+    if (withCap) {
+      // túnel de acople y punta
+      g.set(cx - 1, y - 2, PAL.metal[0]); g.set(cx, y - 2, PAL.metal[1]); g.set(cx + 1, y - 2, PAL.metal[2]);
+      for (let x = -2; x <= 2; x++) g.set(cx + x, y - 1, shade(PAL.metal, x / 2));
+      // cono: de 2 a capHw de medio ancho
+      for (let r = 0; r < capH; r++) {
+        const half = Math.round(2 + ((capHw - 2) * (r + 1)) / capH);
+        for (let x = -half; x <= half; x++) g.set(cx + x, y + r, shade(CAPS, x / capHw));
+      }
+      // ventanas, escotilla y franja
+      for (const wx of [-3, 1]) { g.set(cx + wx, y + 4, '#1d3350'); g.set(cx + wx + 1, y + 4, '#3f7fc9'); g.set(cx + wx, y + 5, '#27405f'); g.set(cx + wx + 1, y + 5, '#1d3350'); }
+      g.set(cx - 1, y + 7, CAPS[3]); g.set(cx, y + 7, CAPS[3]); g.set(cx - 1, y + 8, CAPS[3]); g.set(cx, y + 8, CAPS[2]);
+      for (let x = -capHw + 1; x <= capHw - 1; x++) if ((x + 20) % 4 === 0) g.set(cx + x, y + capH - 2, '#e0483e'); // marcas rojas
+      g.set(cx + 4, y + 8, '#2f6fd0'); g.set(cx + 5, y + 9, '#2f6fd0'); // insignia de la misión
+      y += capH;
+      // escudo térmico: disco oscuro y curvo, un poco más ancho
+      for (let x = -capHw; x <= capHw; x++) g.set(cx + x, y, shade(SHIELD, x / capHw));
+      for (let x = -capHw + 1; x <= capHw - 1; x++) g.set(cx + x, y + 1, x > 2 ? SHIELD[3] : SHIELD[2]);
+      y += 2;
+    }
+    const smTop = y;
+    if (withSm) {
+      body(g, cx, y, smH, smHw, WHITE);
+      // anillo adaptador, radiadores y lámina dorada en la base
+      band(g, cx, y, smHw, PAL.metal[0], PAL.metal[2]);
+      for (let r = 2; r < smH - 4; r += 3) for (let x = -smHw + 1; x <= smHw - 1; x++) if (x !== 0) g.set(cx + x, y + r, shade(['#eef2f6', '#cfd7e0', '#a9b4c2', '#7c899b', '#566379'], x / smHw));
+      for (let r = smH - 4; r < smH; r++) for (let x = -smHw; x <= smHw; x++) g.set(cx + x, y + r, shade([FOIL[0], FOIL[0], FOIL[1], FOIL[2], FOIL[3]], x / smHw));
+      band(g, cx, y + smH - 1, smHw, PAL.metal[1], PAL.metal[3]);
+      // propulsores de maniobra (cuatro grupos) y antena
+      for (const sd of [-1, 1]) { g.set(cx + sd * (smHw + 1), y + 3, PAL.metal[sd < 0 ? 0 : 2]); g.set(cx + sd * (smHw + 1), y + 2, PAL.metal[1]); g.set(cx + sd * (smHw + 1), y + 4, PAL.metal[1]); }
+      g.set(cx - 2, y + 1, '#2f6fd0'); g.set(cx - 1, y + 1, '#e0483e');
+      // paneles solares: dos alas con celdas, marco y bisagra
+      const py = y + 6;
+      for (const sd of [-1, 1]) {
+        g.set(cx + sd * (smHw + 1), py + 1, PAL.metal[1]); g.set(cx + sd * (smHw + 2), py + 1, PAL.metal[2]);
+        for (let k = 0; k < panel - 2; k++) for (let r = 0; r < 4; r++) {
+          const x = cx + sd * (smHw + 3 + k);
+          const frame = r === 0 || r === 3 || k === panel - 3;
+          const cell = (k % 3 === 2) ? PAL.panel[2] : r === 1 ? PAL.panel[0] : PAL.panel[1];
+          g.set(x, py + r - 0, frame ? '#22467d' : cell);
+        }
+        g.set(cx + sd * (smHw + 3 + 1), py + 1, '#bfe6ff'); // destello
+      }
+      // motor principal: tobera grande
+      const by = y + smH;
+      for (let r = 0; r < bellH; r++) {
+        const half = Math.round(1 + (r * 3.2) / (bellH - 1));
+        for (let x = -half; x <= half; x++) g.set(cx + x, by + r, r === bellH - 1 ? PAL.metal[3] : shade(PAL.metal, x / Math.max(1, half)));
+      }
+      g.set(cx, by + bellH - 1, PAL.glow);
+      y = by + bellH;
+    }
+    const canvasEl = g.build();
+    const base = y + 1; // y (con el margen de 1 px) del punto más bajo: tobera o escudo
+    const hTotal = base - 1;
+    return { canvas: canvasEl, cx: cx + 1, cy: Math.round(base / 2) + 1, base, dims: { total: hTotal, hw: withSm ? smHw : capHw, w: W, bell: bellH }, tops: [], nozzleY: base, flameHw: 3, w: W + 2, h: H + 2, smTop: smTop + 1 };
+  });
+}
+
+/**
+ * Paracaídas. kind 'drogue' = los dos pequeños de frenado; 'main' = los tres principales (naranja y blanco).
+ * `open` 0–1: de bolsa cerrada a totalmente inflado. (cx, base) = punto donde se unen las cuerdas, sobre la cápsula.
+ */
+export function chuteSprite(kind, open = 1) {
+  const step = Math.round(Math.max(0, Math.min(1, open)) * 4);
+  return memo(`chute|${kind}|${step}`, () => {
+    const o = step / 4;
+    const main = kind === 'main';
+    const n = main ? 3 : 2;
+    const R = main ? Math.round(4 + 7 * o) : Math.round(2 + 2 * o); // radio de cada campana
+    const lines = main ? 20 : 12;
+    const spread = main ? Math.round(R * 1.55 * (0.35 + 0.65 * o)) : Math.round(R * 1.2);
+    const W = spread * (n - 1) + R * 2 + 5; const H = lines + R + 4;
+    const g = new Grid(W, H);
+    const cx = Math.floor(W / 2); const base = H - 1;
+    const cols = main ? ['#ff8a3d', '#fff4e6', '#d9632a', '#e8d9c5'] : ['#f4f7fb', '#e0483e', '#c9d3df', '#a3362f'];
+    for (let i = 0; i < n; i++) {
+      const ox = Math.round((i - (n - 1) / 2) * spread);
+      const top = base - lines - R + (main && i !== 1 ? 1 : 0);
+      // campana: media elipse con gajos de dos colores; menos alta mientras se infla
+      const hgt = Math.max(2, Math.round(R * (0.55 + 0.35 * o)));
+      for (let r = 0; r <= hgt; r++) {
+        const half = Math.round(R * Math.sqrt(Math.max(0, 1 - ((hgt - r) / hgt) ** 2)));
+        for (let x = -half; x <= half; x++) {
+          const gore = Math.floor((x + R) / Math.max(1, Math.round(R / 2.2))) % 2;
+          const lit = x < -half * 0.4 ? 0 : 2;
+          g.set(cx + ox + x, top + r, cols[gore ? 1 + (lit ? 2 : 0) : lit]);
+        }
+      }
+      // borde festoneado y cuerdas hasta el punto de unión
+      for (let x = -R; x <= R; x += 2) g.set(cx + ox + x, top + hgt + 1, cols[2]);
+      for (const ex of [-R, -Math.round(R / 2), 0, Math.round(R / 2), R]) {
+        const steps = lines - 2;
+        for (let k = 0; k <= steps; k += 1) { const t = k / steps; if (k % 2 === 0 || !main) g.set(Math.round(cx + ox + ex + (0 - ox - ex) * t), Math.round(top + hgt + 2 + (base - top - hgt - 2) * t), '#c9d3df'); }
+      }
+    }
+    return { canvas: g.build(null), cx: cx + 1, base: base + 1, w: W + 2, h: H + 2 };
+  });
+}
+
+/** Barco de rescate que espera a la cápsula en el mar (proa a la izquierda). (cx, waterY) = línea de flotación. */
+export function shipSprite() {
+  return memo('ship', () => {
+    const g = new Grid(46, 20);
+    const wy = 17;
+    for (let r = 0; r < 4; r++) for (let x = 2 + r; x < 44 - Math.round(r * 0.5); x++) g.set(x, wy - 3 + r, r === 0 ? '#8d99a6' : r === 3 ? '#3d4753' : '#6c7a8d');
+    for (let x = 3; x < 43; x++) g.set(x, wy - 4, '#b8c2cd');
+    g.rect(16, wy - 10, 14, 6, '#dfe6ee'); g.rect(16, wy - 10, 14, 1, '#ffffff'); g.rect(26, wy - 10, 4, 6, '#aab6c6');
+    for (let k = 0; k < 4; k++) g.set(18 + k * 3, wy - 7, '#27405f');
+    g.rect(20, wy - 13, 6, 3, '#c9d3df'); for (let y2 = wy - 18; y2 < wy - 13; y2++) g.set(23, y2, '#6c7a8d');
+    g.set(24, wy - 18, '#e0483e'); g.set(25, wy - 18, '#e0483e'); g.set(24, wy - 17, '#ffffff');
+    g.rect(33, wy - 6, 8, 2, '#5c6875'); // cubierta de vuelo
+    g.set(5, wy - 5, '#e0483e'); g.rect(8, wy - 6, 5, 2, '#f1c75a'); // grúa para izar la cápsula
+    for (let x = 4; x < 42; x += 4) g.set(x, wy - 2, '#e0483e');
+    return { canvas: g.build(), cx: 24, waterY: wy + 2, w: 48, h: 22 };
   });
 }
 

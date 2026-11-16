@@ -16,9 +16,11 @@
 // Ninguna cifra de cohete está escrita aquí: sale de data/flight.json (diseños) y de
 // data/flight-calibration.json (tamaños calibrados contra la capacidad del catálogo).
 
+import { EARTH, MOON, moonState, gravity, relativeState, bodyAt, coastStepLimit } from './bodies.js';
+
 export const PHYS = {
-  MU: 3.986004418e14, // m³/s²  (parámetro gravitacional de la Tierra)
-  RE: 6371000, // m
+  MU: EARTH.MU, // m³/s²  (parámetro gravitacional de la Tierra)
+  RE: EARTH.R, // m
   G0: 9.80665,
   RHO0: 1.225, // kg/m³ al nivel del mar
   H_SCALE: 7500, // m (altura de escala de la atmósfera)
@@ -35,9 +37,34 @@ export const PHYS = {
   CD: 0.3,
   SEP_SPEED: 1.6, // m/s: velocidad relativa con la que los resortes/gases empujan la etapa suelta lejos del cohete
   FAIRING_SPEED: 2.2, // m/s: cada mitad de la cofia se abre hacia un lado
+  // --- regreso a la Tierra (sólo naves con cápsula) ---
+  HEAT_K: 8e-5, // flujo de calor en la punta roma: q = K·√ρ·v³ (W/m², fórmula de Sutton–Graves simplificada)
+  HEAT_BARE: 9e4, // W/m²: lo que aguanta una nave SIN escudo térmico por delante antes de empezar a dañarse
+  BARE_LOAD: 6e6, // J/m²: calor acumulado con el que se destruye una nave sin escudo
+  ENTRY_SPEED: 2500, // m/s: por encima de esto, entrar al aire es una "reentrada"
+  LAND_SPEED: 12, // m/s: velocidad máxima para tocar el agua o el suelo sin romperse
+  CHUTE_MAX_ALT: 30000, // m: más arriba el aire es tan fino que el paracaídas no se abre
+  CHUTE_MAX_SPEED: 320, // m/s: más rápido que esto, el paracaídas se rompe al abrirse
+  CHUTE_DROGUE_S: 14, // s: los paracaídas pequeños (de frenado) trabajan solos este tiempo
+  CHUTE_OPEN_S: 10, // s: lo que tardan en inflarse los paracaídas principales
 };
 
 export const DEG = Math.PI / 180;
+const MS = {}; // escritorio: estado de la Luna
+const GV = [0, 0]; // escritorio: gravedad
+const NO_AIR = { q: 0, alpha: 0, v: 0, rho: 0 };
+
+/** Diario de una misión lunar de ida y vuelta: cada meta se marca cuando la física dice que se cumplió. */
+export function newMissionLog() {
+  return {
+    leo: false, leoT: null, parking: null, // órbita de espera alrededor de la Tierra
+    tli: false, tliT: null, // la órbita ya llega hasta la Luna
+    soi: false, soiT: null, minMoonAlt: Infinity, // entró en la zona de influencia de la Luna
+    lunarOrbit: false, lunarOrbitT: null, orbit: null, bestOrbit: null, revAngle: 0, lunarRevs: 0, lastA: null,
+    tei: false, teiT: null, // escapó de la Luna para volver
+    left: false, leftT: null, entry: false, landed: false, moonCrash: false,
+  };
+}
 // Dos formas de llegar a la órbita (parámetro `coastDv` del programa de ascenso):
 //   · clásica (coastDv = ∞, la de la calibración): apagar cuando el punto más alto llega a la altura, esperar y redondear arriba;
 //   · inserción directa (coastDv = COAST_DV): si para redondear falta más que eso, NO se apaga: se sigue empujando casi
@@ -64,8 +91,7 @@ export function earthRotationBonus(latDeg, incDeg) {
 // Elementos orbitales a partir de posición y velocidad
 // ---------------------------------------------------------------------------
 
-export function orbitElements(x, y, vx, vy) {
-  const mu = PHYS.MU;
+export function orbitElements(x, y, vx, vy, mu = PHYS.MU, R = PHYS.RE) {
   const r = Math.hypot(x, y);
   const v2 = vx * vx + vy * vy;
   const energy = v2 / 2 - mu / r;
@@ -80,8 +106,8 @@ export function orbitElements(x, y, vx, vy) {
   const ra = hyper ? Infinity : a * (1 + e);
   return {
     r, energy, e, a, rp, ra, h, hyper,
-    periAlt: rp - PHYS.RE,
-    apoAlt: ra - PHYS.RE,
+    periAlt: rp - R,
+    apoAlt: ra - R,
     period: hyper ? Infinity : 2 * Math.PI * Math.sqrt((a * a * a) / mu),
     // ángulo (rad) del periapsis medido desde +x, para dibujar la elipse
     periAngle: Math.atan2(ey, ex),
@@ -159,6 +185,44 @@ export function buildVehicle(design, stackKg, calPayloadKg) {
   return vehicle;
 }
 
+/**
+ * Nave con cápsula para misiones de ida y vuelta: agrega el MÓDULO DE SERVICIO como una etapa más (la última) y
+ * deja lista la cápsula (escudo térmico y paracaídas). La carga del simulador pasa a ser sólo la cápsula.
+ * @param sc  { capsuleKg, serviceDryKg, propellantKg, ispS, thrustN, capsuleCdA, chuteCdA, drogueCdA, shieldLoad, gLimit, gBreak }
+ * @param ispK  margen de pilotaje del módulo de servicio (mismo empuje, el combustible rinde k veces más)
+ */
+export function withSpacecraft(vehicle, sc, ispK = 1) {
+  const isp = sc.ispS * ispK;
+  const service = { name: sc.serviceName ?? 'Módulo de servicio', service: true, dryKg: sc.serviceDryKg, propKg: sc.propellantKg, ispVac: isp, ispSl: isp, mdot: sc.thrustN / (isp * PHYS.G0) };
+  const craft = {
+    name: sc.name ?? 'Cápsula', capsuleKg: sc.capsuleKg,
+    cdA: sc.capsuleCdA ?? 22, drogueCdA: sc.drogueCdA ?? 60, chuteCdA: sc.chuteCdA ?? 1100,
+    shieldLoad: sc.shieldLoad ?? 2.4e8, gLimit: sc.gLimit ?? 9, gBreak: sc.gBreak ?? 20,
+  };
+  return { ...vehicle, stages: [...vehicle.stages, service], rocketStages: vehicle.stages.length, craft };
+}
+
+/**
+ * Datos de la nave de ida y vuelta de una misión (o null si la nave no vuelve).
+ * Salen de la nave de la misión (data/mock-missions.json → spacecraft.return): lo que no es combustible ni
+ * módulo de servicio es la cápsula. `offloadKg` = combustible que se decidió no cargar.
+ */
+export function returnCraft(spacecraft, offloadKg = 0) {
+  const r = spacecraft?.return;
+  if (!r || r.profile !== 'lunarReturn') return null;
+  const propellantKg = Math.max(0, (spacecraft.propellantKg ?? 0) - offloadKg);
+  const capsuleKg = Math.max(r.capsuleKg, spacecraft.massKg - (spacecraft.propellantKg ?? 0) - r.serviceDryKg);
+  return { ...r, name: spacecraft.name, capsuleKg, propellantKg, ispS: spacecraft.ispS };
+}
+
+/** Δv (m/s) que le queda a la nave con el combustible de la etapa actual (ecuación del cohete). */
+export function stageDeltaV(sim) {
+  const st = sim.currentStage;
+  if (!st || sim.fuel[sim.stage] <= 0) return 0;
+  const m0 = sim.mass;
+  return st.ispVac * PHYS.G0 * Math.log(m0 / (m0 - sim.fuel[sim.stage]));
+}
+
 export const vehicleMassKg = (vehicle, payloadKg) => vehicle.fairingKg + payloadKg + vehicle.stages.reduce((a, s) => a + s.dryKg + s.propKg, 0);
 
 // ---------------------------------------------------------------------------
@@ -206,6 +270,17 @@ export class FlightSim {
     this.orbitReached = false;
     this.initialPropKg = this.fuel.reduce((a, b) => a + b, 0);
     this.refTime = null;
+    // --- misión lunar de ida y vuelta (opcional): la Luna, la cápsula y el diario de la misión
+    this.moon = opts.moon ? { angle0: opts.moon.angle0 ?? 0 } : null;
+    this.body = 'earth'; // cuerpo cuya gravedad manda: 'earth' | 'moon'
+    this.craft = opts.craft ?? null; // { name, capsuleKg, cdA, chuteCdA, drogueCdA, shieldLoad, gLimit }
+    this.profile = opts.profile ?? null; // 'lunarReturn' = órbita, Luna, órbita lunar, regreso y amerizaje
+    this.chute = null; // { t0 } cuando se abren los paracaídas · { torn: true } si se rompieron
+    this.heat = { flux: 0, load: 0, bare: 0, shieldLeft: 1 }; // calor de la reentrada
+    this.gNow = 0; // fuerza g que siente la nave ahora (empuje + aire)
+    this.landing = null; // { speed, t } al tocar la superficie con suavidad
+    if (this.craft) Object.assign(this.stats, { maxG: 0, maxHeat: 0, entrySpeed: null, entryAngleDeg: null, entryT: null, chuteT: null, chuteSpeed: null, smSepT: null });
+    this.mission = this.profile === 'lunarReturn' ? newMissionLog() : null;
   }
 
   get mass() {
@@ -215,7 +290,34 @@ export class FlightSim {
   }
 
   get r() { return Math.hypot(this.x, this.y); }
+  /** Altura sobre la Tierra (m). Para la altura sobre el cuerpo que manda, ver bodyAltitude. */
   get altitude() { return this.r - PHYS.RE; }
+  /** Posición y velocidad respecto al cuerpo que manda (la Tierra o la Luna). */
+  rel() { return relativeState(this.x, this.y, this.vx, this.vy, this.t, this.body, this.moon, {}); }
+  /** Altura (m) sobre la superficie del cuerpo que manda. */
+  get bodyAltitude() { if (this.body !== 'moon') return this.altitude; const q = this.rel(); return Math.hypot(q.x, q.y) - MOON.R; }
+  /** Velocidad (m/s) respecto al cuerpo que manda. */
+  get bodySpeed() { if (this.body !== 'moon') return this.speed; const q = this.rel(); return Math.hypot(q.vx, q.vy); }
+  /** Órbita respecto al cuerpo que manda (alturas medidas sobre su superficie). */
+  get bodyElements() { if (this.body !== 'moon') return this.elements; const q = this.rel(); return orbitElements(q.x, q.y, q.vx, q.vy, MOON.MU, MOON.R); }
+  /** ¿Queda sólo la cápsula? (ya se soltaron todas las etapas y el módulo de servicio) */
+  get capsuleOnly() { return Boolean(this.craft) && this.stage >= this.stageCount; }
+  /** Área de frenado (Cd·A, m²): el cohete, o la cápsula con sus paracaídas. */
+  get dragArea() {
+    if (!this.capsuleOnly) return this.vehicle.cdA;
+    const c = this.craft;
+    if (!this.chute || this.chute.torn) return c.cdA;
+    const dt = this.t - this.chute.t0;
+    const open = clamp((dt - PHYS.CHUTE_DROGUE_S) / PHYS.CHUTE_OPEN_S, 0, 1);
+    return c.cdA + c.drogueCdA * clamp(dt / 2, 0, 1) + (c.chuteCdA - c.drogueCdA) * open * open * (3 - 2 * open);
+  }
+  /** Paracaídas: 'none' | 'drogue' (los pequeños) | 'opening' | 'main' | 'torn'. */
+  get chuteState() {
+    if (!this.chute) return 'none';
+    if (this.chute.torn) return 'torn';
+    const dt = this.t - this.chute.t0;
+    return dt < PHYS.CHUTE_DROGUE_S ? 'drogue' : dt < PHYS.CHUTE_DROGUE_S + PHYS.CHUTE_OPEN_S ? 'opening' : 'main';
+  }
   get speed() { return Math.hypot(this.vx, this.vy); }
   get radialSpeed() { return (this.x * this.vx + this.y * this.vy) / this.r; }
   get tangentSpeed() { return (this.y * this.vx - this.x * this.vy) / this.r; } // + = hacia el este
@@ -229,16 +331,32 @@ export class FlightSim {
   get fuelLeftPct() { return this.initialPropKg > 0 ? (this.fuelLeftKg / this.initialPropKg) * 100 : 0; }
   get engineOut() { return this.stage >= this.stageCount || this.fuel[this.stage] <= 0; }
 
-  /** Dirección del eje del cohete (vector unitario). */
-  attitude(x = this.x, y = this.y, vx = this.vx, vy = this.vy) {
-    if (this.mode === 'prograde') {
-      const v = Math.hypot(vx, vy) || 1;
+  /**
+   * Dirección del eje del cohete (vector unitario).
+   * 'prograde' = hacia donde va · 'retrograde' = al revés (para frenar) · 'manual' = ángulo `beta` desde la vertical local.
+   * Cerca de la Luna, "hacia donde va" y "vertical" se miden respecto a la Luna.
+   */
+  attitude(x = this.x, y = this.y, vx = this.vx, vy = this.vy, t = this.t) {
+    if (this.body === 'moon') {
+      moonState(this.moon, t, MS);
+      x -= MS.x; y -= MS.y; vx -= MS.vx; vy -= MS.vy;
+    }
+    if (this.mode === 'prograde' || this.mode === 'retrograde') {
+      const v = (Math.hypot(vx, vy) || 1) * (this.mode === 'retrograde' ? -1 : 1);
       return [vx / v, vy / v];
     }
     const r = Math.hypot(x, y);
     const ux = x / r; const uy = y / r; // vertical local
     const ex = uy; const ey = -ux; // este
     return [Math.cos(this.beta) * ux + Math.sin(this.beta) * ex, Math.cos(this.beta) * uy + Math.sin(this.beta) * ey];
+  }
+
+  /** Ángulo `beta` (desde la vertical local del cuerpo que manda) que corresponde a un eje dado en el mundo. */
+  betaOf(ax, ay) {
+    const q = this.rel();
+    const r = Math.hypot(q.x, q.y) || 1;
+    const ux = q.x / r; const uy = q.y / r;
+    return Math.atan2(ax * uy - ay * ux, ax * ux + ay * uy);
   }
 
   /** Velocidad del cohete respecto al aire (que gira con la Tierra). */
@@ -274,7 +392,12 @@ export class FlightSim {
     this.notice = { t: this.t, text, kind };
   }
 
-  setMode(mode) { this.mode = mode; }
+  /** Cambia el modo de orientación. Al volver a 'manual' el cohete conserva hacia dónde estaba mirando. */
+  setMode(mode) {
+    if (mode === this.mode) return;
+    if (mode === 'manual') { const [ax, ay] = this.attitude(); this.mode = 'manual'; this.beta = this.betaOf(ax, ay); return; }
+    this.mode = mode;
+  }
 
   /** Separa la etapa actual (el jugador pulsa "Separar etapa"). */
   separateStage() {
@@ -283,7 +406,15 @@ export class FlightSim {
     const frac = this.fuel[this.stage] / s.propKg;
     this.stats.wastedProp += this.fuel[this.stage];
     this.stats.stagingTimes.push({ stage: this.stage + 1, t: Math.round(this.t), fuelLeftPct: Math.round(frac * 100), altitudeKm: Math.round(this.altitude / 1000) });
-    this.addLog(`Etapa ${this.stage + 1} separada${frac > 0.04 ? ` (¡todavía le quedaba ${Math.round(frac * 100)} % de combustible!)` : ''}.`, frac > 0.04 ? 'warn' : 'ok');
+    const isService = Boolean(s.service);
+    if (isService) {
+      if (this.craft) this.stats.smSepT = this.t;
+      this.addLog('Módulo de servicio soltado: queda sólo la cápsula, con el escudo térmico por delante.', 'ok');
+    } else if (this.vehicle.stages[this.stage + 1]?.service && this.mission?.tli) {
+      // después de la inyección hacia la Luna la etapa superior ya cumplió: soltarla es lo correcto aunque le sobre combustible
+      this.stats.wastedProp -= this.fuel[this.stage];
+      this.addLog('Etapa superior separada: la nave sigue sola, con su módulo de servicio.', 'ok');
+    } else this.addLog(`Etapa ${this.stage + 1} separada${frac > 0.04 ? ` (¡todavía le quedaba ${Math.round(frac * 100)} % de combustible!)` : ''}.`, frac > 0.04 ? 'warn' : 'ok');
     // La pieza suelta es un cuerpo aparte: se lleva la posición, la velocidad y la orientación del cohete
     // y recibe un empujoncito de separación. Se conserva el momento: el cohete recibe el empujoncito contrario.
     const axis = this.attitude();
@@ -295,8 +426,31 @@ export class FlightSim {
     this.lastSeparation = { kind: 'stage', index: this.stage - 1, massKg: stageKg, x: this.x, y: this.y, vx: this.vx + dvStage * axis[0], vy: this.vy + dvStage * axis[1], axis, t: this.t };
     const dvRocket = PHYS.SEP_SPEED * share;
     this.vx += dvRocket * axis[0]; this.vy += dvRocket * axis[1];
-    if (this.stage >= this.stageCount) { this.throttle = 0; }
+    if (this.stage >= this.stageCount) { this.throttle = 0; if (this.mode !== 'manual') this.setMode('manual'); }
     return true;
+  }
+
+  /**
+   * Abre los paracaídas de la cápsula: primero los pequeños de frenado y, unos segundos después, los principales.
+   * Sólo se abren donde ya hay aire (abajo de 30 km), y hay que esperar a que la cápsula frene: lo normal es abrirlos
+   * por debajo de 7 km, cuando ya va a menos de 240 m/s. Abiertos demasiado rápido, se rompen.
+   * Devuelve 'ok' | 'torn' | motivo por el que no se abrieron.
+   */
+  deployChute() {
+    if (this.status !== 'flying' || !this.craft) return 'none';
+    if (!this.capsuleOnly) return 'attached';
+    if (this.chute) return 'already';
+    if (this.body !== 'earth' || this.altitude > PHYS.CHUTE_MAX_ALT) { this.addLog('Todavía no: aquí arriba casi no hay aire y los paracaídas no se abrirían.', 'warn'); return 'high'; }
+    const v = this.aero().v;
+    this.stats.chuteT = this.t; this.stats.chuteSpeed = v; this.stats.chuteAlt = this.altitude;
+    if (v > PHYS.CHUTE_MAX_SPEED) {
+      this.chute = { torn: true, t0: this.t };
+      this.addLog(`Paracaídas abiertos a ${Math.round(v)} m/s: iban demasiado rápido y se rompieron.`, 'bad');
+      return 'torn';
+    }
+    this.chute = { t0: this.t };
+    this.addLog('Paracaídas de frenado abiertos. Los principales salen en unos segundos.', 'ok');
+    return 'ok';
   }
 
   /** Cociente empuje/peso ahora mismo (con el acelerador actual y el Isp de esta altura). */
@@ -306,7 +460,9 @@ export class FlightSim {
     const pr = pressureRatio(this.altitude);
     const isp = stage.ispVac + (stage.ispSl - stage.ispVac) * pr;
     const thrust = throttle * stage.mdot * (this.thrustMult[this.stage] ?? 1) * isp * PHYS.G0;
-    return thrust / (this.mass * (PHYS.MU / (this.r * this.r)));
+    const q = this.body === 'moon' ? this.rel() : null;
+    const gLocal = q ? MOON.MU / (q.x * q.x + q.y * q.y) : PHYS.MU / (this.r * this.r);
+    return thrust / (this.mass * gLocal);
   }
 
   dropFairing() {
@@ -343,7 +499,8 @@ export class FlightSim {
     while (remaining > 1e-9 && this.status !== 'ended') {
       const burning = this.throttle > 0.001 && !this.engineOut;
       const inAir = this.altitude < PHYS.ATM_TOP;
-      const maxH = burning || inAir || this.status === 'pad' ? 0.1 : 2;
+      // con motor o con aire, pasos cortos; en el vacío y sin motor, tan largos como permite la órbita
+      const maxH = burning || inAir || this.status === 'pad' ? 0.1 : coastStepLimit(this.x, this.y, this.vx, this.vy, this.t, this.body, this.moon);
       const h = Math.min(remaining, maxH);
       this.substep(h, controls);
       remaining -= h;
@@ -360,14 +517,17 @@ export class FlightSim {
     }
     // Sin empuje y con aire, el cohete se comporta como una flecha: la punta se alinea sola con el viento
     // (estabilidad aerodinámica). Mientras más presión del aire, más rápido se endereza.
-    if (this.mode === 'manual' && this.engineOut && !this.grounded && !controls.steer && controls.betaTarget == null) {
+    // La cápsula sola hace lo contrario: es estable con la base (el escudo térmico) por delante.
+    const capsule = this.capsuleOnly;
+    if (this.mode === 'manual' && this.body === 'earth' && !this.grounded && (capsule || (this.engineOut && !controls.steer && controls.betaTarget == null))) {
       const [rx, ry] = this.relVelocity();
       const v = Math.hypot(rx, ry);
       const q = 0.5 * airDensity(this.altitude) * v * v;
-      if (v > 30 && q > 150) {
+      if (v > 30 && q > (capsule ? 15 : 150)) {
         const r = this.r; const ux = this.x / r; const uy = this.y / r;
-        const betaAir = Math.atan2(rx * uy - ry * ux, rx * ux + ry * uy);
-        const rate = PHYS.TURN_RATE * Math.min(3, q / 1500);
+        let betaAir = Math.atan2(rx * uy - ry * ux, rx * ux + ry * uy);
+        if (capsule) betaAir = wrap(betaAir + Math.PI);
+        const rate = PHYS.TURN_RATE * Math.min(capsule ? 10 : 3, q / (capsule ? 200 : 1500));
         this.beta = wrap(this.beta + clamp(wrap(betaAir - this.beta), -rate * dt, rate * dt));
       }
     }
@@ -386,7 +546,7 @@ export class FlightSim {
     let mdot = 0;
     const mass0 = this.mass;
     if (stage && this.throttle > 0.001 && this.fuel[this.stage] > 0) {
-      const pr = pressureRatio(this.altitude);
+      const pr = this.body === 'earth' ? pressureRatio(this.altitude) : 0;
       const isp = stage.ispVac + (stage.ispSl - stage.ispVac) * pr;
       mdot = this.throttle * stage.mdot * (this.thrustMult[this.stage] ?? 1);
       const burned = Math.min(mdot * dt, this.fuel[this.stage]);
@@ -396,49 +556,83 @@ export class FlightSim {
       this.stats.burnSeconds += dt;
       if (this.fuel[this.stage] <= 1e-6) {
         this.fuel[this.stage] = 0;
-        if (this.stage === this.stageCount - 1 || true) this.addLog(`Etapa ${this.stage + 1} sin combustible.`, 'info');
+        this.addLog(stage.service ? 'El módulo de servicio se quedó sin combustible.' : `Etapa ${this.stage + 1} sin combustible.`, 'info');
       }
     }
     const massMid = mass0 - 0.5 * mdot * dt;
 
     // --- integración RK4 con empuje y masa constantes durante el paso
-    const accel = (x, y, vx, vy) => {
-      const r = Math.hypot(x, y);
-      const g = PHYS.MU / (r * r * r);
-      let ax = -g * x; let ay = -g * y;
+    const body = this.body; const moon = this.moon;
+    const cdA = this.dragArea;
+    const onEarth = body === 'earth';
+    const accel = (x, y, vx, vy, tt) => {
+      gravity(x, y, tt, body, moon, GV);
+      let ax = GV[0]; let ay = GV[1];
       if (thrust > 0) {
-        const [dx, dy] = this.attitude(x, y, vx, vy);
+        const [dx, dy] = this.attitude(x, y, vx, vy, tt);
         ax += (thrust / massMid) * dx; ay += (thrust / massMid) * dy;
       }
-      const h = r - PHYS.RE;
-      if (h < PHYS.ATM_TOP) {
-        const rho = airDensity(h);
-        const [rx, ry] = this.relVelocity(x, y, vx, vy);
-        const v = Math.hypot(rx, ry);
-        if (v > 0.5 && rho > 0) {
-          // La resistencia NO depende de hacia dónde mira la punta: así la caída es pareja y predecible.
-          // (Ir de costado con mucho aire sigue siendo peligroso: lo castiga el límite de presión × ángulo.)
-          const k = 0.5 * rho * v * this.vehicle.cdA / massMid;
-          ax -= k * rx; ay -= k * ry;
+      if (onEarth) {
+        const h = Math.hypot(x, y) - PHYS.RE;
+        if (h < PHYS.ATM_TOP) {
+          const rho = airDensity(h);
+          const [rx, ry] = this.relVelocity(x, y, vx, vy);
+          const v = Math.hypot(rx, ry);
+          if (v > 0.5 && rho > 0) {
+            // La resistencia NO depende de hacia dónde mira la punta: así la caída es pareja y predecible.
+            // (Ir de costado con mucho aire sigue siendo peligroso: lo castiga el límite de presión × ángulo.)
+            const k = 0.5 * rho * v * cdA / massMid;
+            ax -= k * rx; ay -= k * ry;
+          }
         }
       }
       return [ax, ay];
     };
     const { x, y, vx, vy } = this;
-    const [k1x, k1y] = accel(x, y, vx, vy);
-    const [k2x, k2y] = accel(x + 0.5 * dt * vx, y + 0.5 * dt * vy, vx + 0.5 * dt * k1x, vy + 0.5 * dt * k1y);
-    const [k3x, k3y] = accel(x + 0.5 * dt * (vx + 0.5 * dt * k1x), y + 0.5 * dt * (vy + 0.5 * dt * k1y), vx + 0.5 * dt * k2x, vy + 0.5 * dt * k2y);
-    const [k4x, k4y] = accel(x + dt * (vx + 0.5 * dt * k2x), y + dt * (vy + 0.5 * dt * k2y), vx + dt * k3x, vy + dt * k3y);
+    const t0 = this.t;
+    const [k1x, k1y] = accel(x, y, vx, vy, t0);
+    const [k2x, k2y] = accel(x + 0.5 * dt * vx, y + 0.5 * dt * vy, vx + 0.5 * dt * k1x, vy + 0.5 * dt * k1y, t0 + 0.5 * dt);
+    const [k3x, k3y] = accel(x + 0.5 * dt * (vx + 0.5 * dt * k1x), y + 0.5 * dt * (vy + 0.5 * dt * k1y), vx + 0.5 * dt * k2x, vy + 0.5 * dt * k2y, t0 + 0.5 * dt);
+    const [k4x, k4y] = accel(x + dt * (vx + 0.5 * dt * k2x), y + dt * (vy + 0.5 * dt * k2y), vx + dt * k3x, vy + dt * k3y, t0 + dt);
     this.x += dt * (vx + (dt / 6) * (k1x + k2x + k3x));
     this.y += dt * (vy + (dt / 6) * (k1y + k2y + k3y));
     this.vx += (dt / 6) * (k1x + 2 * k2x + 2 * k3x + k4x);
     this.vy += (dt / 6) * (k1y + 2 * k2y + 2 * k3y + k4y);
     this.t += dt;
 
+    // --- ¿cambió el cuerpo que manda? (entrada o salida de la zona de influencia de la Luna)
+    if (moon) {
+      const nb = bodyAt(this.x, this.y, this.t, moon);
+      if (nb !== this.body) this.switchBody(nb);
+      if (this.body === 'moon') {
+        moonState(moon, this.t, MS);
+        if (Math.hypot(this.x - MS.x, this.y - MS.y) < MOON.R) {
+          if (this.mission) this.mission.moonCrash = true;
+          this.destroy('crash-moon', 'La nave chocó contra la superficie de la Luna.');
+          return;
+        }
+      }
+    }
+
     // --- suelo
-    if (this.r < PHYS.RE) {
+    if (this.body === 'earth' && this.r < PHYS.RE) {
       const ux = this.x / this.r; const uy = this.y / this.r;
       const vr = this.vx * ux + this.vy * uy;
+      if (!this.grounded && this.capsuleOnly) {
+        // la cápsula toca el agua (o el suelo): con paracaídas llega despacio; sin ellos, se rompe
+        const [rx, ry] = this.relVelocity();
+        const hit = Math.hypot(rx, ry);
+        this.x = ux * PHYS.RE; this.y = uy * PHYS.RE;
+        if (hit <= PHYS.LAND_SPEED) {
+          this.landing = { speed: hit, t: this.t };
+          if (this.mission) this.mission.landed = true;
+          this.addLog(`¡La cápsula tocó la superficie a ${hit.toFixed(1)} m/s, colgando de sus paracaídas!`, 'ok');
+          this.finish('splashdown');
+        } else {
+          this.destroy('crash', this.chute && !this.chute.torn ? `La cápsula llegó a la superficie a ${Math.round(hit)} m/s: los paracaídas no tuvieron tiempo de frenarla.` : `La cápsula golpeó la superficie a ${Math.round(hit)} m/s. Sin paracaídas abiertos no hay forma de frenar.`);
+        }
+        return;
+      }
       if (!this.grounded && (vr < -15 || this.altitude < -50)) {
         this.destroy('crash', 'El cohete volvió a caer contra la Tierra.');
         return;
@@ -451,31 +645,100 @@ export class FlightSim {
     if (this.grounded && this.altitude > 0.5) this.grounded = false; // ya se despegó de la plataforma
 
     // --- aerodinámica y estadísticas
-    const aero = this.aero();
+    const aero = this.body === 'earth' ? this.aero() : NO_AIR;
     this.lastQ = aero.q;
-    if (aero.q > this.stats.maxQ) { this.stats.maxQ = aero.q; this.stats.maxQTime = this.t; }
-    const qa = aero.q * Math.sin(aero.alpha);
-    if (qa > this.stats.maxQalpha) this.stats.maxQalpha = qa;
-    if (aero.q > PHYS.Q_LIMIT) this.stats.overQSeconds += dt;
-    if (aero.q > 3000 && aero.alpha > 12 * DEG) this.stats.aoaSeconds += dt;
+    // fuerza g que se siente a bordo: todo lo que no es gravedad (empuje y freno del aire)
+    const dragF = aero.q * cdA;
+    this.gNow = (thrust + dragF) / Math.max(this.mass, 1) / PHYS.G0;
     this.stats.maxAlt = Math.max(this.stats.maxAlt, this.altitude);
-    if (aero.q > PHYS.Q_LIMIT * PHYS.Q_BREAK_FACTOR) {
-      this.destroy('maxq', 'El aire apretó demasiado fuerte al cohete y se rompió (Max-Q).');
-      return;
+    const craft = this.craft;
+    // reentrada: la nave vuelve del espacio y entra al aire a gran velocidad
+    if (craft && this.stats.entryT == null && this.body === 'earth' && this.altitude < PHYS.ATM_TOP && this.stats.maxAlt > PHYS.ATM_TOP * 1.5 && aero.v > PHYS.ENTRY_SPEED && this.radialSpeed < 0) {
+      this.stats.entryT = this.t; this.stats.entrySpeed = aero.v;
+      this.stats.entryAngleDeg = Math.asin(clamp(-this.radialSpeed / Math.max(this.speed, 1), -1, 1)) / DEG;
+      if (this.mission) this.mission.entry = true;
+      this.addLog(`Reentrada: la nave entra al aire a ${(aero.v / 1000).toFixed(1)} km/s.`, 'warn');
     }
-    if (qa > PHYS.QALPHA_BREAK) {
-      this.destroy('aoa', 'El cohete giró de lado con mucho aire y se partió. ¡Inclina de a poquito!');
-      return;
+    const reentry = Boolean(craft) && this.stats.entryT != null;
+    if (!reentry) {
+      if (aero.q > this.stats.maxQ) { this.stats.maxQ = aero.q; this.stats.maxQTime = this.t; }
+      const qa = aero.q * Math.sin(aero.alpha);
+      if (qa > this.stats.maxQalpha) this.stats.maxQalpha = qa;
+      if (aero.q > PHYS.Q_LIMIT) this.stats.overQSeconds += dt;
+      if (aero.q > 3000 && aero.alpha > 12 * DEG) this.stats.aoaSeconds += dt;
+      if (aero.q > PHYS.Q_LIMIT * PHYS.Q_BREAK_FACTOR) {
+        this.destroy('maxq', 'El aire apretó demasiado fuerte al cohete y se rompió (Max-Q).');
+        return;
+      }
+      if (qa > PHYS.QALPHA_BREAK) {
+        this.destroy('aoa', 'El cohete giró de lado con mucho aire y se partió. ¡Inclina de a poquito!');
+        return;
+      }
+    } else {
+      // calor: crece con la raíz de la densidad del aire y con el CUBO de la velocidad
+      const flux = PHYS.HEAT_K * Math.sqrt(aero.rho) * aero.v * aero.v * aero.v;
+      this.heat.flux = flux;
+      if (flux > this.stats.maxHeat) this.stats.maxHeat = flux;
+      if (this.gNow > this.stats.maxG) this.stats.maxG = this.gNow;
+      if (this.capsuleOnly) {
+        this.heat.load += flux * dt;
+        this.heat.shieldLeft = Math.max(0, 1 - this.heat.load / craft.shieldLoad);
+        if (this.heat.shieldLeft <= 0) { this.destroy('burn', 'El escudo térmico se gastó por completo y la cápsula se quemó. La entrada fue demasiado larga o demasiado rápida.'); return; }
+        if (this.gNow > craft.gBreak) { this.destroy('gforce', `La cápsula entró demasiado empinada: frenó con ${Math.round(this.gNow)} veces la gravedad y se rompió.`); return; }
+      } else if (flux > PHYS.HEAT_BARE) {
+        // sin el escudo por delante (el módulo de servicio o una etapa siguen puestos) el calor destruye la nave
+        this.heat.bare += (flux - PHYS.HEAT_BARE) * dt;
+        if (this.heat.bare > PHYS.BARE_LOAD) { this.destroy('burn', 'La nave entró al aire sin el escudo térmico por delante y se quemó. Hay que soltar el módulo de servicio antes de la reentrada.'); return; }
+      }
     }
 
     // --- ¿ya hay órbita?
-    const el = this.elements;
-    const wasReached = this.orbitReached;
-    this.orbitReached = el.periAlt >= PHYS.PERI_OK && this.altitude > PHYS.ATM_TOP * 0.8;
-    if (this.orbitReached && !wasReached) {
-      this.stats.orbitTime = this.t;
-      this.addLog(`¡Órbita! Punto más bajo ${Math.round(el.periAlt / 1000)} km.`, 'ok');
+    if (this.body === 'earth') {
+      const el = this.elements;
+      const wasReached = this.orbitReached;
+      this.orbitReached = el.periAlt >= PHYS.PERI_OK && this.altitude > PHYS.ATM_TOP * 0.8;
+      if (this.orbitReached && !wasReached && !(this.mission && this.mission.leo)) {
+        this.stats.orbitTime = this.t;
+        this.addLog(`¡Órbita! Punto más bajo ${Math.round(el.periAlt / 1000)} km.`, 'ok');
+      }
     }
+    if (this.mission) this.trackMission();
+  }
+
+  /** Cambia el cuerpo que manda sin que el cohete gire: conserva hacia dónde miraba en el espacio. */
+  switchBody(next) {
+    const [ax, ay] = this.attitude();
+    this.body = next;
+    if (this.mode === 'manual') this.beta = this.betaOf(ax, ay);
+    if (next === 'moon') this.addLog('Entraste en la zona de influencia de la Luna: ahora manda su gravedad.', 'ok');
+    else this.addLog('Saliste de la zona de influencia de la Luna: vuelve a mandar la gravedad de la Tierra.', 'info');
+  }
+
+  /** Diario de la misión lunar: anota cada meta cuando se cumple de verdad (según la física, no por tiempo). */
+  trackMission() {
+    const m = this.mission;
+    if (this.body === 'earth') {
+      const el = this.elements;
+      if (!m.leo && this.orbitReached) { m.leo = true; m.leoT = this.t; m.parking = { periKm: el.periAlt / 1000, apoKm: el.apoAlt / 1000 }; }
+      if (m.leo && !m.tli && !m.soi && (el.hyper || el.ra > 0.75 * MOON.DIST)) { m.tli = true; m.tliT = this.t; this.addLog('¡Rumbo a la Luna! La órbita ya llega hasta allá.', 'ok'); }
+      if (m.soi && !m.left) { m.left = true; m.leftT = this.t; if (m.lunarOrbit) m.tei = true; }
+      m.lastA = null;
+      return;
+    }
+    const q = this.rel();
+    const el = orbitElements(q.x, q.y, q.vx, q.vy, MOON.MU, MOON.R);
+    if (!m.soi) { m.soi = true; m.soiT = this.t; m.tli = true; }
+    const alt = el.r - MOON.R;
+    if (alt < m.minMoonAlt) m.minMoonAlt = alt;
+    const closed = !el.hyper && el.periAlt >= MOON.SAFE_ALT && el.ra < MOON.SOI * 0.9;
+    const a = Math.atan2(q.y, q.x);
+    if (closed) {
+      if (!m.lunarOrbit) { m.lunarOrbit = true; m.lunarOrbitT = this.t; this.addLog(`¡Órbita lunar! Punto más bajo ${Math.round(el.periAlt / 1000)} km sobre la Luna.`, 'ok'); }
+      m.orbit = { periKm: el.periAlt / 1000, apoKm: el.apoAlt / 1000 };
+      if (!m.bestOrbit || m.orbit.apoKm - m.orbit.periKm < m.bestOrbit.apoKm - m.bestOrbit.periKm) m.bestOrbit = { ...m.orbit };
+      if (m.lastA != null) { m.revAngle += Math.abs(wrap(a - m.lastA)); m.lunarRevs = m.revAngle / (2 * Math.PI); }
+    } else if (m.lunarOrbit && el.hyper && !m.tei) { m.tei = true; m.teiT = this.t; this.addLog('¡Rumbo a casa! La nave ya escapa de la Luna.', 'ok'); }
+    m.lastA = a;
   }
 
   processEvents() {
@@ -514,6 +777,7 @@ export class FlightSim {
       q: a.q, alphaDeg: a.alpha / DEG, mass: this.mass,
       stage: this.stage, stageFuelFrac: this.stageFuelFrac, fuelLeftPct: this.fuelLeftPct,
       twr: this.thrustToWeight(),
+      body: this.body, g: this.gNow, shieldLeft: this.heat.shieldLeft, heatFlux: this.heat.flux, chute: this.chuteState,
     };
   }
 }
@@ -786,6 +1050,7 @@ export const SCORE_WEIGHTS = { orbit: 50, fuel: 25, maxq: 15, staging: 10 };
  * @param {object} ref     { fuelLeftPct } resultado del piloto automático con la misma carga
  */
 export function pilotScore(sim, ref = { fuelLeftPct: 10 }) {
+  if (sim.profile === 'lunarReturn') return lunarScore(sim);
   const el = sim.elements;
   const d = DEST[sim.destId];
   const W = SCORE_WEIGHTS;
@@ -825,6 +1090,53 @@ export function pilotScore(sim, ref = { fuelLeftPct: 10 }) {
       { id: 'maxq', label: 'Cuidar el momento de más presión del aire (Max-Q)', points: Math.round(maxq), max: W.maxq, note: sim.stats.maxQ > PHYS.Q_LIMIT ? 'Pasaste el límite de presión del aire. La próxima vez baja el empuje.' : 'No pasaste el límite de presión del aire.' },
       { id: 'staging', label: 'Separar bien las etapas y la cofia', points: Math.round(staging), max: W.staging, note: wastedFrac > 0.02 ? 'Soltaste una etapa con combustible adentro.' : 'Separaste las etapas en buen momento.' },
     ],
+  };
+}
+
+export const LUNAR_SCORE = { leo: 15, moon: 15, lunarOrbit: 25, back: 15, landing: 30 };
+const DESTROYED = ['failure', 'maxq', 'aoa', 'crash', 'crash-moon', 'burn', 'gforce'];
+/** ¿El vuelo terminó con la nave destruida? */
+export const wasDestroyed = (sim) => DESTROYED.includes(sim.endReason);
+
+/** Puntaje (0–100) de la misión lunar de ida y vuelta: cada parte premia una meta cumplida y qué tan bien quedó. */
+export function lunarScore(sim) {
+  const m = sim.mission; const W = LUNAR_SCORE; const st = sim.stats;
+  const km = (v) => Math.round(v).toLocaleString('es');
+  const parts = [];
+  parts.push({ id: 'leo', label: 'Órbita de espera alrededor de la Tierra', points: m.leo ? W.leo : 0, max: W.leo,
+    note: m.leo ? `Llegaste a una órbita de ${km(m.parking.periKm)} × ${km(m.parking.apoKm)} km.` : 'No llegaste a una órbita estable alrededor de la Tierra.' });
+  parts.push({ id: 'moon', label: 'Inyección hacia la Luna', points: m.soi ? W.moon : m.tli ? Math.round(W.moon * 0.5) : 0, max: W.moon,
+    note: m.soi ? 'Encendiste en la ventana y la gravedad de la Luna atrapó tu trayectoria.' : m.tli ? 'Tu órbita llegó hasta la distancia de la Luna, pero la Luna no estaba ahí: faltó encender en la ventana.' : 'No hiciste la inyección hacia la Luna.' });
+  let orbitPts = 0; let orbitNote = 'No llegaste a la Luna.';
+  if (m.bestOrbit) {
+    const diff = m.bestOrbit.apoKm - m.bestOrbit.periKm; const mean = (m.bestOrbit.apoKm + m.bestOrbit.periKm) / 2;
+    const q = 0.5 * clamp(1 - Math.max(0, diff - 60) / 2000, 0, 1) + 0.5 * clamp(1 - Math.max(0, Math.abs(mean - 110) - 30) / 1500, 0, 1);
+    orbitPts = W.lunarOrbit * (0.6 + 0.4 * q);
+    orbitNote = `Quedaste en órbita lunar de ${km(m.bestOrbit.periKm)} × ${km(m.bestOrbit.apoKm)} km${diff <= 60 ? ': casi redonda.' : '. Mientras más redonda y cerca de 110 km, mejor.'}`;
+  } else if (m.soi) {
+    orbitPts = W.lunarOrbit * 0.3;
+    orbitNote = m.moonCrash ? 'La nave llegó a la Luna, pero chocó contra ella.' : `Pasaste a ${km(m.minMoonAlt / 1000)} km de la Luna sin frenar: fue un sobrevuelo, no una órbita.`;
+  }
+  parts.push({ id: 'lunarOrbit', label: 'Órbita alrededor de la Luna', points: Math.round(orbitPts), max: W.lunarOrbit, note: orbitNote });
+  const landed = Boolean(sim.landing);
+  const back = m.left && (m.entry || landed) ? W.back : m.left ? W.back * 0.5 : m.tei ? W.back * 0.3 : 0;
+  parts.push({ id: 'back', label: 'Inyección de regreso a la Tierra', points: Math.round(back), max: W.back,
+    note: m.left && (m.entry || landed) ? 'Saliste de la Luna con el rumbo justo para entrar al aire de la Tierra.' : m.left ? 'Saliste de la Luna, pero tu trayectoria no llegó a la atmósfera de la Tierra.' : m.tei ? 'Escapaste de la órbita lunar, pero el vuelo terminó antes de volver.' : 'No hiciste la inyección de regreso.' });
+  let land = 0; let landNote = 'La cápsula no llegó a la superficie.';
+  if (landed) {
+    const gLim = sim.craft?.gLimit ?? 9;
+    const gPart = clamp(1 - (st.maxG - gLim) / 6, 0, 1);
+    const shieldPart = clamp(sim.heat.shieldLeft / 0.3, 0, 1);
+    land = W.landing * (0.6 + 0.2 * gPart + 0.2 * shieldPart);
+    landNote = `Amerizaje a ${sim.landing.speed.toFixed(1)} m/s. La reentrada llegó a ${st.maxG.toFixed(1)} veces la gravedad${st.maxG > gLim ? ' (demasiado para la tripulación: hay que entrar menos empinado)' : ''} y gastó ${Math.round((1 - sim.heat.shieldLeft) * 100)} % del escudo térmico.`;
+  } else if (sim.endReason === 'burn') landNote = 'La nave se quemó en la reentrada.';
+  else if (sim.endReason === 'gforce') landNote = 'La cápsula entró demasiado empinada y no aguantó el frenazo.';
+  else if (sim.endReason === 'crash' && m.entry) landNote = 'La cápsula sobrevivió a la reentrada, pero llegó demasiado rápido a la superficie.';
+  parts.push({ id: 'landing', label: 'Reentrada, paracaídas y amerizaje', points: Math.round(land), max: W.landing, note: landNote });
+  const total = parts.reduce((a, p2) => a + p2.points, 0);
+  return {
+    total: clamp(total, 0, 100), parts,
+    how: `Sumas hasta 100 puntos: ${W.leo} por llegar a la órbita de la Tierra, ${W.moon} por la inyección hacia la Luna, ${W.lunarOrbit} por la órbita lunar (más si queda redonda y cerca de 110 km), ${W.back} por la inyección de regreso y ${W.landing} por la reentrada y el amerizaje (más si la tripulación siente menos de 9 g y sobra escudo térmico).`,
   };
 }
 

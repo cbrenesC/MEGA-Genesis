@@ -379,3 +379,38 @@ pre.json { max-height: 320px; overflow: auto; background: #061020; border: 1px s
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+/* ---------- Misión lunar: etapas de la misión, lectura de la maniobra, reentrada y paracaídas ---------- */
+.phase-row { display: flex; gap: 6px; align-items: stretch; flex-wrap: wrap; }
+/* tira de etapas de la misión: seis casillas; sólo la etapa actual muestra su nombre (las demás, al pasar el cursor) */
+.mission-steps { list-style: none; display: flex; gap: 2px; margin: 0; padding: 2px 5px; background: var(--hp); border: 2px solid #28445a; font-size: .62rem; text-transform: uppercase; letter-spacing: .04em; align-items: center; }
+.mission-steps li span { display: none; } .mission-steps li.is-now span { display: inline; }
+.mission-steps li { display: inline-flex; align-items: center; gap: 4px; padding: 1px 5px 1px 2px; color: var(--muted); white-space: nowrap; }
+.mission-steps li b { display: inline-grid; place-items: center; width: 15px; height: 15px; background: #1a2c3d; border: 1px solid #3a566b; color: var(--muted); font-size: .6rem; }
+.mission-steps li.is-done { color: var(--green); }
+.mission-steps li.is-done b { background: var(--green); border-color: var(--green); color: #06180f; }
+.mission-steps li.is-done b::after { content: '✔'; } .mission-steps li.is-done b { font-size: 0; } .mission-steps li.is-done b::after { font-size: .62rem; }
+.mission-steps li.is-now { color: #fff; }
+.mission-steps li.is-now b { background: var(--yellow); border-color: var(--yellow); color: #2a2206; animation: step-blink 1.2s steps(2) infinite; }
+@keyframes step-blink { 50% { background: #5a4a10; color: var(--yellow); } }
+.hud-readout { position: absolute; top: 168px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: baseline; padding: 6px 14px; background: rgba(6, 13, 26, .94); border: 2px solid var(--cyan); box-shadow: 3px 3px 0 rgba(0,0,0,.4); font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; white-space: nowrap; z-index: 3; }
+.hud-readout[hidden] { display: none; }
+.hud-readout span { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.hud-readout b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.hud-readout b.good { color: var(--green); } .hud-readout b.warn { color: var(--yellow); } .hud-readout b.bad { color: var(--red); }
+.hud-readout small { color: var(--muted); font-size: .7rem; }
+.qbar.shield { height: 4px; background: #1a2c3d; margin-top: 2px; } .qbar.shield i { display: block; height: 100%; background: var(--orange); }
+.big-btn.chute { background: #7a4a12; border-color: var(--orange); min-width: 150px; }
+.big-btn.sep.service { background: #4a3a12; border-color: var(--yellow); }
+.big-btn.transfer.is-wait { background: var(--hp); border-color: #52758a; color: var(--muted); }
+.big-btn.transfer.is-on { background: var(--cyan); color: #092029; border-color: var(--cyan); }
+.warp-hi[hidden] { display: none; }
+@media (max-width: 1180px) { .hud-readout { top: 184px; } }
+@media (max-width: 760px) {
+  .mission-steps { font-size: .56rem; gap: 1px; padding: 2px 3px; }
+  .hud-readout { top: 214px; padding: 4px 8px; gap: 6px; } .hud-readout b { font-size: 1rem; } .hud-readout small { display: none; }
+  .big-btn.chute, #b-retro { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .mission-steps li.is-now b { animation: none; } }
+/* cápsula sola (sin motor): sin palanca de empuje, sin giro y sin el dato de empuje/peso */
+.hud[data-capsule] .hud-left, .hud[data-capsule] .steer, .hud[data-capsule] .only-ground, .hud[data-capsule] .hud-attitude { display: none !important; }
