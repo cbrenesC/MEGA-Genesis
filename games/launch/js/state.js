@@ -11,6 +11,8 @@
 // Si una sección no existe, se usa el escenario simulado (mock) de data/mock-missions.json
 // y la interfaz lo marca como "MOCK". Ver LAUNCH_CHANGES.md, sección 7, para el formato.
 
+import { simText } from '../../../src/i18n/catalog.js';
+
 export const SHARED_KEY = 'spaceMission.state.v1';
 export const LAUNCH_EVENT = 'spacemission:launch-updated';
 // Versión 2: se agregan los datos del vuelo interactivo (campo `flight`) y la forma en que terminó (`result`, `events`).
@@ -18,17 +20,17 @@ export const LAUNCH_EVENT = 'spacemission:launch-updated';
 export const SCHEMA_VERSION = 2;
 export const DIFFICULTIES = ['facil', 'normal', 'dificil'];
 export const ROLES = {
-  launch: 'Lanzamiento y planificación de la misión',
-  spacecraft: 'Nave e instrumentos',
-  science: 'Ciencia / Objetivo y órbita',
-  mission: 'Dirección de misión (presupuesto y calendario)',
+  get launch() { return simText('flight.role.launch'); },
+  get spacecraft() { return simText('flight.role.spacecraft'); },
+  get science() { return simText('flight.role.science'); },
+  get mission() { return simText('flight.role.mission'); },
 };
 
 export async function loadData() {
   const names = ['launchers', 'sites', 'orbits', 'rules', 'reference-missions', 'glossary', 'mock-missions', 'flight', 'flight-calibration', 'facts'];
   const files = await Promise.all(names.map(async (name) => {
     const response = await fetch(new URL(`../data/${name}.json`, import.meta.url));
-    if (!response.ok) throw new Error(`No se pudo cargar data/${name}.json (${response.status})`);
+    if (!response.ok) throw new Error(`${name}.json: HTTP ${response.status}`);
     return response.json();
   }));
   const [launchers, sites, orbits, rules, missions, glossary, mocks, flight, calibration, facts] = files;

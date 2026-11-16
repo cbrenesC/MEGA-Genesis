@@ -5,6 +5,12 @@ import { join } from 'node:path';
 import en from '../src/i18n/en.json' with { type: 'json' };
 import es from '../src/i18n/es.json' with { type: 'json' };
 import { CREW } from '../src/crew/roster.js';
+import { MEDALS } from '../src/medals/progress.js';
+import { catalogLanguage, localizedNumber, setCatalogLanguage } from '../src/i18n/catalog.js';
+import { localizeLaunchData } from '../games/launch/js/localizeData.js';
+import { reviewFlightPlan } from '../src/missions/flightPlan.js';
+import { missionUrl } from '../src/missions/missionTransfer.js';
+import { renderLaunchStation } from '../src/missions/launchStationUI.js';
 
 const parameters = (value) => [...new Set(value.match(/\{\w+\}/g) ?? [])].sort();
 
@@ -25,18 +31,86 @@ function scan(dir) {
 }
 
 test('static UI references use valid translation keys', () => {
-  const pattern = /data-i18n(?:-aria|-title|-alt|-content|-label)?="([^"]+)"|(?:\bt|showNotice|setLoadingStatus|message|addLabel|addRoomPlaque|addSectorTag)\('((?:[a-z]+\.)+[\w.]+)'/g;
+  const attribute = /data-i18n(?:-aria|-title|-alt|-content|-label)?="([^"]+)"/g;
+  const call = /\b(t|simText|showNotice|setLoadingStatus|message|addLabel|addRoomPlaque|addSectorTag)\(\s*(['"])([a-z]\w*(?:\.[\w-]+)+)\2/g;
   for (const file of ['index.html', ...scan('src'), ...scan('games')]) {
     const text = readFileSync(file, 'utf8');
-    for (const match of text.matchAll(pattern)) {
-      const key = match[1] || match[2];
-      assert.ok(Object.hasOwn(en, key), `${file}: ${key}`);
-    }
+    const keys = [
+      ...[...text.matchAll(attribute)].map(([, key]) => key),
+      ...[...text.matchAll(call)].map(([, fn, , key]) => fn === 'simText' ? `sim.${key}` : key),
+    ];
+    for (const key of keys) assert.ok(Object.hasOwn(en, key), `${file}: ${key}`);
   }
   for (const id of ['objectives', 'requirements', 'architecture', 'design', 'systems', 'testing', 'ground', 'operations', 'launch', 'rover']) {
     for (const suffix of ['title', 'text']) assert.ok(Object.hasOwn(en, `lesson.${id}.${suffix}`));
   }
   for (let i = 1; i <= 14; i++) assert.ok(Object.hasOwn(en, 'briefing.cue' + String(i).padStart(2, '0')));
+  for (const medal of MEDALS) {
+    assert.ok(Object.hasOwn(en, `medals.name.${medal.id}`));
+    if (medal.stationNameKey) assert.ok(Object.hasOwn(en, medal.stationNameKey));
+    if (!medal.stationNameKey || ['launch', 'rover'].includes(medal.id)) {
+      assert.ok(Object.hasOwn(en, `medals.requirement.${medal.id}`));
+    }
+  }
+});
+
+const loadFlightData = name => JSON.parse(readFileSync(new URL(`../games/launch/data/${name}.json`, import.meta.url)));
+const flightData = {
+  mocks: loadFlightData('mock-missions'), launchers: loadFlightData('launchers').launchers,
+  sites: loadFlightData('sites').sites, orbits: loadFlightData('orbits').orbits,
+  rules: loadFlightData('rules'), flight: loadFlightData('flight'), calibration: loadFlightData('flight-calibration'),
+};
+
+test('catalogs cover names and references in the launch data, including alternate transfer stages', () => {
+  const keys = [];
+  for (const launcher of flightData.launchers) {
+    keys.push(`flightData.rocket.${launcher.id}.name`);
+    for (const field of Object.keys(launcher.sources)) {
+      keys.push(`flightData.rocket.${launcher.id}.sources.${field}`, `sim.station.source-field.${field}`);
+    }
+    for (const quality of Object.values(launcher.dataQuality)) keys.push(`sim.station.source-quality.${quality}`);
+  }
+  for (const site of flightData.sites) keys.push(`flightData.site.${site.id}.name`);
+  for (const scenario of flightData.mocks.scenarios) keys.push(`flightData.mock.${scenario.id}.label`);
+  for (const vehicle of Object.values(flightData.flight.vehicles)) {
+    for (const stage of [...(vehicle.stages ?? []), ...(vehicle.transferStages ?? [])]) {
+      keys.push(`flightData.stage.${stage.nameKey}`);
+    }
+  }
+  for (const key of keys) for (const catalog of [en, es]) assert.ok(Object.hasOwn(catalog, key), key);
+});
+
+test('rocket catalog, review and flight budget render cleanly in both languages', async () => {
+  globalThis.location ??= { href: 'https://example.test/?lang=es' };
+  globalThis.document ??= { cookie: '' };
+  const { app } = await import('../games/launch/js/store.js');
+  const { renderResources } = await import('../games/launch/js/screens.js');
+  const original = catalogLanguage();
+  const plan = { scenarioId: 'moonReturn', launcherId: 'falcon9', difficulty: 'facil', teamMode: true };
+  try {
+    for (const [locale, catalog] of [['en', en], ['es', es]]) {
+      setCatalogLanguage(locale);
+      const data = localizeLaunchData(flightData);
+      const view = reviewFlightPlan(data, plan);
+      const context = { data, plan, view, translate: key => catalog[key] };
+      Object.assign(app, { data, resolved: view.resolved, evaluations: view.evaluations, selectedId: 'falcon9' });
+      const budget = renderResources();
+      const station = renderLaunchStation('review', context, '');
+      const rockets = renderLaunchStation('vehicle', context, '');
+      assert.match(budget, /<span>Total<\/span>/);
+      assert.doesNotMatch(budget + station + rockets, /(?:sim\.(?:flight|station)\.|availabilityMonths)/);
+      assert.ok(station.includes(catalog['flightData.rocket.falcon9.sources.costMUSD']));
+      assert.ok(station.includes(catalog['sim.flight.role.spacecraft']));
+      assert.ok(rockets.includes(catalog['sim.station.choose-your-rocket']));
+      assert.ok(budget.includes(catalog['sim.flight.schedule']));
+      assert.equal(data.flight.vehicles.electron.transferStages.at(-1).name, catalog['flightData.stage.transfer-photon']);
+      assert.equal(localizedNumber(1.25, 2), locale === 'en' ? '1.25' : '1,25');
+      assert.equal(new URL(missionUrl('launch', locale, plan), 'https://example.test').searchParams.get('lang'), locale);
+      assert.equal(new URL(missionUrl('rover', locale, {}), 'https://example.test').searchParams.get('lang'), locale);
+    }
+  } finally {
+    setCatalogLanguage(original);
+  }
 });
 
 test('the renamed crew retain distinct roles and short patrol routes', () => {
@@ -96,5 +170,8 @@ test('language changes update text, accessibility labels and links without stora
   assert.equal(attributes.get('href'), '/games/launch/?difficulty=normal&lang=en#simulator');
   assert.equal(navigatedTo, 'https://example.test/?lang=en');
   assert.equal(t('rover.telemetry', { battery: 78, count: 0 }, 'es'), 'Batería 78% · Muestras 0/3');
+  globalThis.location.href = 'https://example.test/?mode=practice#plan';
+  setLanguage('es');
+  assert.equal(navigatedTo, 'https://example.test/?mode=practice&lang=es#plan');
   assert.equal(storageAccesses, 0);
 });

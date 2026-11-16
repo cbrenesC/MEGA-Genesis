@@ -1,4 +1,4 @@
-import { simText } from "../../../src/i18n/catalog.js";
+import { localizedNumber, simText } from "../../../src/i18n/catalog.js";
 // Read-only flight resources and results. Mission preparation lives in Mission Control.
 import { buildRequests, matchReferenceMission } from './rules.js';
 import { ROLES } from './state.js';
@@ -25,7 +25,7 @@ const RESULT_TEXT = {
 const RESULT_TEXT_LUNAR = {
   exito: { icon: '✔', get title() { return simText("lunarFlight.success-the-crew-reached-the-moon-and-returned"); }, get text() { return simText("lunarFlight.you-completed-the-round-trip-earth-orbit-lunar"); } },
   exito_parcial: { icon: '◐', get title() { return simText("lunarFlight.partial-success-the-mission-was-not-fully-completed"); }, get text() { return simText("lunarFlight.a-milestone-was-missed-or-the-flight-was"); } },
-  falla: { icon: '✖', title: 'Misión perdida', get text() { return simText("lunarFlight.the-lunar-trip-has-several-milestones-review-where"); } },
+  falla: { icon: '✖', get title() { return simText("flight.mission-lost"); }, get text() { return simText("lunarFlight.the-lunar-trip-has-several-milestones-review-where"); } },
 };
 
 const sourceTag = (key) => (app.resolved.sources[key] === 'estacion'
@@ -45,7 +45,7 @@ export function renderResult() {
   const txt = (lunar ? RESULT_TEXT_LUNAR : RESULT_TEXT)[f.result];
   const ao = f.achievedOrbit;
   const orbitText = ao
-    ? (ao.periapsisKm != null ? `${ao.periapsisKm} × ${ao.apoapsisKm} km${ao.type === 'LUNA' ? ` (${simText("flight.moon")})` : ''}` : `${esc(ao.type)}${ao.altitudeKm != null ? ` · ${ao.altitudeKm} km` : ''}`) + (ao.inclinationDeg != null && inputs().orbit.type !== 'GTO' ? ` · ${ao.inclinationDeg}°` : '')
+    ? (ao.periapsisKm != null ? `${localizedNumber(ao.periapsisKm, 2)} × ${localizedNumber(ao.apoapsisKm, 2)} km${ao.type === 'LUNA' ? ` (${simText("flight.moon")})` : ''}` : `${esc(ao.type)}${ao.altitudeKm != null ? ` · ${localizedNumber(ao.altitudeKm, 2)} km` : ''}`) + (ao.inclinationDeg != null && inputs().orbit.type !== 'GTO' ? ` · ${localizedNumber(ao.inclinationDeg, 2)}°` : '')
     : simText("flight.none");
   const pilot = f.pilot;
   const match = matchReferenceMission(app.data.missions, inputs().orbit.type, sc.massKg, e.launcherId);
@@ -63,13 +63,13 @@ export function renderResult() {
     ${fd?.autopilot ? `<p class="muted">${simText("flight.you-used-autopilot-flying-manually-earns-more-points")}</p>` : ''}
   </article>` : '';
 
-  const dash = (v, unit = '') => (v == null ? '—' : `${v.toLocaleString('es')}${unit}`);
+  const dash = (v, unit = '') => (v == null ? '—' : `${localizedNumber(v, 3)}${unit}`);
   const flightCard = lunar ? `
   <article class="card">
     <h2>${simText("lunarFlight.your-journey-data")}</h2>
     <div class="kpis">
       <div class="kpi"><span>${simText("lunarFlight.journey-duration")}</span><b>${dash(lunar.days, simText("lunarFlight.days"))}</b></div>
-      <div class="kpi"><span>${simText("lunarFlight.lunar-orbit")}</span><b>${lunar.lunarOrbitKm ? `${lunar.lunarOrbitKm.periapsis} × ${lunar.lunarOrbitKm.apoapsis} km` : '—'}</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.lunar-orbit")}</span><b>${lunar.lunarOrbitKm ? `${localizedNumber(lunar.lunarOrbitKm.periapsis, 2)} × ${localizedNumber(lunar.lunarOrbitKm.apoapsis, 2)} km` : '—'}</b></div>
       <div class="kpi"><span>${simText("lunarFlight.lunar-revolutions")}</span><b>${lunar.lunarOrbitKm ? dash(lunar.lunarRevs) : '—'}</b></div>
       <div class="kpi"><span>${simText("lunarFlight.closest-approach-to-the-moon")}</span><b>${dash(lunar.closestToMoonKm, ' km')}</b></div>
       <div class="kpi"><span>${simText("lunarFlight.reentry-speed")}</span><b>${dash(lunar.entrySpeedKmS, ' km/s')}</b></div>
@@ -78,19 +78,19 @@ export function renderResult() {
       <div class="kpi"><span>${simText("lunarFlight.heat-shield-remaining")}</span><b>${lunar.entrySpeedKmS == null ? '—' : dash(lunar.shieldLeftPct, ' %')}</b></div>
       <div class="kpi"><span>${simText("lunarFlight.speed-at-parachute-deployment")}</span><b>${dash(lunar.chuteSpeedMs, ' m/s')}</b></div>
       <div class="kpi"><span>${simText("lunarFlight.splashdown-speed")}</span><b>${dash(lunar.landingSpeedMs, ' m/s')}</b></div>
-      <div class="kpi"><span>${simText("lunarFlight.peak-dynamic-pressure-ascent")}</span><b>${fd.maxQKPa} kPa</b></div>
+      <div class="kpi"><span>${simText("lunarFlight.peak-dynamic-pressure-ascent")}</span><b>${localizedNumber(fd.maxQKPa, 2)} kPa</b></div>
       <div class="kpi"><span>${simText("lunarFlight.fuel-remaining")}</span><b>${fd.fuelLeftPct} %</b></div>
     </div>
-    ${fd.stagingTimes.length ? `<p class="muted">${simText("lunarFlight.stage-separations-0", fd.stagingTimes.map((s) => `${s.stage > (fd.stagingTimes.length - 1) && lunar.reached.includes('left') ? simText("lunarFlight.service-module-2") : simText("lunarFlight.stage-0", s.stage)} (${s.altitudeKm.toLocaleString('es')} km)`).join(' · '))}</p>` : ''}
+    ${fd.stagingTimes.length ? `<p class="muted">${simText("lunarFlight.stage-separations-0", fd.stagingTimes.map((s) => `${s.stage > (fd.stagingTimes.length - 1) && lunar.reached.includes('left') ? simText("lunarFlight.service-module-2") : simText("lunarFlight.stage-0", s.stage)} (${localizedNumber(s.altitudeKm)} km)`).join(' · '))}</p>` : ''}
   </article>` : fd ? `
   <article class="card">
     <h2>${simText("flight.your-flight-data")}</h2>
     <div class="kpis">
-      <div class="kpi"><span>${simText("flight.maximum-altitude")}</span><b>${fd.maxAltitudeKm} km</b></div>
-      <div class="kpi"><span>${simText("flight.highest-point-apoapsis")}</span><b>${fd.apoapsisKm ?? '—'} km</b></div>
-      <div class="kpi"><span>${simText("flight.lowest-point-periapsis")}</span><b>${fd.periapsisKm} km</b></div>
+      <div class="kpi"><span>${simText("flight.maximum-altitude")}</span><b>${localizedNumber(fd.maxAltitudeKm, 2)} km</b></div>
+      <div class="kpi"><span>${simText("flight.highest-point-apoapsis")}</span><b>${dash(fd.apoapsisKm, ' km')}</b></div>
+      <div class="kpi"><span>${simText("flight.lowest-point-periapsis")}</span><b>${localizedNumber(fd.periapsisKm, 2)} km</b></div>
       <div class="kpi"><span>${simText("flight.fuel-remaining")}</span><b>${fd.fuelLeftPct} %</b></div>
-      <div class="kpi"><span>${simText("flight.maximum-dynamic-pressure")}</span><b>${fd.maxQKPa} kPa</b></div>
+      <div class="kpi"><span>${simText("flight.maximum-dynamic-pressure")}</span><b>${localizedNumber(fd.maxQKPa, 2)} kPa</b></div>
       <div class="kpi"><span>${simText("flight.duration")}</span><b>${Math.floor(fd.durationSeconds / 60)} min ${fd.durationSeconds % 60} s</b></div>
     </div>
     ${fd.stagingTimes.length ? `<p class="muted">${simText("flight.stage-separations-0", fd.stagingTimes.map((s) => simText("flight.stage-0-at-1-s-2-km", s.stage, s.tSeconds, s.altitudeKm)).join(' · '))}</p>` : ''}
@@ -165,14 +165,14 @@ export function renderResources({ compact = false } = {}) {
       <span class="pill" title="${simText('flight.budget-remaining')}: ${fmtMUSD(remaining)}"><b>💲</b> ${fmtMUSDShort(remaining)}</span>
       <span class="pill ${st ? `status-${st.cls}` : ''}" title="${simText("flight.payload-capacity-remaining")}"><b>⚖</b> ${e ? `${st.icon} ${e.marginPct} %` : '—'}</span>
       <span class="pill" title="${simText("flight.launch-month")}"><b>📅</b> ${e ? simText("flight.month-0", e.date.launchMonth) : simText("flight.month-0", schedule.monthsToTargetDate)}</span>
-      <span class="pill" title="${simText(sc.missionDays ? 'flight.duration-in-days' : 'flight.spacecraft-service-life-in-years')}"><b>⏳</b> ${sc.missionDays ? `${sc.missionDays} d` : `${lifetime}/${sc.designLifetimeYears} a`}</span>
+      <span class="pill" title="${simText(sc.missionDays ? 'flight.duration-in-days' : 'flight.spacecraft-service-life-in-years')}"><b>⏳</b> ${sc.missionDays ? `${sc.missionDays} d` : simText('flight.service-life-short', lifetime, sc.designLifetimeYears)}</span>
     </div>`;
   }
   return `
     <div class="res">
       <h3>${simText("flight.budget")}</h3>
       <div class="stack"><i class="others" style="width:${pct(budget.committedMUSD)}"></i><i class="launch" style="width:${pct(launchCost)}"></i><i class="events" style="width:${pct(eventsCost)}"></i></div>
-      <div class="row"><span>${simText("flight.total")}</span><b>${fmtMUSD(budget.totalMUSD)}</b></div>
+      <div class="row"><span>${t('common.total')}</span><b>${fmtMUSD(budget.totalMUSD)}</b></div>
       <div class="row"><span>${simText(app.campaign ? 'flight.committed-campaign' : 'flight.other-teams')}${app.previousAttemptsMUSD ? simText("flight.previous-attempts") : ''}</span><b>−${fmtMUSD(budget.committedMUSD)}</b></div>
       <div class="row"><span>${simText('flight.rocket')}${e?.delayCostMUSD ? simText("flight.delay") : ''}</span><b>${e ? `−${fmtMUSD(launchCost)}` : '—'}</b></div>
       ${eventsCost ? `<div class="row"><span>${simText("flight.unexpected-events")}</span><b>−${fmtMUSD(eventsCost)}</b></div>` : ''}
@@ -185,7 +185,7 @@ export function renderResources({ compact = false } = {}) {
       <div class="row"><span>${simText("flight.margin")}</span><b class="${st ? `status-${st.cls}` : ''}">${e ? `${st.icon} ${e.marginPct} %` : '—'}</b></div>
     </div>
     <div class="res">
-      <h3>📅 Tiempo ${sourceTag('schedule')}</h3>
+      <h3>📅 ${simText('flight.schedule')} ${sourceTag('schedule')}</h3>
       <div class="row"><span>${simText("flight.target")}</span><b>${simText('flight.month-0', schedule.monthsToTargetDate)}</b></div>
       <div class="row"><span>${simText("flight.launch")}</span><b class="${e?.date.delayMonths ? 'status-yellow' : ''}">${e ? simText("flight.month-0-1", e.date.launchMonth, f?.delayDays ? ` + ${f.delayDays} d` : '') : '—'}</b></div>
     </div>
@@ -196,7 +196,7 @@ export function renderResources({ compact = false } = {}) {
       <div class="row"><span>${simText("flight.result")}</span><b>${f ? { exito: simText("flight.success"), exito_parcial: simText("flight.partial"), falla: simText("flight.failed") }[f.result] : app.confirmed ? simText("flight.ready-to-launch") : simText("flight.pending")}</b></div>
     </div>
     <div class="res unaffected"><h3>${simText("flight.power-communications-data")}</h3><div>${simText("flight.the-rocket-does-not-directly-change-these-resources")}</div></div>
-    ${requests.length ? `<div class="res requests"><h3>${simText("flight.notes-for-other-roles-2")}</h3><ul>${requests.map((r) => `<li><span class="role-chip">${esc(r.toRole)}</span>${esc(r.text)}</li>`).join('')}</ul></div>` : ''}`;
+    ${requests.length ? `<div class="res requests"><h3>${simText("flight.notes-for-other-roles-2")}</h3><ul>${requests.map((r) => `<li><span class="role-chip">${esc(ROLES[r.toRole] ?? r.toRole)}</span>${esc(r.text)}</li>`).join('')}</ul></div>` : ''}`;
 }
 
 export function bindScreens(root, nav) {

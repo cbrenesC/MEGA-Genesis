@@ -1,4 +1,4 @@
-import { simText } from "../i18n/catalog.js";
+import { localizedNumber, simText } from "../i18n/catalog.js";
 // Preparation UI ported from feature/launch. A station renders one original panel
 // against the live flight plan instead of mounting the game's old setup scenes.
 import { buildRequests, buildSuggestions, operationalPropellant, tradeHighlights } from '../../games/launch/js/rules.js';
@@ -109,7 +109,7 @@ function renderCatalog({ data, view, onlyCompatible }, fields) {
       <div class="lv ${e.launcherId === view.selected?.launcherId ? 'is-selected' : ''} ${e.compatible ? '' : 'is-locked'}">
         <h3>${esc(l.name)}</h3>
         <div class="provider">${esc(l.provider)}</div>
-        ${l.liftoffMassKg ? `<div class="provider" title="${esc(l.sources?.liftoffMassKg ?? '')}">${simText("station.0-metric-tons-at-liftoff", Math.round(l.liftoffMassKg / 1000).toLocaleString('es'))}</div>` : ''}
+        ${l.liftoffMassKg ? `<div class="provider" title="${esc(l.sources?.liftoffMassKg ?? '')}">${simText("station.0-metric-tons-at-liftoff", localizedNumber(l.liftoffMassKg / 1000))}</div>` : ''}
         <div class="tags"><span class="tag class">${esc(l.class)}</span>${l.fictional ? `<span class="tag fict" title="${simText("station.partially-fictional-configuration")}">${simText("station.partly-fictional")}</span>` : ''}${e.compatible ? tagFor(e.launcherId) : ''}</div>
         <p>${esc(l.summary)}</p>
         <div class="capbar" role="img" aria-label="${esc(capText)}"><i class="${st.cls}" style="width:${usage}%"></i></div>
@@ -117,7 +117,7 @@ function renderCatalog({ data, view, onlyCompatible }, fields) {
         <dl>
           <dt>${simText("station.cost")}</dt><dd>${fmtMUSD(e.launchCostMUSD)}${e.delayCostMUSD ? ` <small class="status-yellow">${simText("station.0-for-a-1-month-delay", fmtMUSD(e.delayCostMUSD), e.date.delayMonths)}</small>` : ''}</dd>
           <dt>${simText('station.reliability')} ${termBtn('confiabilidad', simText("station.what-does-rocket-reliability-mean"))}</dt><dd>${simText('flight.0-succeed', fmtPct(l.reliability))}</dd>
-          <dt>Punta (cofia) ${termBtn('cofia', simText("station.what-is-the-fairing"))}</dt><dd>${l.fairing.diameterM} × ${l.fairing.heightM} m</dd>
+          <dt>${simText('station.payload-fairing')} ${termBtn('cofia', simText("station.what-is-the-fairing"))}</dt><dd>${localizedNumber(l.fairing.diameterM, 2)} × ${localizedNumber(l.fairing.heightM, 2)} m</dd>
           <dt>${simText("station.first-available-slot")}</dt><dd>${simText("station.in-0-months", l.availabilityMonths)}</dd>
         </dl>
         <div class="status ${e.compatible ? `status-${st.cls}` : 'status-red'}">${e.compatible ? simText("station.0-compatible-1-2", st.icon, st.text.toLowerCase(), e.marginPct) : simText("station.not-compatible-0", fails.join(', '))}</div>
@@ -143,21 +143,21 @@ function renderCatalog({ data, view, onlyCompatible }, fields) {
 
   return `
   <article class="card">
-    <h2>Tu destino: ${esc(od.name)} ${termBtn('orbita-alta', simText("station.why-is-a-higher-orbit-more-expensive"))}</h2>
-    <p>${esc(od.plain)} <span class="muted">Ejemplos: ${esc(od.examples)}</span></p>
+    <h2>${esc(simText('station.orbit-destination', od.name))} ${termBtn('orbita-alta', simText("station.why-is-a-higher-orbit-more-expensive"))}</h2>
+    <p>${esc(od.plain)} <span class="muted">${esc(simText('station.orbit-examples', od.examples))}</span></p>
     <p class="muted">${simText("station.how-much-change-in-speed-does-each-destination", termBtn('delta-v', simText("station.what-is-delta-v")))}</p>
     <div class="dv-bars">${data.orbits.map((o) => `
-      <div class="dv-row ${o.id === orbit.type ? 'is-target' : ''}"><span>${o.id === orbit.type ? '▶ ' : ''}${esc(o.name)}</span><span class="bar"><i style="width:${(o.deltaVKmS / maxDv) * 100}%"></i></span><span>${o.deltaVKmS} km/s</span></div>`).join('')}
+      <div class="dv-row ${o.id === orbit.type ? 'is-target' : ''}"><span>${o.id === orbit.type ? '▶ ' : ''}${esc(o.name)}</span><span class="bar"><i style="width:${(o.deltaVKmS / maxDv) * 100}%"></i></span><span>${localizedNumber(o.deltaVKmS, 2)} km/s</span></div>`).join('')}
     </div>
   </article>
   <div class="catalog-toolbar">
-    <h2>Elige tu cohete ${termBtn('carga-util', simText("station.what-is-payload-capacity"))}</h2>
+    <h2>${simText('station.choose-your-rocket')} ${termBtn('carga-util', simText("station.what-is-payload-capacity"))}</h2>
     <label class="check-row"><input type="checkbox" id="only-compatible" data-focus="only-compatible" ${onlyCompatible ? 'checked' : ''}> ${simText("station.show-compatible-rockets-only")}</label>
   </div>
   <div class="catalog">${cards}</div>
   ${fields}
   <article class="card">
-    <h2>Compara tus opciones ${termBtn('trade', simText("station.why-compare"))}</h2>
+    <h2>${simText('station.compare-rockets')} ${termBtn('trade', simText("station.why-compare"))}</h2>
     <p class="muted">${simText("station.there-is-no-single-right-answer-each-rocket")}</p>
     <div class="table-wrap">${table}</div>
   </article>`;
@@ -177,12 +177,12 @@ function fairingSvg(e, sc) {
   const cx = 160; const base = 210;
   const nose = Math.min(fh * 0.35, fw * 0.9);
   const fits = sc.diameterM <= f.diameterM && sc.heightM <= f.heightM;
-  return `<svg class="fairing-svg" viewBox="0 0 320 220" role="img" aria-label="Tu nave dentro de la punta del cohete: ${fits ? simText("station.fits") : simText("station.does-not-fit-2")}">
+  return `<svg class="fairing-svg" viewBox="0 0 320 220" role="img" aria-label="${esc(simText('station.fairing-fit-label', fits ? simText('station.fits') : simText('station.does-not-fit-2')))}">
     <path d="M${cx - fw / 2},${base} L${cx - fw / 2},${base - fh + nose} Q${cx - fw / 2},${base - fh} ${cx},${base - fh} Q${cx + fw / 2},${base - fh} ${cx + fw / 2},${base - fh + nose} L${cx + fw / 2},${base} Z" fill="rgba(115,221,207,.08)" stroke="#73ddcf" stroke-dasharray="4 3"/>
     <rect x="${cx - sw / 2}" y="${base - sh}" width="${sw}" height="${sh}" fill="${fits ? 'rgba(79,209,139,.55)' : 'rgba(255,93,93,.6)'}" stroke="#eaf4ff"/>
     <line x1="10" y1="${base}" x2="310" y2="${base}" stroke="#2f4c63"/>
-    <text x="8" y="16" fill="#9db6c4" font-size="11" font-family="monospace">${simText("station.rocket-fairing-0-1-m", f.diameterM, f.heightM)}</text>
-    <text x="8" y="30" fill="${fits ? '#4fd18b' : '#ff7b7b'}" font-size="11" font-family="monospace">${fits ? '✔' : '✖'} Tu nave ${sc.diameterM}×${sc.heightM} m</text>
+    <text x="8" y="16" fill="#9db6c4" font-size="11" font-family="monospace">${simText("station.rocket-fairing-0-1-m", localizedNumber(f.diameterM, 2), localizedNumber(f.heightM, 2))}</text>
+    <text x="8" y="30" fill="${fits ? '#4fd18b' : '#ff7b7b'}" font-size="11" font-family="monospace">${fits ? '✔' : '✖'} ${simText('station.spacecraft-dimensions', localizedNumber(sc.diameterM, 2), localizedNumber(sc.heightM, 2))}</text>
   </svg>`;
 }
 
@@ -204,10 +204,10 @@ function renderCheck({ data, plan, view }, fields) {
   <article class="card">
     <h2>${esc(l.name)} <span class="muted">· ${esc(l.provider)}</span></h2>
     <p>${esc(l.summary)}</p>
-    <p>${simText("station.site")} <b>${esc(e.site.name)}</b> (${Math.abs(e.site.latitudeDeg)}° de latitud ${e.site.latitudeDeg < 0 ? simText("station.south") : simText("station.north")}, ${esc(e.site.country)}) ${termBtn('inclinacion', simText("station.why-does-the-site-matter"))}</p>
+    <p>${simText("station.site")} <b>${esc(e.site.name)}</b> (${esc(simText('station.site-coordinates', localizedNumber(Math.abs(e.site.latitudeDeg), 2), e.site.latitudeDeg < 0 ? simText('station.south') : simText('station.north'), e.site.country))}) ${termBtn('inclinacion', simText("station.why-does-the-site-matter"))}</p>
     <details><summary>${simText("station.learn-more-sources-for-this-rocket-s-figures")}</summary>
-      <ul>${Object.entries(l.sources).map(([k, v]) => `<li><b>${esc(k)}</b> (${esc(l.dataQuality?.[k] ?? 'aproximada')}): ${esc(v)}</li>`).join('')}
-      <li><b>availabilityMonths</b> ${simText("station.0-an-approximate-value-for-the-game", esc(l.dataQuality?.availabilityMonths ?? 'estimada'))}</li></ul>
+      <ul>${Object.entries(l.sources).map(([k, v]) => `<li><b>${esc(simText(`station.source-field.${k}`))}</b> (${esc(simText(`station.source-quality.${l.dataQuality?.[k] ?? 'aproximada'}`))}): ${esc(v)}</li>`).join('')}
+      <li><b>${simText('station.source-field.availabilityMonths')}</b> ${simText("station.0-an-approximate-value-for-the-game", esc(simText(`station.source-quality.${l.dataQuality?.availabilityMonths ?? 'estimada'}`)))}</li></ul>
     </details>
   </article>`;
 

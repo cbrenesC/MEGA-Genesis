@@ -1,11 +1,11 @@
-import { catalogLanguage, simText } from "../../../src/i18n/catalog.js";
+import { localizedNumber, simText } from "../../../src/i18n/catalog.js";
 // Formatos y frases para explicar números a estudiantes de secundaria.
 // Funciones puras (sin DOM): se prueban con Node.
 //
 // Los PESOS se muestran siempre con su valor real (kg o toneladas), sin comparaciones con objetos:
 // un cohete pesa cientos de toneladas y compararlo con carros o elefantes confunde más de lo que ayuda.
 
-const nf = (value, digits = 0) => value.toLocaleString(catalogLanguage() === 'en' ? 'en-US' : 'es', { maximumFractionDigits: digits });
+const nf = localizedNumber;
 
 // Una casa sencilla ≈ 250.000 USD (dato aproximado para el juego).
 export const HOUSE_MUSD = 0.25;

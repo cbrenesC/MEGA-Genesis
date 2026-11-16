@@ -112,6 +112,7 @@
       "stages": [
         {
           "name": "Primera etapa",
+          "nameKey": "first",
           "share": 0.82,
           "eps": 0.095,
           "ispSl": 290,
@@ -120,6 +121,7 @@
         },
         {
           "name": "Etapa superior",
+          "nameKey": "upper",
           "share": 0.18,
           "eps": 0.1,
           "ispSl": 343,
@@ -130,6 +132,7 @@
       "transferStages": [
         {
           "name": "Primera etapa",
+          "nameKey": "first",
           "share": 0.76,
           "eps": 0.095,
           "ispSl": 290,
@@ -138,6 +141,7 @@
         },
         {
           "name": "Etapa superior",
+          "nameKey": "upper",
           "share": 0.17,
           "eps": 0.1,
           "ispSl": 343,
@@ -146,6 +150,7 @@
         },
         {
           "name": "Etapa de transferencia (tipo Photon)",
+          "nameKey": "transfer-photon",
           "share": 0.07,
           "eps": 0.12,
           "ispSl": 320,
@@ -164,6 +169,7 @@
       "stages": [
         {
           "name": "Primera etapa (sólida)",
+          "nameKey": "first-solid",
           "share": 0.7,
           "eps": 0.09,
           "ispSl": 262,
@@ -172,6 +178,7 @@
         },
         {
           "name": "Segunda etapa (sólida)",
+          "nameKey": "second-solid",
           "share": 0.22,
           "eps": 0.09,
           "ispSl": 285,
@@ -180,6 +187,7 @@
         },
         {
           "name": "Tercera etapa (sólida)",
+          "nameKey": "third-solid",
           "share": 0.08,
           "eps": 0.14,
           "ispSl": 289,
@@ -195,6 +203,7 @@
       "stages": [
         {
           "name": "Primera etapa",
+          "nameKey": "first",
           "share": 0.78,
           "eps": 0.075,
           "ispSl": 270,
@@ -203,6 +212,7 @@
         },
         {
           "name": "Etapa superior",
+          "nameKey": "upper",
           "share": 0.22,
           "eps": 0.085,
           "ispSl": 320,
@@ -218,6 +228,7 @@
       "stages": [
         {
           "name": "Primera etapa (sólida)",
+          "nameKey": "first-solid",
           "share": 0.62,
           "eps": 0.1,
           "ispSl": 238,
@@ -226,6 +237,7 @@
         },
         {
           "name": "Segunda etapa (líquida)",
+          "nameKey": "second-liquid",
           "share": 0.28,
           "eps": 0.09,
           "ispSl": 262,
@@ -234,6 +246,7 @@
         },
         {
           "name": "Tercera etapa (superior)",
+          "nameKey": "third-upper",
           "share": 0.1,
           "eps": 0.12,
           "ispSl": 295,
@@ -244,6 +257,7 @@
       "transferStages": [
         {
           "name": "Primera etapa (sólida)",
+          "nameKey": "first-solid",
           "share": 0.48,
           "eps": 0.1,
           "ispSl": 238,
@@ -252,6 +266,7 @@
         },
         {
           "name": "Segunda etapa (líquida)",
+          "nameKey": "second-liquid",
           "share": 0.27,
           "eps": 0.09,
           "ispSl": 262,
@@ -260,6 +275,7 @@
         },
         {
           "name": "Tercera etapa (superior)",
+          "nameKey": "third-upper",
           "share": 0.13,
           "eps": 0.12,
           "ispSl": 295,
@@ -268,6 +284,7 @@
         },
         {
           "name": "Etapa de transferencia",
+          "nameKey": "transfer",
           "share": 0.12,
           "eps": 0.1,
           "ispSl": 318,
@@ -283,6 +300,7 @@
       "stages": [
         {
           "name": "Primera etapa (sólida)",
+          "nameKey": "first-solid",
           "share": 0.66,
           "eps": 0.09,
           "ispSl": 255,
@@ -291,6 +309,7 @@
         },
         {
           "name": "Segunda etapa (sólida)",
+          "nameKey": "second-solid",
           "share": 0.25,
           "eps": 0.1,
           "ispSl": 288,
@@ -299,6 +318,7 @@
         },
         {
           "name": "Etapa superior (AVUM)",
+          "nameKey": "upper-avum",
           "share": 0.09,
           "eps": 0.14,
           "ispSl": 315,
@@ -314,6 +334,7 @@
       "stages": [
         {
           "name": "Primera etapa",
+          "nameKey": "first",
           "share": 0.8,
           "eps": 0.06,
           "ispSl": 282,
@@ -322,6 +343,7 @@
         },
         {
           "name": "Etapa superior",
+          "nameKey": "upper",
           "share": 0.2,
           "eps": 0.045,
           "ispSl": 348,
@@ -337,6 +359,7 @@
       "stages": [
         {
           "name": "Propulsores laterales",
+          "nameKey": "boosters",
           "share": 0.5,
           "eps": 0.09,
           "ispSl": 252,
@@ -345,6 +368,7 @@
         },
         {
           "name": "Etapa central",
+          "nameKey": "core",
           "share": 0.4,
           "eps": 0.1,
           "ispSl": 330,
@@ -353,6 +377,7 @@
         },
         {
           "name": "Etapa superior",
+          "nameKey": "upper",
           "share": 0.1,
           "eps": 0.11,
           "ispSl": 457,
@@ -368,6 +393,7 @@
       "stages": [
         {
           "name": "Propulsores laterales",
+          "nameKey": "boosters",
           "share": 0.52,
           "eps": 0.06,
           "ispSl": 282,
@@ -376,6 +402,7 @@
         },
         {
           "name": "Etapa central",
+          "nameKey": "core",
           "share": 0.34,
           "eps": 0.06,
           "ispSl": 282,
@@ -384,6 +411,7 @@
         },
         {
           "name": "Etapa superior",
+          "nameKey": "upper",
           "share": 0.14,
           "eps": 0.05,
           "ispSl": 348,
@@ -399,6 +427,7 @@
       "stages": [
         {
           "name": "Propulsores laterales (sólidos)",
+          "nameKey": "boosters-solid",
           "share": 0.43,
           "eps": 0.14,
           "ispSl": 242,
@@ -407,6 +436,7 @@
         },
         {
           "name": "Etapa central",
+          "nameKey": "core",
           "share": 0.5,
           "eps": 0.07,
           "ispSl": 366,
@@ -415,6 +445,7 @@
         },
         {
           "name": "Etapa superior",
+          "nameKey": "upper",
           "share": 0.07,
           "eps": 0.18,
           "ispSl": 462,
