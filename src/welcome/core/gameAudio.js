@@ -4,11 +4,17 @@ const music = new Audio('/game-music.mp3');
 music.loop = true;
 music.preload = 'auto';
 const thruster = new Audio('/lanzamiento.mp3');
-thruster.loop = true;
+thruster.loop = false;
 thruster.preload = 'auto';
 let wantsMusic = false;
 let musicPaused = false;
 let thrusterPower = 0;
+const isEmbedded = window.parent !== window;
+function relayAudio(action, value) {
+  if (!isEmbedded) return false;
+  window.parent.postMessage({ type: 'mega-launch-audio', action, value }, window.location.origin);
+  return true;
+}
 let audioUnlocked = false;
 
 let simulationDucked = false;
@@ -32,6 +38,7 @@ const effectSounds = {
 const clickSound = new Audio('/click.mp3');
 let preloadStarted = false;
 export function preloadLaunchAudio() {
+  if (isEmbedded) { relayAudio('preload'); return; }
   if (preloadStarted) return;
   preloadStarted = true;
   for (const sound of [...launchSounds, ...Object.values(effectSounds), clickSound]) {
@@ -42,6 +49,7 @@ export function preloadLaunchAudio() {
 preloadLaunchAudio();
 
 function syncRocket() {
+  if (isEmbedded) return;
   const prefs = preferences();
   const target = rocketAltitude < ATMOSPHERE_EDGE_M ? rocketLand : rocketSpace;
   if (!rocketRunning || rocketPaused || !audioUnlocked || !prefs.audio) {
@@ -59,23 +67,28 @@ function syncRocket() {
 }
 export function setSimulationMusicDucked(ducked) {
   simulationDucked = Boolean(ducked);
+  if (relayAudio('duck', simulationDucked)) return;
   syncMusic();
 }
 export function startRocketAudio() {
+  if (relayAudio('rocket-start')) return;
   rocketRunning = true;
   rocketPaused = false;
   rocketAltitude = 0;
   syncRocket();
 }
 export function updateRocketAltitude(altitude) {
+  if (relayAudio('altitude', altitude)) return;
   rocketAltitude = Math.max(0, Number(altitude) || 0);
   syncRocket();
 }
 export function pauseRocketAudio(paused) {
+  if (relayAudio('rocket-pause', paused)) return;
   rocketPaused = Boolean(paused);
   syncRocket();
 }
 export function stopRocketAudio() {
+  if (relayAudio('rocket-stop')) return;
   rocketRunning = false;
   rocketPaused = false;
   activeRocket = null;
@@ -96,19 +109,45 @@ function syncMusic() {
     music.pause();
     return;
   }
-  music.volume = Math.max(0, Math.min(1, (prefs.musicVolume ?? 0.18) * (simulationDucked ? 0.2 : 1)));
+  music.volume = Math.max(0, Math.min(1, (prefs.musicVolume ?? 0.18) * (simulationDucked ? 0.07 : 1)));
   void music.play().catch(() => {});
 }
 
 function syncThruster() {
   const prefs = preferences();
-  if (!audioUnlocked || thrusterPower <= 0.02 || !prefs.audio) {
-    thruster.pause();
-    return;
-  }
-  thruster.volume = Math.max(0, Math.min(1, (prefs.effectsVolume ?? 0.45) * (0.2 + 0.8 * thrusterPower)));
-  if (thruster.paused) void thruster.play().catch(() => {});
+  if (!audioUnlocked || !prefs.audio) { thruster.pause(); return; }
+  thruster.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
 }
+
+// The countdown plays once. Rocket Land overlaps during the final seconds.
+export function startLaunchCountdownAudio() {
+  if (relayAudio('countdown-start')) return;
+  preloadLaunchAudio();
+  if (!audioUnlocked || !preferences().audio) return;
+  thruster.pause();
+  thruster.currentTime = 0;
+  syncThruster();
+  void thruster.play().catch((error) => console.warn('Countdown audio could not start:', error));
+}
+export function stopLaunchCountdownAudio() {
+  if (relayAudio('countdown-stop')) return;
+  thruster.pause();
+  thruster.currentTime = 0;
+}
+window.addEventListener('message', (event) => {
+  if (isEmbedded || event.origin !== window.location.origin || event.data?.type !== 'mega-launch-audio') return;
+  const { action, value } = event.data;
+  switch (action) {
+    case 'preload': preloadLaunchAudio(); break;
+    case 'duck': setSimulationMusicDucked(value); break;
+    case 'countdown-start': startLaunchCountdownAudio(); break;
+    case 'countdown-stop': stopLaunchCountdownAudio(); break;
+    case 'rocket-start': startRocketAudio(); break;
+    case 'rocket-stop': stopRocketAudio(); break;
+    case 'rocket-pause': pauseRocketAudio(value); break;
+    case 'altitude': updateRocketAltitude(value); break;
+  }
+});
 
 window.addEventListener('sms-preferences-changed', () => {
   syncMusic();
@@ -157,8 +196,8 @@ export function playEffect(name) {
 }
 
 export function setThruster(power) {
+  // Engine intensity is visual only; lanzamiento.mp3 is triggered by the countdown.
   thrusterPower = Math.max(0, Math.min(1, Number(power) || 0));
-  syncThruster();
 }
 
 export function startGameplayMusic() {
@@ -181,6 +220,7 @@ export function stopGameplayMusic() {
   musicPaused = false;
   music.pause();
   setThruster(0);
+  stopLaunchCountdownAudio();
   stopRocketAudio();
   simulationDucked = false;
 }
