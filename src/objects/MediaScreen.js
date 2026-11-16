@@ -17,11 +17,8 @@ export class MediaScreen {
     this.announcement = '';
     this.createDisplay(x, y, width, height);
     this.bindControls();
-    scene.interactables.push({
-      x: accessX, y: accessY, radius: 87, markerY: -50,
-      label: () => t('media.prompt'),
-      interact: () => this.openPanel(),
-    });
+    // The wall display is presentation-only for players.
+    // Team-managed media can still be configured through GAME.media.
     const stopLanguage = onLanguageChange(() => {
       if (this.mode === 'orbit' || this.mode === 'text') this.render();
       if (this.statusKey) this.setStatus(this.statusKey, this.statusParams);
