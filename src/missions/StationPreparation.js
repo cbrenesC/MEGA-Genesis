@@ -1,4 +1,4 @@
-import { setSimulationMusicDucked } from '../welcome/core/gameAudio.js';
+import { setSimulationMusicDucked, startRoverAudio, stopRoverAudio } from '../welcome/core/gameAudio.js';
 import { CREW_GUIDE } from '../crew/guideFlow.js';
 import { loadData } from '../../games/launch/js/state.js';
 import { operationalPropellant } from '../../games/launch/js/rules.js';
@@ -124,6 +124,7 @@ export class StationPreparation {
   destroy() {
     window.removeEventListener('message', this.onMessage);
     this.frame?.remove();
+    stopRoverAudio();
     setSimulationMusicDucked(false);
     this.frame = null;
     this.item = null;
@@ -505,7 +506,8 @@ export class StationPreparation {
     this.scene.terminalDialog.hidden = true;
     this.item = null;
     // The launch iframe has its own music player for the flight/pause UI.
-    if (mission === 'launch') setSimulationMusicDucked(true);
+    setSimulationMusicDucked(true);
+    if (mission === 'rover') startRoverAudio();
     this.frameMission = mission;
     this.frame = el('iframe', '', 'mission-simulation');
     this.frame.title = t(`lesson.${mission}.title`);
@@ -520,7 +522,8 @@ export class StationPreparation {
     this.frame.remove();
     this.frame = null;
     this.activeMission = null;
-    if (this.frameMission === 'launch') setSimulationMusicDucked(false);
+    if (this.frameMission === 'rover') stopRoverAudio();
+    setSimulationMusicDucked(false);
     this.frameMission = null;
     this.save();
     this.scene.closeTerminal();
