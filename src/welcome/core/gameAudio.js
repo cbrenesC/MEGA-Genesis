@@ -3,7 +3,7 @@ import { getPreferences } from './consent.js';
 const music = new Audio('/game-music.mp3');
 music.loop = true;
 music.preload = 'auto';
-const thruster = new Audio('/thruster.mp3');
+const thruster = new Audio('/lanzamiento.mp3');
 thruster.loop = true;
 thruster.preload = 'auto';
 let wantsMusic = false;
@@ -23,6 +23,23 @@ let rocketPaused = false;
 let rocketRunning = false;
 let rocketAltitude = 0;
 const ATMOSPHERE_EDGE_M = 100000;
+
+// Start fetching every launch sound while the player is still in mission setup.
+const launchSounds = [thruster, rocketLand, rocketSpace];
+const effectSounds = {
+  'stage-separation': new Audio('/stage-separation.mp3'),
+};
+const clickSound = new Audio('/click.mp3');
+let preloadStarted = false;
+export function preloadLaunchAudio() {
+  if (preloadStarted) return;
+  preloadStarted = true;
+  for (const sound of [...launchSounds, ...Object.values(effectSounds), clickSound]) {
+    sound.preload = 'auto';
+    sound.load();
+  }
+}
+preloadLaunchAudio();
 
 function syncRocket() {
   const prefs = preferences();
@@ -121,7 +138,9 @@ document.addEventListener('click', event => {
 export function playClick() {
   const prefs = preferences();
   if (!prefs.audio) return;
-  const sound = new Audio('/click.mp3');
+  const sound = clickSound;
+  sound.pause();
+  sound.currentTime = 0;
   sound.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
   void sound.play().catch(() => {});
 }
@@ -129,10 +148,10 @@ export function playClick() {
 export function playEffect(name) {
   const prefs = preferences();
   if (!prefs.audio) return;
-  const files = { 'stage-separation': '/stage-separation.mp3' };
-  const src = files[name];
-  if (!src) return;
-  const sound = new Audio(src);
+  const sound = effectSounds[name];
+  if (!sound) return;
+  sound.pause();
+  sound.currentTime = 0;
   sound.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
   void sound.play().catch(() => {});
 }
