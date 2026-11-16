@@ -3,7 +3,7 @@
 // `node --test` y reutilizar desde otros módulos. Ninguna cifra de juego está escrita
 // aquí: todo sale de los archivos de data/ (launchers, sites, orbits, rules).
 
-import { fmtKg, fmtMUSD, fmtPct, massLike, speedLike, costLike, oneInN, outOfHundred, usesPart } from './plain.js';
+import { fmtKg, fmtMUSD, fmtPct, speedLike, costLike, oneInN, outOfHundred, usesPart } from './plain.js';
 export { fmtKg, fmtMUSD, fmtPct };
 
 export const ORBIT_ORDER = ['LEO', 'SSO', 'GTO', 'TLI', 'ESCAPE'];
@@ -224,7 +224,7 @@ export function evaluateLauncher(launcher, data, inputs, options = {}) {
       why: 'Para ir más lejos hace falta mucha más velocidad, y eso significa mucho más combustible. Un cohete pequeño se queda sin fuerza antes de llegar.',
       more: `Presupuesto de velocidad (delta-v) aproximado desde el suelo: ${orbitDef.deltaVKmS} km/s. Valor típico de libros de mecánica orbital.`, term: 'orbita-alta' }
     : { id: 'orbit', status: 'ok', label: 'Destino',
-      detail: `Sí llega a ${place}. Puede subir hasta ${fmtKg(cap.baseCapacityKg)} (${massLike(cap.baseCapacityKg)}).`,
+      detail: `Sí llega a ${place}. Puede subir hasta ${fmtKg(cap.baseCapacityKg)} de carga.`,
       why: `Llegar hasta ahí pide un presupuesto de velocidad (delta-v) de unos ${orbitDef.deltaVKmS} km/s. ${speedLike(7.8)}: así de rápido hay que ir solo para quedarse en órbita.`,
       more: `Δv aproximado desde el suelo, con las pérdidas por gravedad y aire: ${orbitDef.deltaVKmS} km/s. Capacidad: ${launcher.sources?.capacityKg ?? 'ver data/launchers.json'}.`, term: 'delta-v' });
 
@@ -261,7 +261,7 @@ export function evaluateLauncher(launcher, data, inputs, options = {}) {
     const label = { green: 'Margen cómodo', yellow: 'Margen justo', red: 'Margen arriesgado', blocked: 'No cabe' }[mStatus];
     checks.push({ id: 'mass', status: mStatus === 'blocked' ? 'fail' : mStatus === 'green' ? 'ok' : 'warn', color: mStatus, label: `Peso de tu nave · ${label}`,
       detail: marginKg >= 0
-        ? `Tu nave pesa ${massLike(launchMassKg)} (${fmtKg(launchMassKg)}). El cohete puede subir ${fmtKg(capacityKg)}, así que ocupa ${usesPart(launchMassKg / capacityKg)} y te sobran ${fmtKg(marginKg)} (${round(marginPct, 1)} %).`
+        ? `Tu nave pesa ${fmtKg(launchMassKg)}. El cohete puede subir ${fmtKg(capacityKg)}, así que ocupa ${usesPart(launchMassKg / capacityKg)} y te sobran ${fmtKg(marginKg)} (${round(marginPct, 1)} %).`
         : `Tu nave es demasiado pesada para este cohete: pesa ${fmtKg(-marginKg)} más de lo que puede subir. Prueba un cohete más grande o pídele al equipo de la nave que le quite peso.`,
       why: `Casi todas las naves engordan mientras las construyen (cables, tornillos, cambios de diseño). Por eso conviene dejar al menos ${thresholds.greenPct} de cada 100 kg libres.`,
       more: `margen = capacidad − masa de la nave = ${fmtKg(capacityKg)} − ${fmtKg(launchMassKg)}. Semáforo: verde ≥ ${thresholds.greenPct} %, amarillo ≥ ${thresholds.yellowPct} %.`, term: 'margen' });

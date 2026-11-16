@@ -8,6 +8,9 @@
 //   - Los cálculos usan coordenadas de MUNDO (centro de la Tierra en el origen), nunca coordenadas de pantalla.
 
 import { PHYS, airDensity } from './flight.js';
+import { gravity } from './bodies.js';
+
+const GV = [0, 0];
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -72,12 +75,12 @@ export function anchorFraction(alt) {
  * Altura en pantalla (px) de la base del cohete. Normalmente depende sólo de la altura de vuelo; cuando la cámara
  * está tan alejada que la Tierra cabe entera, el encuadre pasa suavemente a centrar el planeta.
  */
-export function anchorY(alt, mpp, viewH) {
+export function anchorY(alt, mpp, viewH, R = PHYS.RE) {
   const normal = viewH * anchorFraction(alt);
-  const rPx = PHYS.RE / mpp;
+  const rPx = R / mpp;
   const t = clamp((viewH * 2.5 - rPx) / (viewH * 2.0), 0, 1);
   const k = t * t * (3 - 2 * t);
-  return normal + (viewH / 2 - (PHYS.RE + Math.max(0, alt)) / mpp - normal) * k;
+  return normal + (viewH / 2 - (R + Math.max(0, alt)) / mpp - normal) * k;
 }
 
 const FOCUS_IN = 0.7; const FOCUS_HOLD = 1.6; const FOCUS_OUT = 2.4; const FOCUS_TOTAL = FOCUS_IN + FOCUS_HOLD + FOCUS_OUT;
@@ -197,10 +200,14 @@ export function makeDebris(sep, opts = {}) {
 }
 
 /** Aceleración (m/s²) de una pieza en el mundo: gravedad + un poco de aire (que gira con la Tierra). */
-export function debrisAccel(d, atmRate) {
+export function debrisAccel(d, atmRate, world = null) {
   const r = Math.hypot(d.x, d.y);
-  const g = PHYS.MU / (r * r * r);
-  let ax = -g * d.x; let ay = -g * d.y;
+  let ax; let ay;
+  if (world?.moon) {
+    // misión lunar: la pieza siente la misma gravedad que la nave (la de la Tierra o la de la Luna, según dónde esté)
+    gravity(d.x, d.y, world.t, world.body, world.moon, GV);
+    ax = GV[0]; ay = GV[1];
+  } else { const g = PHYS.MU / (r * r * r); ax = -g * d.x; ay = -g * d.y; }
   const h = r - PHYS.RE;
   if (h < PHYS.ATM_TOP) {
     const rho = airDensity(h);
@@ -215,16 +222,16 @@ export function debrisAccel(d, atmRate) {
 }
 
 /** Avanza una pieza `dt` segundos físicos (se subdivide solo). Sin rotación: solo posición y velocidad. */
-export function stepDebris(d, dt, atmRate = 0) {
+export function stepDebris(d, dt, atmRate = 0, world = null) {
   if (d.dead) return;
   let left = dt;
   while (left > 1e-9) {
     const h = Math.min(left, Math.hypot(d.x, d.y) - PHYS.RE < PHYS.ATM_TOP ? 0.2 : 2);
     // velocity-Verlet: conserva bien la energía en trayectorias balísticas
-    const [a0x, a0y] = debrisAccel(d, atmRate);
+    const [a0x, a0y] = debrisAccel(d, atmRate, world);
     d.x += d.vx * h + 0.5 * a0x * h * h;
     d.y += d.vy * h + 0.5 * a0y * h * h;
-    const [a1x, a1y] = debrisAccel(d, atmRate);
+    const [a1x, a1y] = debrisAccel(d, atmRate, world);
     d.vx += 0.5 * (a0x + a1x) * h;
     d.vy += 0.5 * (a0y + a1y) * h;
     d.age += h;

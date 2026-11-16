@@ -20,6 +20,16 @@
       "id": "origami",
       "text": "Los telescopios y satélites grandes viajan doblados como un origami dentro de la punta del cohete (la cofia), y se despliegan ya en el espacio.",
       "source": "Por ejemplo, el telescopio James Webb se desplegó durante su viaje."
+    },
+    {
+      "id": "moonAim",
+      "text": "La Luna está a unos 384.000 km y una nave tarda entre tres y cinco días en llegar. Por eso no se apunta a donde la Luna está hoy, sino a donde va a estar cuando la nave llegue.",
+      "source": "Distancia media Tierra–Luna: 384.400 km. Las misiones Apolo tardaron unos tres días."
+    },
+    {
+      "id": "reentry",
+      "text": "Al volver de la Luna, una cápsula entra al aire a unos 40.000 km/h. El escudo térmico de su base aguanta cerca de 2.800 °C mientras el aire la frena; después, los paracaídas la dejan caer al mar a unos 30 km/h.",
+      "source": "NASA, misión Artemis I (2022): la cápsula Orion entró a ~39.400 km/h y su escudo soportó ~2.760 °C; amerizó a ~32 km/h."
     }
   ]
 }

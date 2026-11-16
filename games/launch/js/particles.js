@@ -21,6 +21,7 @@ export class ParticleSystem {
     this.max = max;
     this.list = [];
     this.seed = 1234567;
+    this.vacuum = false; // en el espacio profundo las partículas viven en un marco que acompaña a la nave: sin aire ni suelo
   }
 
   rand() { this.seed = (this.seed * 1664525 + 1013904223) >>> 0; return this.seed / 4294967296; }
@@ -44,16 +45,16 @@ export class ParticleSystem {
     const keep = [];
     for (const p of this.list) {
       const def = KINDS[p.kind];
-      const airFade = Math.exp(-Math.max(0, p.y) / 7500); // aire que queda a la altura de la partícula
+      const airFade = this.vacuum ? 0 : Math.exp(-Math.max(0, p.y) / 7500); // aire que queda a la altura de la partícula
       p.age += dt * (p.kind === 'smoke' || p.kind === 'gas' ? 1 + (1 - airFade) * 2.5 : 1);
       if (p.age >= p.life) continue;
       const damp = Math.exp(-def.drag * dt);
       p.vx *= damp; p.vy *= damp;
-      if (def.gravity) p.vy -= def.gravity * dt;
+      if (def.gravity && !this.vacuum) p.vy -= def.gravity * dt;
       if (p.kind === 'smoke' || p.kind === 'gas') p.vy += 3 * dt * airFade; // el aire caliente sube un poco
       p.x += p.vx * dt; p.y += p.vy * dt;
       p.size += def.grow * dt * 0.5;
-      if (p.y < 0 && p.kind !== 'smoke') { p.y = 0; p.vy = Math.abs(p.vy) * 0.25; p.vx *= 0.6; }
+      if (!this.vacuum && p.y < 0 && p.kind !== 'smoke') { p.y = 0; p.vy = Math.abs(p.vy) * 0.25; p.vx *= 0.6; }
       keep.push(p);
     }
     this.list = keep;
@@ -106,6 +107,15 @@ export class ParticleSystem {
     for (let i = 0; i < Math.round(8 * strength); i++) {
       const a = this.rand() * Math.PI * 2; const sp = 5 + 18 * this.rand();
       this.add('spark', x, y, vx + Math.cos(a) * sp, vy + Math.sin(a) * sp, { size: 1, life: 1.1 });
+    }
+  }
+
+  /** Salpicadura al tocar el agua: gotas blancas que saltan hacia arriba y a los lados. */
+  splash({ x, y = 0, n = 46 }) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI * (0.12 + 0.76 * this.rand()); const sp = 6 + 26 * this.rand();
+      this.add('spark', x + this.spread(4), y + 1, Math.cos(a) * sp, Math.sin(a) * sp, { size: 1, life: 2.2 });
+      if (i % 3 === 0) this.add('gas', x + this.spread(6), y + 1, this.spread(10), 4 + 10 * this.rand(), { size: 3, life: 2.4 });
     }
   }
 

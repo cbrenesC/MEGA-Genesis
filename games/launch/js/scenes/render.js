@@ -7,8 +7,10 @@
 import { PHYS } from '../flight.js';
 import { CAMERA, angleFromVertical, toCameraFrame, skyProgress, starVisibility } from '../world.js';
 import { ParticleSystem } from '../particles.js';
-import { rocketSprite, stageSprite, fairingSprite, flameSprite, padSprite, landmarkSprite, cloudSprite, rocketDims } from './rocketArt.js';
+import { rocketSprite, stageSprite, fairingSprite, flameSprite, padSprite, landmarkSprite, cloudSprite, rocketDims, chuteSprite, shipSprite } from './rocketArt.js';
 import { globeView, globeSample, OCEAN, GREEN, SAND, ICE, CLOUD } from './earth.js';
+import { moonSample, MOON_PAL } from './moon.js';
+import { MOON } from '../bodies.js';
 import { lerpColor } from './gfx.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -108,6 +110,32 @@ export function ring(ctx, cx, cy, r, W, H, color, dash = 0) {
 }
 
 const GLOBE_PAL = { 0: 0x1f5fae, 1: 0x3f8f4a, 2: 0xc2a465, 3: 0xeef4fa };
+const MOON_SHADE = 0x16181d;
+
+/**
+ * La Luna como globo pixel art (mares y cráteres de moon.js), recortada a la pantalla.
+ * `rot` = giro horario del disco; con rot = 0 la cara visible mira hacia la derecha.
+ */
+export function drawMoonGlobe(ctx, W, H, cx, cy, rpx, rot) {
+  if (rpx < 1.6) { ctx.fillStyle = '#c8ccd2'; ctx.fillRect(Math.round(cx) - 1, Math.round(cy) - 1, 2, 2); return; }
+  const shadeOn = rpx < 900;
+  for (let y = Math.max(0, Math.floor(cy - rpx)); y < Math.min(H, Math.ceil(cy + rpx)); y++) {
+    const dyN = (cy - (y + 0.5)) / rpx;
+    const halfN = 1 - dyN * dyN; if (halfN <= 0) continue;
+    const half = Math.sqrt(halfN) * rpx;
+    const x0 = Math.max(0, Math.ceil(cx - half)); const x1 = Math.min(W, Math.floor(cx + half) + 1);
+    let runStart = x0; let runCol = -1;
+    for (let x = x0; x <= x1; x++) {
+      let col = -2;
+      if (x < x1) {
+        const dxN = (x + 0.5 - cx) / rpx;
+        col = MOON_PAL[moonSample(dxN, dyN, rot)];
+        if (shadeOn) { const z2 = 1 - dxN * dxN - dyN * dyN; if (z2 < 0.1) col = lerpColor(col, MOON_SHADE, 0.45); else if (z2 < 0.28 && ((x + y) & 1)) col = lerpColor(col, MOON_SHADE, 0.35); }
+      }
+      if (col !== runCol) { if (runCol >= 0) { ctx.fillStyle = css(runCol); ctx.fillRect(runStart, y, x - runStart, 1); } runStart = x; runCol = col; }
+    }
+  }
+}
 /**
  * La Tierra como globo pixel art (continentes, hielo y nubes de earth.js), recortada a la pantalla.
  * (cx, cy) centro y `rpx` radio en píxeles del lienzo; `rot` giro horario del disco; `lon0` longitud del centro de la vista.
@@ -215,6 +243,7 @@ export class FlightRenderer {
     const baseY = Math.round(S.baseY);
     const mpp = S.mpp;
     const alt = Math.max(0, S.alt);
+    if (S.body === 'moon') { this.drawLunar(ctx, W, H, cx, baseY, S, alt, mpp); return; }
     const sky = skyProgress(alt);
     // clima real del sitio (si se conoce): noche, cielo cubierto, lluvia…
     const wx = S.weather ?? null;
@@ -226,12 +255,13 @@ export class FlightRenderer {
     ctx.drawImage(skyCanvas(W, H, sky, night, gray), 0, 0);
     this.drawStars(ctx, W, H, S, alt, night * (1 - gray) * 0.85);
     this.drawSun(ctx, W, H, sky, env);
+    if (S.skyBodies && sky > 0.85) this.drawSkyBodies(ctx, W, H, S);
     // 2 · nubes, planeta y suelo
     this.drawClouds(ctx, W, H, cx, baseY, S, alt, mpp, true, env);
     this.drawPlanet(ctx, W, H, cx, baseY, S, alt, mpp);
     this.drawClouds(ctx, W, H, cx, baseY, S, alt, mpp, false, env);
-    // 3 · plataforma
-    this.drawPad(ctx, cx, baseY, S, alt, mpp);
+    // 3 · plataforma (o, lejos de ella, el mar donde espera el barco de rescate)
+    if (S.far) this.drawRecovery(ctx, W, H, cx, baseY, S, alt, mpp); else this.drawPad(ctx, cx, baseY, S, alt, mpp);
     if (wx) this.drawWeatherBack(ctx, W, H, cx, baseY, S, alt, mpp, env, sky);
     // 4 · humo (detrás del cohete)
     this.drawParticles(ctx, S, cx, baseY, mpp, alt, false);
@@ -239,12 +269,115 @@ export class FlightRenderer {
     this.drawStreaks(ctx, W, H, S);
     // 6 · piezas sueltas, cohete, llama
     for (const d of S.debris) this.drawDebris(ctx, d, S, cx, baseY, mpp);
+    if (!S.hideRocket && S.craft?.heat > 0.02) this.drawPlasma(ctx, cx, baseY, S, false);
     if (!S.hideRocket) this.drawRocket(ctx, cx, baseY, S, mpp, alt);
+    if (!S.hideRocket && S.craft?.heat > 0.02) this.drawPlasma(ctx, cx, baseY, S, true);
     // 7 · fuego y chispas (delante)
     this.drawParticles(ctx, S, cx, baseY, mpp, alt, true);
     if (wx) this.drawWeatherFront(ctx, W, H, S, alt, env);
     // 8 · marcadores de guía
     if (!S.hideRocket) this.drawMarkers(ctx, cx, baseY, S);
+  }
+
+  /** Cerca de la Luna: cielo negro, estrellas, la Tierra a lo lejos y la superficie lunar (sin aire ni nubes). */
+  drawLunar(ctx, W, H, cx, baseY, S, alt, mpp) {
+    ctx.fillStyle = '#02040a'; ctx.fillRect(0, 0, W, H);
+    this.drawStars(ctx, W, H, S, 1e9, 1);
+    this.drawSun(ctx, W, H, 1, {});
+    if (S.skyBodies) this.drawSkyBodies(ctx, W, H, S);
+    // la Luna debajo: globo real con el horizonte curvo según la altura y la escala
+    const Rpx = MOON.R / mpp;
+    const yc = baseY + (alt + MOON.R) / mpp;
+    if (yc - Rpx < H + 2) {
+      drawMoonGlobe(ctx, W, H, cx, yc, Rpx, S.moonRot ?? 0);
+      // borde iluminado: una línea clara en el horizonte (no hay atmósfera que lo difumine)
+      ctx.fillStyle = '#eef0f2';
+      for (let x = 0; x < W; x++) { const q = Rpx * Rpx - (x + 0.5 - cx) * (x + 0.5 - cx); if (q <= 0) continue; const y = Math.floor(yc - Math.sqrt(q)); if (y >= 0 && y < H) ctx.fillRect(x, y, 1, 1); }
+    }
+    this.drawParticles(ctx, S, cx, baseY, mpp, alt, false);
+    for (const d of S.debris) this.drawDebris(ctx, d, S, cx, baseY, mpp);
+    if (!S.hideRocket) this.drawRocket(ctx, cx, baseY, S, mpp, alt);
+    this.drawParticles(ctx, S, cx, baseY, mpp, alt, true);
+    if (!S.hideRocket) this.drawMarkers(ctx, cx, baseY, S);
+  }
+
+  /** La Luna o la Tierra vistas a lo lejos, en la dirección real en la que están. */
+  drawSkyBodies(ctx, W, H, S) {
+    for (const b of S.skyBodies) {
+      const x = Math.round(W / 2 + Math.sin(b.ang) * W * 0.4); const y = Math.round(H * 0.47 - Math.cos(b.ang) * H * 0.38);
+      const r = Math.max(2, Math.round(b.r));
+      if (b.kind === 'moon') {
+        ctx.globalAlpha = 0.14; disc(ctx, x, y, r + 3, '#cfd8e6'); ctx.globalAlpha = 1;
+        drawMoonGlobe(ctx, W, H, x + 0.5, y + 0.5, r + 0.5, b.rot ?? 0);
+      } else {
+        ctx.globalAlpha = 0.2; disc(ctx, x, y, r + 2, '#4f9bff'); ctx.globalAlpha = 1;
+        drawGlobe(ctx, W, H, x + 0.5, y + 0.5, r + 0.5, b.rot ?? 0, this.globe.lon0);
+      }
+    }
+  }
+
+  /** Lejos de la plataforma: el mar con olas y el barco de rescate que espera a la cápsula. */
+  drawRecovery(ctx, W, H, cx, baseY, S, alt, mpp) {
+    const k = CAMERA.mpp0 / mpp;
+    if (k < 0.2 || S.farKind !== OCEAN) return;
+    const gy = Math.round(baseY + alt / mpp);
+    if (gy > H + 30) return;
+    // olas: trazos claros que se mueven despacio
+    const t = S.reduced ? 0 : S.time;
+    for (let i = 0; i < 26; i++) {
+      const wx2 = ((hash(i, 301) * W * 1.4 + t * (3 + hash(i, 302) * 4)) % (W + 20)) - 10;
+      const wy = gy + 2 + Math.round(hash(i, 303) * Math.min(40, H - gy));
+      if (wy >= H) continue;
+      ctx.fillStyle = hash(i, 304) > 0.5 ? 'rgba(190,225,255,0.55)' : 'rgba(255,255,255,0.35)';
+      ctx.fillRect(Math.round(wx2), wy, 2 + Math.round(hash(i, 305) * 4), 1);
+    }
+    const ship = shipSprite();
+    const sw = Math.round(ship.w * k); const sh = Math.round(ship.h * k);
+    const sx = Math.round(cx + (S.shipE ?? 150) / mpp - ship.cx * k);
+    if (sw >= 4 && sx < W && sx + sw > 0) ctx.drawImage(ship.canvas, sx, Math.round(gy - ship.waterY * k + 2 * k), sw, sh);
+  }
+
+  /**
+   * Plasma de la reentrada: el aire comprimido delante del escudo brilla (blanco, amarillo, naranja) y deja una estela.
+   * Se dibuja en dos pasadas: la estela detrás de la cápsula y el arco de choque delante.
+   */
+  drawPlasma(ctx, cx, baseY, S, front) {
+    const heat = clamp(S.craft.heat, 0, 1);
+    const spr = rocketSprite(this.vehicle, S.stage, S.fairing);
+    const cy = Math.round(baseY - (spr.base - spr.cy));
+    const ang = S.betaShown;
+    // dirección hacia la que avanza la cápsula en pantalla (la base va por delante): el eje al revés
+    const dx = -Math.sin(ang); const dy = Math.cos(ang);
+    const half = spr.dims.total / 2;
+    const bx = cx + dx * half; const by = cy + dy * half; // centro de la base
+    const px = dy; const py = -dx; // perpendicular
+    const flick = S.reduced ? 0 : S.flicker;
+    if (!front) {
+      // estela: lenguas que se abren hacia atrás
+      const len = Math.round(18 + 46 * heat);
+      for (let i = 0; i < len; i += 1) {
+        const t = i / len;
+        const wide = (spr.dims.hw + 2) * (1 + t * 1.2);
+        for (const sd of [-1, 1]) {
+          const jitter = Math.sin(i * 1.7 + S.time * 30 + sd) * 1.2 * (S.reduced ? 0 : 1);
+          const x = bx - dx * (i + 2) + px * sd * (wide + jitter); const y = by - dy * (i + 2) + py * sd * (wide + jitter);
+          ctx.fillStyle = t < 0.25 ? `rgba(255,236,170,${(0.9 * heat).toFixed(2)})` : t < 0.6 ? `rgba(255,150,60,${(0.75 * heat * (1 - t * 0.5)).toFixed(2)})` : `rgba(210,70,40,${(0.5 * heat * (1 - t)).toFixed(2)})`;
+          ctx.fillRect(Math.round(x), Math.round(y), t < 0.3 ? 2 : 1, t < 0.3 ? 2 : 1);
+        }
+        if (i % 3 === 0) { ctx.fillStyle = `rgba(255,180,90,${(0.35 * heat * (1 - t)).toFixed(2)})`; ctx.fillRect(Math.round(bx - dx * (i + 6) + px * (hash(i, Math.floor(S.time * 20)) - 0.5) * wide * 2), Math.round(by - dy * (i + 6) + py * (hash(i + 9, Math.floor(S.time * 20)) - 0.5) * wide * 2), 1, 1); }
+      }
+      return;
+    }
+    // arco de choque delante del escudo
+    const R = spr.dims.hw + 3 + Math.round(heat * 2);
+    for (let a = -1.25; a <= 1.25; a += 0.09) {
+      const off = Math.cos(a) * (3 + heat * 3 + flick * 1.2) - 1;
+      const side = Math.sin(a) * R;
+      const x = bx + dx * off + px * side; const y = by + dy * off + py * side;
+      ctx.fillStyle = Math.abs(a) < 0.5 ? `rgba(255,255,240,${(0.95 * heat).toFixed(2)})` : Math.abs(a) < 0.95 ? `rgba(255,214,110,${(0.9 * heat).toFixed(2)})` : `rgba(255,140,60,${(0.8 * heat).toFixed(2)})`;
+      ctx.fillRect(Math.round(x), Math.round(y), 2, 2);
+      if (Math.abs(a) < 0.9) { ctx.fillStyle = `rgba(255,170,80,${(0.55 * heat).toFixed(2)})`; ctx.fillRect(Math.round(x + dx * 2), Math.round(y + dy * 2), 2, 1); }
+    }
   }
 
   /** Detrás del cohete: capa de nubes cuando está cubierto, niebla, y la oscuridad de la noche sobre el paisaje. */
@@ -365,7 +498,9 @@ export class FlightRenderer {
       const wpx = Math.round(c.w / mpp);
       if (wpx < 3 || wpx > 280) continue;
       const hpx = Math.max(2, Math.round((sprite.h / sprite.w) * wpx));
-      const x = Math.round(cx + (c.e + drift - S.groundS) / mpp - wpx / 2);
+      let de = c.e + drift - S.groundS;
+      if (S.far) de = ((de % 160000) + 240000) % 160000 - 80000;
+      const x = Math.round(cx + de / mpp - wpx / 2);
       const y = Math.round(baseY - (c.h - alt) / mpp - hpx);
       if (x > W || x + wpx < 0 || y > H || y + hpx < 0) continue;
       ctx.globalAlpha = (c.kind === 2 ? 0.7 : 0.95) * fade;
@@ -393,7 +528,7 @@ export class FlightRenderer {
       ctx.globalAlpha = 1;
     }
     // colinas lejanas (sólo cerca del suelo)
-    const near = 1 - smooth(1500, 6000, alt);
+    const near = S.far ? 0 : 1 - smooth(1500, 6000, alt);
     if (near > 0.02) {
       for (let x = 0; x < W; x++) {
         const y = yAt(x, 0); if (y >= H) continue;
@@ -406,7 +541,9 @@ export class FlightRenderer {
     }
     // superficie: cerca del suelo, el paisaje del sitio (tierra, playa y mar al este); desde arriba, el mapa del mundo
     const site = this.site;
-    const localAt = (e) => (e > site.coastE + 26 ? SEA : e > site.coastE ? BEACH : site.land);
+    // lejos de la plataforma (al volver del espacio) el suelo es lo que haya ahí de verdad: casi siempre, mar
+    const farCol = S.far ? (S.farKind === OCEAN ? SEA : GLOBE_COLORS[S.farKind] ?? SEA) : 0;
+    const localAt = S.far ? () => farCol : (e) => (e > site.coastE + 26 ? SEA : e > site.coastE ? BEACH : site.land);
     const tGlobe = smooth(6000, 26000, alt);
     if (tGlobe <= 0) {
       for (let x = 0; x < W; x++) {
@@ -416,7 +553,7 @@ export class FlightRenderer {
         const c = localAt(e);
         ctx.fillStyle = css(c);
         ctx.fillRect(x, yi, 1, H - yi);
-        ctx.fillStyle = c === SEA ? '#8fd0ff' : c === BEACH ? '#f1e6b4' : site.grass; ctx.fillRect(x, yi, 1, 1);
+        ctx.fillStyle = c === SEA ? '#8fd0ff' : c === BEACH ? '#f1e6b4' : S.far ? css(lerpColor(c, 0xffffff, 0.3)) : site.grass; ctx.fillRect(x, yi, 1, 1);
       }
     } else {
       // globo: cada píxel del disco mira un punto real de la Tierra (el sitio de lanzamiento queda en el borde, bajo la plataforma)
@@ -458,7 +595,7 @@ export class FlightRenderer {
     // textura del suelo: bloques de campo/ nubes pequeñas que se mueven al volar (da sensación de velocidad)
     if (alt < 26000) this.drawGroundDetail(ctx, W, H, cx, baseY, S, alt, mpp, yAt);
     // árboles y arbustos junto a la plataforma
-    if (alt < 320) this.drawTrees(ctx, W, cx, baseY, S, alt, mpp);
+    if (alt < 320 && !S.far) this.drawTrees(ctx, W, cx, baseY, S, alt, mpp);
   }
 
   drawGroundDetail(ctx, W, H, cx, baseY, S, alt, mpp, yAt) {
@@ -548,7 +685,7 @@ export class FlightRenderer {
     for (const p of S.particles.list) {
       const isFront = p.kind === 'fire' || p.kind === 'spark' || p.kind === 'boom' || p.kind === 'flash';
       if (isFront !== front) continue;
-      const x = cx + (p.x - S.groundS) / mpp; const y = baseY + (alt - p.y) / mpp;
+      const x = cx + (p.x - (S.pE ?? S.groundS)) / mpp; const y = baseY + ((S.pU ?? alt) - p.y) / mpp;
       if (x < -20 || y < -20 || x > ctx.canvas.width + 20 || y > ctx.canvas.height + 20) continue;
       const t = ParticleSystem.life(p);
       const s = sz(p);
@@ -581,11 +718,15 @@ export class FlightRenderer {
 
   drawRocket(ctx, cx, baseY, S, mpp, alt) {
     const spr = rocketSprite(this.vehicle, S.stage, S.fairing);
+    const craft = S.craft ?? null;
+    const afloat = craft?.landed && (!S.far || S.farKind === OCEAN);
+    const bob = afloat && !S.reduced ? Math.round(Math.sin(S.time * 2.2) * 1) : 0; // la cápsula se mece en el agua
+    baseY += bob + (afloat ? 3 : 0) - Math.round(S.craftLift ?? 0);
     const centerY = Math.round(baseY - (spr.base - spr.cy));
     const ang = S.betaShown;
     // con la cámara muy alejada el cohete se achica y termina siendo una marca (si no, taparía la Tierra)
     const zo = S.zoomOut ?? 1;
-    const f = zo <= 2.5 ? 1 : Math.max(0.2, 1 / Math.sqrt(zo / 2.5));
+    const f = (zo <= 2.5 ? 1 : Math.max(0.2, 1 / Math.sqrt(zo / 2.5))) * (S.craftScale ?? 1);
     if (f < 0.32) {
       ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 1, baseY - 2, 3, 3);
       ctx.fillStyle = '#73ddcf';
@@ -608,6 +749,24 @@ export class FlightRenderer {
       ctx.drawImage(fl.canvas, -fl.cx, nozzleY - spr.cy);
     }
     ctx.drawImage(spr.canvas, -spr.cx, -spr.cy);
+    // paracaídas: salen de la punta de la cápsula; primero los pequeños, después los tres grandes
+    if (craft && craft.chute !== 'none') {
+      const topY = -spr.cy + 1;
+      if (craft.chute === 'torn') {
+        ctx.fillStyle = '#c9d3df'; for (let k = 0; k < 9; k++) ctx.fillRect(Math.round(Math.sin(k * 1.3 + S.time * 9) * 2), topY - 2 - k * 2, 1, 2);
+        ctx.fillStyle = '#ff8a3d'; ctx.fillRect(-2, topY - 22, 4, 2); ctx.fillRect(1, topY - 25, 3, 2);
+      } else if (craft.landed) {
+        // ya en la superficie: las campanas caen desinfladas a un lado
+        const ch = chuteSprite('main', 0.25);
+        ctx.globalAlpha = 0.9; ctx.drawImage(ch.canvas, Math.round(spr.dims.hw + 4), Math.round(spr.base - spr.cy - ch.h * 0.55), ch.w, Math.round(ch.h * 0.5)); ctx.globalAlpha = 1;
+      } else {
+        const sway = S.reduced ? 0 : Math.sin(S.time * 1.6) * 0.06;
+        ctx.save(); ctx.translate(0, topY); ctx.rotate(sway);
+        if (craft.chute === 'drogue' || craft.chuteOpen < 0.35) { const dr = chuteSprite('drogue', craft.chute === 'drogue' ? craft.drogueOpen : 1); ctx.drawImage(dr.canvas, -dr.cx, -dr.base); }
+        if (craft.chute !== 'drogue') { const ch = chuteSprite('main', craft.chuteOpen); ctx.drawImage(ch.canvas, -ch.cx, -ch.base); }
+        ctx.restore();
+      }
+    }
     ctx.restore();
   }
 

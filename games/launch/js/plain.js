@@ -1,19 +1,10 @@
-// Comparaciones y formatos para explicar números a estudiantes de secundaria.
+// Formatos y frases para explicar números a estudiantes de secundaria.
 // Funciones puras (sin DOM): se prueban con Node.
 //
-// Idea: primero la imagen cotidiana, después el número. Todas las equivalencias son
-// aproximadas y están pensadas para entender el orden de magnitud, no para medir.
+// Los PESOS se muestran siempre con su valor real (kg o toneladas), sin comparaciones con objetos:
+// un cohete pesa cientos de toneladas y compararlo con carros o elefantes confunde más de lo que ayuda.
 
 const nf = (value, digits = 0) => value.toLocaleString('es', { maximumFractionDigits: digits });
-
-// Objetos de referencia para la masa (kg). Valores típicos, redondeados.
-export const MASS_REFERENCES = [
-  { kg: 2, one: 'una laptop', many: 'laptops', g: 'f' },
-  { kg: 70, one: 'una persona adulta', many: 'personas adultas', g: 'f' },
-  { kg: 950, one: 'un carro pequeño', many: 'carros pequeños', g: 'm' },
-  { kg: 5000, one: 'un elefante africano', many: 'elefantes africanos', g: 'm' },
-  { kg: 12000, one: 'un bus escolar', many: 'buses escolares', g: 'm' },
-];
 
 // Una casa sencilla ≈ 250.000 USD (dato aproximado para el juego).
 export const HOUSE_MUSD = 0.25;
@@ -24,9 +15,16 @@ export function fmtNumber(value, digits = 0) {
   return nf(value, digits);
 }
 
+/** Peso real: kilogramos hasta 10 toneladas; de ahí en adelante, toneladas (1 tonelada = 1.000 kg). */
 export function fmtKg(kg) {
   const value = Math.round(kg);
   return value >= 10000 ? `${nf(value / 1000, 1)} toneladas` : `${nf(value)} kg`;
+}
+
+/** Vida de la nave en palabras. Las misiones con tripulación (ida y vuelta) duran días, no años. */
+export function lifeText(spacecraft, years) {
+  if (spacecraft?.missionDays) return years > 0 ? `${spacecraft.missionDays} días de misión` : 'misión sin completar';
+  return `${years} / ${spacecraft.designLifetimeYears} años`;
 }
 
 export function fmtMUSD(m) {
@@ -36,19 +34,6 @@ export function fmtMUSD(m) {
 }
 
 export const fmtPct = (fraction) => `${nf(fraction * 100, 1)} %`;
-
-/** "casi lo mismo que un carro pequeño", "como unos 10 elefantes africanos"… */
-export function massLike(kg) {
-  if (kg < 1) return 'menos que una botella de agua';
-  if (kg < 2) return 'como una laptop';
-  let ref = MASS_REFERENCES[0];
-  for (const r of MASS_REFERENCES) if (kg >= r.kg * 0.85) ref = r;
-  const n = kg / ref.kg;
-  if (n < 1.15) return `casi lo mismo que ${ref.one}`;
-  if (n < 1.9) return `como ${ref.one} y medio`;
-  const rounded = n < 10 ? Math.round(n) : Math.round(n / 5) * 5;
-  return `como ${ref.g === 'f' ? 'unas' : 'unos'} ${nf(rounded)} ${ref.many}`;
-}
 
 /** Frase de velocidad: "a 7,8 km/s cruzarías Costa Rica en 58 segundos". */
 export function speedLike(kmS) {

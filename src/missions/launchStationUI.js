@@ -2,7 +2,7 @@
 // against the live flight plan instead of mounting the game's old setup scenes.
 import { buildRequests, buildSuggestions, operationalPropellant, tradeHighlights } from '../../games/launch/js/rules.js';
 import { DIFFICULTIES, ROLES } from '../../games/launch/js/state.js';
-import { fmtKg, fmtMUSD, fmtPct, massLike, costLike } from '../../games/launch/js/plain.js';
+import { fmtKg, fmtMUSD, fmtPct, costLike } from '../../games/launch/js/plain.js';
 import { hasFlight } from './flightPlan.js';
 
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -37,11 +37,12 @@ function renderBriefing({ data, plan, view, translate }, fields) {
       <p class="lead">${esc(objective)}</p>
       <p>Tu trabajo: elegir el cohete, comprobar que tu nave quepa, y <b>pilotear el lanzamiento</b> hasta la órbita. Decidas lo que decidas, afecta el dinero, el tiempo y la vida de tu nave.</p>
       <dl class="facts">
-        <dt>Nave ${sourceTag('spacecraft')}</dt><dd><b>${esc(sc.name ?? '—')}</b> pesa ${massLike(sc.massKg)} (${fmtKg(sc.massKg)}) con combustible.</dd>
+        <dt>Nave ${sourceTag('spacecraft')}</dt><dd><b>${esc(sc.name ?? '—')}</b> pesa <b>${fmtKg(sc.massKg)}</b> con combustible (es la carga que va en la punta del cohete).</dd>
         <dt>Tamaño doblada</dt><dd>${sc.diameterM} m de ancho × ${sc.heightM} m de alto</dd>
         <dt>Combustible</dt><dd>${fmtKg(sc.propellantKg)}${sc.propellantKg ? ` (${fmtKg(operationalPropellant(sc))} sirven para mantenerse en órbita)` : ' — esta nave no tiene motor propio'}</dd>
-        <dt>Vida de diseño</dt><dd>${sc.designLifetimeYears} años</dd>
-        <dt>Instrumentos</dt><dd>${sc.instruments.length ? sc.instruments.map((i) => `${esc(i.name)} (${fmtKg(i.massKg)})`).join(', ') : '—'}</dd>
+        <dt>${sc.missionDays ? 'Duración' : 'Vida de diseño'}</dt><dd>${sc.missionDays ? `${sc.missionDays} días de misión` : `${sc.designLifetimeYears} años`}</dd>
+        <dt>${sc.return ? 'Partes de la nave' : 'Instrumentos'}</dt><dd>${sc.instruments.length ? sc.instruments.map((i) => `${esc(i.name)} (${fmtKg(i.massKg)})`).join(', ') : '—'}</dd>
+        ${sc.return ? '<dt>Plan de vuelo</dt><dd>① órbita de la Tierra → ② inyección hacia la Luna → ③ frenado y órbita lunar → ④ inyección de regreso → ⑤ soltar el módulo de servicio y reentrada con el escudo térmico → ⑥ paracaídas y amerizaje.</dd>' : ''}
         <dt>Destino ${sourceTag('orbit')}</dt><dd>${esc(od?.name ?? orbit.type)}${orbit.altitudeKm != null && od?.needsInclination ? ` · ${orbit.altitudeKm} km de altura` : ''}${orbit.inclinationDeg != null && od?.needsInclination ? ` · ${orbit.inclinationDeg}° de inclinación` : ''}</dd>
         <dt>Dinero ${sourceTag('budget')}</dt><dd>${fmtMUSD(budget.totalMUSD)} en total (${costLike(budget.totalMUSD)}); otros equipos ya apartaron ${fmtMUSD(budget.committedMUSD)}.</dd>
         <dt>Fecha ${sourceTag('schedule')}</dt><dd>Meta: lanzar dentro de ${schedule.monthsToTargetDate} meses.</dd>
@@ -100,7 +101,7 @@ function renderCatalog({ data, view, onlyCompatible }, fields) {
         <div class="tags"><span class="tag class">${esc(l.class)}</span>${l.fictional ? '<span class="tag fict" title="Configuración parcialmente inventada">en parte inventado</span>' : ''}${e.compatible ? tagFor(e.launcherId) : ''}</div>
         <p>${esc(l.summary)}</p>
         <div class="capbar" role="img" aria-label="${esc(capText)}"><i class="${st.cls}" style="width:${usage}%"></i></div>
-        <div class="capbar-label">${esc(capText)}${e.baseCapacityKg != null ? ` (${massLike(e.capacityKg)})` : ''}</div>
+        <div class="capbar-label">${esc(capText)}</div>
         <dl>
           <dt>Cuesta</dt><dd>${fmtMUSD(e.launchCostMUSD)}${e.delayCostMUSD ? ` <small class="status-yellow">+ ${fmtMUSD(e.delayCostMUSD)} por llegar ${e.date.delayMonths} meses tarde</small>` : ''}</dd>
           <dt>Seguridad ${termBtn('confiabilidad', '¿Qué significa seguridad del cohete?')}</dt><dd>${fmtPct(l.reliability)} salen bien</dd>
@@ -125,7 +126,7 @@ function renderCatalog({ data, view, onlyCompatible }, fields) {
         ${cell(e, (x) => x.marginPct, true, `${e.marginPct} %`)}
         ${cell(e, (x) => x.reliability, true, fmtPct(e.reliability))}
         ${cell(e, (x) => x.date.launchMonth, false, `mes ${e.date.launchMonth}${e.date.delayMonths ? ` (+${e.date.delayMonths})` : ''}`)}
-        ${cell(e, (x) => x.lifetimeYears, true, `${e.lifetimeYears} años`)}
+        ${cell(e, (x) => x.lifetimeYears, true, view.resolved.inputs.spacecraft.missionDays ? `${view.resolved.inputs.spacecraft.missionDays} días` : `${e.lifetimeYears} años`)}
       </tr>`).join('')}</tbody></table>` : '<p class="status-red">Todavía ninguna opción sirve. Elige un cohete para ver qué habría que cambiar.</p>';
 
   return `
@@ -247,11 +248,11 @@ function renderPayload({ view }, fields) {
       <span class="kicker">NAVE E INSTRUMENTOS</span><h2>${esc(sc.name)}</h2>
       <dl class="facts">
         <dt>Tamaño plegado</dt><dd>${sc.diameterM} m de ancho × ${sc.heightM} m de alto</dd>
-        <dt>Masa con combustible</dt><dd>${massLike(sc.massKg)} (${fmtKg(sc.massKg)})</dd>
+        <dt>Masa con combustible</dt><dd>${fmtKg(sc.massKg)}</dd>
         <dt>Combustible</dt><dd>${fmtKg(sc.propellantKg)} · ${fmtKg(operationalPropellant(sc))} disponibles para operar</dd>
         <dt>Reserva</dt><dd>${fmtKg(sc.reservedPropellantKg ?? 0)} reservados para llegar al destino</dd>
-        <dt>Vida de diseño</dt><dd>${sc.designLifetimeYears} años</dd>
-        <dt>Instrumentos</dt><dd>${sc.instruments.map(i => `${esc(i.name)} (${fmtKg(i.massKg)})`).join(', ') || '—'}</dd>
+        <dt>${sc.missionDays ? 'Duración' : 'Vida de diseño'}</dt><dd>${sc.missionDays ? `${sc.missionDays} días de misión` : `${sc.designLifetimeYears} años`}</dd>
+        <dt>${sc.return ? 'Partes de la nave' : 'Instrumentos'}</dt><dd>${sc.instruments.map(i => `${esc(i.name)} (${fmtKg(i.massKg)})`).join(', ') || '—'}</dd>
       </dl>
     </article>
     <article class="card"><h2>Ajusta la carga</h2>${fields}</article>

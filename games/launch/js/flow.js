@@ -1,6 +1,6 @@
 // Flujo del lanzamiento: prepara el cohete y los imprevistos, y traduce el vuelo terminado a resultado.
 
-import { vehicleFor, withPilotMargin, COAST_DV, FlightSim, programGrid, programScore, runAutopilot, missionRotationBonus, PHYS } from './flight.js';
+import { vehicleFor, withPilotMargin, withSpacecraft, returnCraft, COAST_DV, FlightSim, programGrid, programScore, runAutopilot, missionRotationBonus, PHYS } from './flight.js';
 import { planFlightEvents, resolveFlight, resolveAutomatic } from './outcome.js';
 import { windowDelayRisk, windowGustEvents } from './launchWeather.js';
 import { app, inputs, current, currentOutput, writeLaunch } from './store.js';
@@ -43,6 +43,7 @@ export async function prepareLaunch() {
     const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
     app.plan.flightEvents.push(...windowGustEvents(lw.conditions, rng));
   }
+  app.lunar = vi ? lunarSetup(vi) : null;
   app.reference = null;
   if (!vi) return;
   const grid = programGrid(app.data.flight.calibration.searchGrid);
@@ -70,9 +71,25 @@ export function flightPlanScore(sim, opts) {
   return base + (transfer ? Math.min(sim.fuelLeftPct, 50) * 0.001 : sim.fuelLeftPct * 2000);
 }
 
+/**
+ * Misión de ida y vuelta a la Luna: al cohete se le suma la nave (módulo de servicio + cápsula con escudo y paracaídas)
+ * y se coloca la Luna de modo que la ventana de salida se abra unos tres cuartos de hora después de llegar a la órbita.
+ * Devuelve { vehicle, opts } o null si la misión no es de este tipo.
+ */
+export function lunarSetup(vi) {
+  const e = current();
+  const craftDef = returnCraft(inputs().spacecraft, e.offloadKg ?? 0);
+  if (!craftDef) return null;
+  const k = app.data.flight.calibration.pilotMargin?.[inputs().difficulty] ?? 1;
+  const vehicle = withSpacecraft(vi.vehicle, craftDef, k);
+  const jitter = (((app.seed * 2246822519) >>> 0) % 1000) / 1000 - 0.5;
+  return { vehicle, craftDef, opts: { ...app.opts, payloadKg: craftDef.capsuleKg, craft: vehicle.craft, profile: 'lunarReturn', moon: { angle0: 2.36 + jitter * 0.5 } } };
+}
+
 export function createSim() {
   const vi = app.vehicleInfo;
-  const sim = new FlightSim(vi.vehicle, { ...app.opts, events: app.plan.flightEvents });
+  const lunar = app.lunar;
+  const sim = new FlightSim(lunar ? lunar.vehicle : vi.vehicle, { ...(lunar ? lunar.opts : app.opts), events: app.plan.flightEvents });
   app.sim = sim;
   return sim;
 }
