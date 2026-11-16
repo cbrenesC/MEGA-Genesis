@@ -4,6 +4,7 @@ import { ROOM, SPAWN, STATIONS } from '../map/controlRoomLayout.js';
 import { MapManager } from '../map/MapManager.js';
 import { InteractionSignal } from '../map/InteractionSignal.js';
 import { getPreferences } from '../welcome/core/consent.js';
+import { playCrewVoice, stopCrewVoice } from '../welcome/core/gameAudio.js';
 import { Player } from '../player/Player.js';
 import { placeCrew } from '../crew/placeCrew.js';
 import { createDialogueReveal } from '../crew/dialogueReveal.js';
@@ -114,6 +115,7 @@ export class SpaceCenterScene extends Phaser.Scene {
       this.prompt?.classList.remove('visible');
       this.preparation?.destroy();
       this.crewDialogue?.abort();
+      stopCrewVoice();
       this.crewDialogueItem = null;
       this.terminalDialog?.remove();
       this.guideBeacon?.destroy();
@@ -419,6 +421,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     void this.preparation.render(item);
     if (isCrew) {
       this.crewDialogueItem = item;
+      playCrewVoice(item.id);
       this.presentCrewDialogue(item, getPreferences().animations && !this.reducedMotion.matches);
     }
     dialog.querySelector(isCrew ? '[data-crew-advance]' : '[data-close]').focus({ preventScroll: true });
@@ -455,6 +458,7 @@ export class SpaceCenterScene extends Phaser.Scene {
 
   closeTerminal() {
     this.crewDialogue?.abort();
+    stopCrewVoice();
     this.crewDialogue = null;
     this.crewDialogueItem = null;
     this.terminalOpen=false;
