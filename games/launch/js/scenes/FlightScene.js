@@ -14,7 +14,7 @@ import {
   PHYS, DEG, DEST, applyAutopilot, autopilotStep, orbitGoalMet, newAutopilot, startTransferBurn, trackTransfer, transferWindow, timeToApoapsis, pressureRatio,
 } from '../flight.js';
 import { app, inputs, current, reducedMotion } from '../store.js';
-import { pauseGameplayMusic, playEffect, resumeGameplayMusic, setThruster } from '../../../../src/welcome/core/gameAudio.js';
+import { pauseGameplayMusic, playEffect, resumeGameplayMusic, setThruster, startRocketAudio, updateRocketAltitude, pauseRocketAudio, stopRocketAudio, setSimulationMusicDucked } from '../../../../src/welcome/core/gameAudio.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
@@ -152,6 +152,8 @@ export class FlightScene extends Phaser.Scene {
     window.addEventListener('pointercancel', this.onPtrUp);
     this.events.once('shutdown', () => this.cleanup());
 
+    setSimulationMusicDucked(true);
+    startRocketAudio();
     this.begin();
   }
 
@@ -165,6 +167,8 @@ export class FlightScene extends Phaser.Scene {
     window.removeEventListener('pointerup', this.onPtrUp);
     window.removeEventListener('pointercancel', this.onPtrUp);
     this.scale.off('resize', this.onResize);
+    stopRocketAudio();
+    setSimulationMusicDucked(false);
     resumeGameplayMusic();
     setThruster(0);
     this.hud?.destroy();
@@ -191,6 +195,7 @@ export class FlightScene extends Phaser.Scene {
   togglePause() {
     if (this.ended || (this.sim.status === 'pad' && !this.ignition)) return;
     this.paused = !this.paused;
+    pauseRocketAudio(this.paused);
     if (this.paused) pauseGameplayMusic();
     else resumeGameplayMusic();
     const ov = document.getElementById('overlay');
@@ -321,6 +326,8 @@ export class FlightScene extends Phaser.Scene {
     }
     const enginePower = this.paused || this.ended || sim.engineOut ? 0 : this.ignition ? this.spool : sim.status === 'flying' ? sim.throttle : 0;
     setThruster(enginePower);
+    updateRocketAltitude(sim.altitude);
+    pauseRocketAudio(this.paused || this.ended || sim.status === 'ended');
     this.updateHints(followThrottle);
     this.drawFrame(dt);
     if (sim.status === 'ended' && !this.ended) this.onEnded();
