@@ -16,6 +16,8 @@ import './stationUI.css';
 import { MISSION_COMPLETE, MISSION_EXIT, ROVER_PROGRESS, missionUrl, PRIMARY_MISSION, primaryMissionCompleted, ROVER_SAVE_KEY } from './missionTransfer.js';
 import { LUNAR_ROVER, acceptsDelivery, playableDelivery, roverGroupReady, sameRoverBuild, snapshotRoverBuild } from './lunarCampaign.js';
 import { clearGameSession, readGameSession, writeGameSession } from './gameSession.js';
+import { awardMedal, medalForStation, restoreMedals, simulationMedals } from '../medals/progress.js';
+import { announceMedals } from '../medals/collection.js';
 
 const ROVER_GUIDE_PREFIX = 'cargo:';
 
@@ -31,6 +33,7 @@ export class StationPreparation {
     this.scene = scene;
     const saved = hasStorageConsent() ? readGameSession(localStorage) : null;
     this.started = false;
+    this.medals = restoreMedals(saved);
     this.delivery = playableDelivery(saved?.delivery) ? saved.delivery : null;
     this.lastDelivery = saved?.lastDelivery ?? null;
     this.position = saved?.position;
@@ -47,22 +50,25 @@ export class StationPreparation {
     this.onMessage = event => {
       if (!this.frame || event.origin !== location.origin || event.source !== this.frame.contentWindow) return;
       if (event.data?.type === MISSION_COMPLETE && event.data.mission === this.activeMission?.mission) {
-        const { mission, plan } = this.activeMission;
+        const { mission, plan, testReturn } = this.activeMission;
+        if (testReturn) return;
+        const earned = simulationMedals(this.activeMission, event.data);
+        if (!earned.length) return;
         if (mission === 'launch' && plan.scenarioId === LUNAR_ROVER) {
           const delivery = event.data.delivery;
-          if (!acceptsDelivery(delivery, plan)) return;
+          if (delivery !== null && !acceptsDelivery(delivery, plan)) return;
           this.activeMission.resultShown = true;
           this.lastDelivery = delivery;
           this.delivery = playableDelivery(delivery) ? delivery : null;
           if (this.delivery) this.markMissionCompleted(mission);
-          this.save();
         } else {
           this.activeMission.resultShown = true;
           if (mission === 'launch' && primaryMissionCompleted(plan, event.data)) this.markMissionCompleted(PRIMARY_MISSION);
           if (mission === 'rover') this.roverSave = null;
           if (mission === 'rover' && event.data.success === true) this.markMissionCompleted(mission);
-          this.save();
         }
+        this.collectMedals(earned);
+        this.save();
       }
       if (event.data?.type === ROVER_PROGRESS && this.activeMission?.mission === 'rover') {
         const snap = event.data.snapshot;
@@ -71,6 +77,15 @@ export class StationPreparation {
       if (event.data?.type === MISSION_EXIT) this.closeSimulation();
     };
     window.addEventListener('message', this.onMessage);
+  }
+
+  collectMedals(ids) {
+    if (!this.started) return;
+    const earned = ids.filter(id => awardMedal(this.medals, id));
+    if (earned.length) {
+      this.save();
+      announceMedals(earned);
+    }
   }
 
   markMissionCompleted(mission) {
@@ -120,7 +135,8 @@ export class StationPreparation {
     writeGameSession(localStorage, {
       launch: this.launch, rover: this.rover, guideProgress: this.guideProgress, guideVersion: 2,
       guideConversations: this.guideConversations, position: this.position,
-      completedMissions: this.completedMissions, activeMission: this.activeMission,
+      completedMissions: this.completedMissions, medals: [...this.medals],
+      activeMission: this.activeMission?.testReturn ? null : this.activeMission,
       delivery: this.delivery, lastDelivery: this.lastDelivery,
     });
   }
@@ -149,6 +165,7 @@ export class StationPreparation {
       this.guideProgress = [];
       this.guideConversations = [];
       this.completedMissions = [];
+      this.medals.clear();
       this.activeMission = null;
       this.delivery = null;
       this.lastDelivery = null;
@@ -243,6 +260,7 @@ export class StationPreparation {
         if (this.item !== item || !canConfirm()) return;
         if (stationStep.kind === 'launch-review') this.launch.approved = true;
         this.scene.confirmStation(item);
+        this.collectMedals([medalForStation(item.id)]);
         this.save();
         this.scene.closeTerminal();
       };
@@ -602,7 +620,7 @@ export class StationPreparation {
 
   openSimulation(mission, plan, options) {
     if (this.frame) return;
-    this.activeMission = { mission, plan };
+    this.activeMission = { mission, plan, ...(options?.testReturn ? { testReturn: true } : {}) };
     this.save();
     this.scene.stopMovement();
     this.scene.terminalOpen = true;

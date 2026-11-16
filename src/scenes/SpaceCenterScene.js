@@ -309,6 +309,8 @@ export class SpaceCenterScene extends Phaser.Scene {
     if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)
       && saved.x > ROOM.left && saved.x < ROOM.right && saved.y > ROOM.top && saved.y < ROOM.bottom) {
       this.player.body.reset(saved.x, saved.y);
+    } else {
+      this.player.body.reset(SPAWN.x, SPAWN.y);
     }
     this.preparation.save();
     this.updateGuideBeacon();
