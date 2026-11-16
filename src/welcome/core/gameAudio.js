@@ -20,6 +20,8 @@ let audioUnlocked = false;
 let simulationDucked = false;
 const rocketLand = new Audio('/rocket-land.mp3');
 const rocketSpace = new Audio('/rocket-space.mp3');
+const reentryWind = new Audio('/reentry-wind.mp3');
+const rocketTracks = { air: rocketLand, space: rocketSpace, reentry: reentryWind };
 const roverSound = new Audio('/rover.mp3');
 const crewVoices = {
   kade: new Audio('/voice-durman.wav'),
@@ -32,7 +34,7 @@ roverSound.loop = true;
 roverSound.preload = 'auto';
 let roverRunning = false;
 let activeCrewVoice = null;
-for (const sound of [rocketLand, rocketSpace]) {
+for (const sound of Object.values(rocketTracks)) {
   sound.loop = true;
   sound.preload = 'auto';
 }
@@ -43,21 +45,24 @@ function playRocketTrack(sound) {
   rocketPending.add(sound);
   Promise.resolve(sound.play()).catch(error => console.warn('Rocket audio could not play:', error)).finally(() => rocketPending.delete(sound));
 }
-for (const sound of [rocketLand, rocketSpace]) {
+for (const sound of Object.values(rocketTracks)) {
   sound.addEventListener('canplay', () => { if (activeRocket === sound) syncRocket(); });
   sound.addEventListener('error', () => console.warn('Rocket audio failed to load:', sound.currentSrc, sound.error?.code));
 }
 
 let rocketPaused = false;
 let rocketRunning = false;
-let rocketAltitude = 0;
+let rocketMode = 'air';
 const ATMOSPHERE_EDGE_M = 100000;
 
 // Start fetching every launch sound while the player is still in mission setup.
-const launchSounds = [thruster, rocketLand, rocketSpace, roverSound, ...Object.values(crewVoices)];
+const launchSounds = [thruster, ...Object.values(rocketTracks), roverSound, ...Object.values(crewVoices)];
 const effectSounds = {
   'stage-separation': new Audio('/stage-separation.mp3'),
+  'capsule-splashdown': new Audio('/capsule-splashdown.mp3'),
+  'capsule-land-impact': new Audio('/capsule-land-impact.mp3'),
 };
+const capsuleImpactSounds = [effectSounds['capsule-splashdown'], effectSounds['capsule-land-impact']];
 const clickSound = new Audio('/click.mp3');
 let preloadStarted = false;
 export function preloadLaunchAudio() {
@@ -95,9 +100,9 @@ export function stopRoverAudio() {
 function syncRocket() {
   if (isEmbedded) return;
   const prefs = preferences();
-  const target = rocketAltitude < ATMOSPHERE_EDGE_M ? rocketLand : rocketSpace;
+  const target = rocketTracks[rocketMode];
   if (!rocketRunning || rocketPaused || !audioUnlocked || !prefs.audio) {
-    for (const sound of [rocketLand, rocketSpace]) sound.pause();
+    for (const sound of Object.values(rocketTracks)) sound.pause();
     return;
   }
   if (activeRocket !== target) {
@@ -113,17 +118,21 @@ export function setSimulationMusicDucked(ducked) {
   syncMusic();
 }
 export function startRocketAudio() {
+  rocketMode = 'air';
   if (relayAudio('rocket-start')) return;
   preloadLaunchAudio();
-  for (const sound of [rocketLand, rocketSpace]) sound.currentTime = 0;
+  for (const sound of Object.values(rocketTracks)) sound.currentTime = 0;
   rocketRunning = true;
   rocketPaused = false;
-  rocketAltitude = 0;
   syncRocket();
 }
-export function updateRocketAltitude(altitude) {
-  if (relayAudio('altitude', altitude)) return;
-  rocketAltitude = Math.max(0, Number(altitude) || 0);
+export function updateRocketFlightAudio(altitude, reentry) {
+  setRocketMode(reentry ? 'reentry' : altitude < ATMOSPHERE_EDGE_M ? 'air' : 'space');
+}
+function setRocketMode(mode) {
+  if (!Object.hasOwn(rocketTracks, mode) || rocketMode === mode) return;
+  rocketMode = mode;
+  if (relayAudio('rocket-mode', mode)) return;
   syncRocket();
 }
 export function pauseRocketAudio(paused) {
@@ -136,7 +145,7 @@ export function stopRocketAudio() {
   rocketRunning = false;
   rocketPaused = false;
   activeRocket = null;
-  for (const sound of [rocketLand, rocketSpace]) {
+  for (const sound of [...Object.values(rocketTracks), ...capsuleImpactSounds]) {
     sound.pause();
     sound.currentTime = 0;
   }
@@ -219,7 +228,8 @@ window.addEventListener('message', (event) => {
     case 'rocket-start': startRocketAudio(); break;
     case 'rocket-stop': stopRocketAudio(); break;
     case 'rocket-pause': pauseRocketAudio(value); break;
-    case 'altitude': updateRocketAltitude(value); break;
+    case 'rocket-mode': setRocketMode(value); break;
+    case 'flight-effect': playEffect(value); break;
   }
 });
 
@@ -229,6 +239,7 @@ window.addEventListener('sms-preferences-changed', () => {
   syncRocket();
   syncRover();
   syncCrewVoice();
+  if (!preferences().audio) for (const sound of capsuleImpactSounds) sound.pause();
 });
 window.addEventListener('sms-consent-changed', () => {
   syncMusic();
@@ -264,10 +275,12 @@ export function playClick() {
 }
 
 export function playEffect(name) {
-  const prefs = preferences();
-  if (!prefs.audio) return;
+  if (!Object.hasOwn(effectSounds, name)) return;
   const sound = effectSounds[name];
-  if (!sound) return;
+  const isImpact = capsuleImpactSounds.includes(sound);
+  if (isImpact && relayAudio('flight-effect', name)) return;
+  const prefs = preferences();
+  if (!prefs.audio || (isImpact && !audioUnlocked)) return;
   sound.pause();
   sound.currentTime = 0;
   sound.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));

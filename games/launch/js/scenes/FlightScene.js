@@ -18,7 +18,8 @@ import { EARTH, MOON, moonState, moonAngle } from '../bodies.js';
 import { LUNAR, LUNAR_PHASE_LABEL, newGuide, lunarPlan, newLunarAutopilot, lunarAutopilotStep, startBurn, burnControl, signedPass } from '../lunar.js';
 import { globeSample } from './earth.js';
 import { app, inputs, current, reducedMotion } from '../store.js';
-import { pauseGameplayMusic, playEffect, resumeGameplayMusic, setThruster, startRocketAudio, updateRocketAltitude, pauseRocketAudio, stopRocketAudio, setSimulationMusicDucked } from '../../../../src/welcome/core/gameAudio.js';
+import { pauseGameplayMusic, playEffect, resumeGameplayMusic, setThruster, startRocketAudio, updateRocketFlightAudio, pauseRocketAudio, stopRocketAudio, setSimulationMusicDucked } from '../../../../src/welcome/core/gameAudio.js';
+import { capsuleImpactEffect, playsReentryWind } from '../returnAudio.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
@@ -388,8 +389,9 @@ export class FlightScene extends Phaser.Scene {
     }
     const enginePower = this.paused || this.ended || sim.engineOut ? 0 : this.ignition ? this.spool : sim.status === 'flying' ? sim.throttle : 0;
     setThruster(enginePower);
-    updateRocketAltitude(sim.altitude);
-    pauseRocketAudio(this.paused || this.ended || sim.status === 'ended');
+    if (sim.status !== 'ended' && !this.paused) {
+      updateRocketFlightAudio(sim.body === 'moon' ? Infinity : sim.altitude, playsReentryWind(sim));
+    }
     this.updateHints(followThrottle);
     this.drawFrame(dt);
     if (sim.status === 'ended' && !this.ended) this.onEnded();
@@ -673,6 +675,9 @@ export class FlightScene extends Phaser.Scene {
     this.ended = true;
     this.endTimer = 0;
     const sim = this.sim;
+    stopRocketAudio();
+    const impact = capsuleImpactEffect(sim, () => this.onWater());
+    if (impact) playEffect(impact);
     const bad = wasDestroyed(sim);
     if (bad) {
       this.explode();
@@ -681,7 +686,6 @@ export class FlightScene extends Phaser.Scene {
       // amerizaje: salpicadura y la cápsula flotando mientras llega el barco
       if (!this.spaceFrame && this.onWater()) this.particles.splash({ x: this.groundS(), y: 0, n: this.reduced ? 14 : 46 });
       if (!this.reduced) this.cam.kick(0.5);
-      playEffect('rocket-land');
       this.hud.message(simText("lunarFlight.0-at-1-m-s-the-crew-is", this.onWater() ? simText("lunarFlight.splashdown-3") : simText("lunarFlight.touchdown-2"), sim.landing.speed.toFixed(1)), 'ok');
     } else this.hud.message(sim.orbitReached ? simText('flight.flight-complete-let-s-see-how-you-did') : simText('flight.flight-complete'), 'ok');
   }

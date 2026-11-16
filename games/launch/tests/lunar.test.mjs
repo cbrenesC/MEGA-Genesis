@@ -16,6 +16,7 @@ import {
 } from '../js/lunar.js';
 import { primaryMissionCompleted } from '../../../src/missions/missionTransfer.js';
 import { evaluateLauncher } from '../js/rules.js';
+import { capsuleImpactEffect, playsReentryWind } from '../js/returnAudio.js';
 import { planFlightEvents, resolveFlight } from '../js/outcome.js';
 
 const load = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../data/${name}.json`, import.meta.url)), 'utf8'));
@@ -60,6 +61,42 @@ function fall(sim, { chuteAt = null, maxDays = 2 } = {}) {
   return sim;
 }
 const goodChute = (s) => s.altitude < LUNAR.CHUTE_ALT && s.aero().v < LUNAR.CHUTE_SPEED;
+
+test('return wind begins before atmospheric entry, loops through descent, then gives way to the surface impact', () => {
+  const sim = capsuleReturning(60);
+  const advanceUntil = (condition) => {
+    for (let i = 0; i < 20000 && sim.status === 'flying' && !condition(sim); i++) sim.advance(0.5, {});
+    assert.ok(condition(sim));
+  };
+  assert.equal(playsReentryWind(sim), false, 'no wind on the way back through vacuum');
+  advanceUntil(playsReentryWind);
+  assert.ok(sim.altitude > PHYS.ATM_TOP);
+  assert.equal(sim.stats.entryT, null);
+  advanceUntil(s => s.stats.entryT != null);
+  assert.notEqual(sim.stats.entryT, null);
+  assert.equal(playsReentryWind(sim), true);
+  advanceUntil(goodChute);
+  sim.deployChute();
+  assert.equal(playsReentryWind(sim), true);
+  assert.equal(capsuleImpactEffect(sim, () => true), null);
+  fall(sim);
+  assert.ok(sim.landing);
+  assert.equal(playsReentryWind(sim), false);
+  assert.equal(capsuleImpactEffect(sim, () => true), 'capsule-splashdown');
+  assert.equal(capsuleImpactEffect(sim, () => false), 'capsule-land-impact');
+});
+
+test('only capsule surface contact can play a return impact', () => {
+  const crashed = fall(capsuleReturning(60));
+  assert.equal(crashed.endReason, 'crash');
+  assert.equal(capsuleImpactEffect(crashed, () => false), 'capsule-land-impact');
+  const attached = fall(capsuleReturning(60, { attached: true }));
+  assert.equal(attached.endReason, 'burn');
+  assert.equal(capsuleImpactEffect(attached, () => true), null);
+  const sim = capsuleReturning(45);
+  sim.destroy('gforce', 'test');
+  assert.equal(capsuleImpactEffect(sim, () => true), null);
+});
 
 // --- Datos y armado de la nave ---------------------------------------------------------------
 

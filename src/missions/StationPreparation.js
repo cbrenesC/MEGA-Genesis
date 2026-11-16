@@ -1,4 +1,4 @@
-import { setSimulationMusicDucked, startRoverAudio, stopRoverAudio } from '../welcome/core/gameAudio.js';
+import { setSimulationMusicDucked, startRoverAudio, stopRoverAudio, stopRocketAudio } from '../welcome/core/gameAudio.js';
 import { CREW_GUIDE } from '../crew/guideFlow.js';
 import { localizeLaunchData } from '../../games/launch/js/localizeData.js';
 import { loadData } from '../../games/launch/js/state.js';
@@ -191,6 +191,7 @@ export class StationPreparation {
 
   destroy() {
     window.removeEventListener('message', this.onMessage);
+    if (this.frameMission === 'launch') stopRocketAudio();
     this.frame?.remove();
     stopRoverAudio();
     setSimulationMusicDucked(false);
@@ -625,6 +626,7 @@ export class StationPreparation {
   }
 
   closeSimulation() {
+    if (this.frameMission === 'launch') stopRocketAudio();
     this.frame.remove();
     this.frame = null;
     this.activeMission = null;
