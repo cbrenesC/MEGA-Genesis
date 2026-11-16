@@ -10,6 +10,7 @@ import { placeCrew } from '../crew/placeCrew.js';
 import { createDialogueReveal } from '../crew/dialogueReveal.js';
 import { activeStationStep, nextGuideStep } from '../crew/guideFlow.js';
 import { StationPreparation } from '../missions/StationPreparation.js';
+import { reviewFlightPlan } from '../missions/flightPlan.js';
 import { localizeDOM, onLanguageChange, t } from '../i18n/index.js';
 
 export class SpaceCenterScene extends Phaser.Scene {
@@ -94,6 +95,37 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.completedGuideSteps = new Set(this.preparation.guideProgress);
     this.guideBeacon = this.add.graphics().setDepth(1300);
     this.updateGuideBeacon();
+    // Hidden QA shortcut: stand by the upper-right server racks, then press G H J.
+    this.testReturnSequence = '';
+    this.testReturnLastKey = 0;
+    this.onTestReturnKey = event => {
+      if (event.repeat || this.inputsBlocked() || !this.scene.isActive() || this.scene.isPaused()) return;
+      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, 1100, 330) > 135) {
+        this.testReturnSequence = '';
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (!'ghj'.includes(key)) { this.testReturnSequence = ''; return; }
+      if (performance.now() - this.testReturnLastKey > 2500) this.testReturnSequence = '';
+      this.testReturnLastKey = performance.now();
+      this.testReturnSequence = (this.testReturnSequence + key).slice(-3);
+      if (this.testReturnSequence !== 'ghj') return;
+      this.testReturnSequence = '';
+      const base = { ...this.preparation.flightPlan, scenarioId: 'moonReturn', difficulty: 'facil', events: false, teamMode: false, approved: true };
+      let plan = base;
+      let review = reviewFlightPlan(this.preparation.data, plan);
+      if (review.reason) {
+        const candidates = review.evaluations.filter(item => item.compatible);
+        const viable = candidates.find(item => item.siteId && item.launcherId);
+        if (viable) {
+          plan = { ...plan, launcherId: viable.launcherId, siteId: viable.siteId };
+          review = reviewFlightPlan(this.preparation.data, plan);
+        }
+      }
+      if (review.reason) { this.showNotice('map.approach'); console.warn('Return test unavailable:', review.reason); return; }
+      this.preparation.openSimulation('launch', plan, { testReturn: true });
+    };
+    window.addEventListener('keydown', this.onTestReturnKey);
     this.input.keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'DOWN', 'LEFT', 'RIGHT', 'E', 'ESC']);
     if (this.inputsBlocked()) this.input.keyboard.disableGlobalCapture();
     const removeLanguageListener = onLanguageChange(() => {
@@ -111,6 +143,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     this.events.on('pause', hideSignal);
     this.events.once('shutdown', () => {
       removeLanguageListener();
+      window.removeEventListener('keydown', this.onTestReturnKey);
       window.removeEventListener('sms-settings-toggled', stopWhenSettingsOpen);
       this.prompt?.classList.remove('visible');
       this.preparation?.destroy();
