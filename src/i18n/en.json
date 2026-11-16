@@ -1857,5 +1857,6 @@
   "medals.requirement.launch": "Reach the flight results screen.",
   "medals.requirement.rover": "Reach the rover results screen.",
   "medals.requirement.lunarGold": "Reach lunar orbit and return safely to Earth.",
-  "medals.requirement.roverGold": "Meet the rover mission’s main objective."
+  "medals.requirement.roverGold": "Meet the rover mission’s main objective.",
+  "medals.saveReward": "Save medal"
 }
