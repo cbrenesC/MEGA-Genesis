@@ -83,6 +83,26 @@ export class FlightScene extends Phaser.Scene {
       return;
     }
     const sim = createSim();
+    // QA-only entry point: exercise real capsule aerodynamics, parachutes,
+    // reentry audio and landing without replaying the outbound lunar journey.
+    this.returnTest = new URLSearchParams(location.search).get('testReturn') === '1' && Boolean(sim.mission);
+    if (this.returnTest) {
+      sim.t = 5 * 86400;
+      sim.x = 0;
+      sim.y = PHYS.RE + 145000;
+      sim.vx = 2200;
+      sim.vy = -7000;
+      sim.grounded = false;
+      sim.status = 'flying';
+      sim.stage = sim.stageCount;
+      sim.fuel.fill(0);
+      sim.fairing = false;
+      sim.throttle = 0;
+      sim.stats.maxAlt = 400000;
+      Object.assign(sim.mission, {
+        leo: true, tli: true, soi: true, lunarOrbit: true, tei: true, left: true,
+      });
+    }
     this.sim = sim;
     this.vehicle = sim.vehicle;
     this.dims = rocketDims(this.vehicle);
@@ -188,7 +208,12 @@ export class FlightScene extends Phaser.Scene {
 
     setSimulationMusicDucked(true);
     startRocketAudio();
-    this.begin();
+    if (this.returnTest) {
+      this.paused = false;
+      this.ignition = null;
+      this.phase = 'entry';
+      this.hud.message('RETURN TEST · Earth reentry / capsule descent', 'info');
+    } else this.begin();
   }
 
   dMax() { return CAMERA.dMaxFrac * this.view.viewH; }
