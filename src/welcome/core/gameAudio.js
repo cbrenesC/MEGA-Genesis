@@ -20,6 +20,10 @@ let audioUnlocked = false;
 let simulationDucked = false;
 const rocketLand = new Audio('/rocket-land.mp3');
 const rocketSpace = new Audio('/rocket-space.mp3');
+const roverSound = new Audio('/rover.mp3');
+roverSound.loop = true;
+roverSound.preload = 'auto';
+let roverRunning = false;
 for (const sound of [rocketLand, rocketSpace]) {
   sound.loop = true;
   sound.preload = 'auto';
@@ -31,7 +35,7 @@ let rocketAltitude = 0;
 const ATMOSPHERE_EDGE_M = 100000;
 
 // Start fetching every launch sound while the player is still in mission setup.
-const launchSounds = [thruster, rocketLand, rocketSpace];
+const launchSounds = [thruster, rocketLand, rocketSpace, roverSound];
 const effectSounds = {
   'stage-separation': new Audio('/stage-separation.mp3'),
 };
@@ -47,6 +51,27 @@ export function preloadLaunchAudio() {
   }
 }
 preloadLaunchAudio();
+
+function syncRover() {
+  if (isEmbedded) return;
+  const prefs = preferences();
+  if (!roverRunning || !audioUnlocked || !prefs.audio) { roverSound.pause(); return; }
+  roverSound.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
+  if (roverSound.paused) void roverSound.play().catch(error => console.warn('Rover audio playback failed:', error));
+}
+export function startRoverAudio() {
+  if (relayAudio('rover-start')) return;
+  preloadLaunchAudio();
+  roverRunning = true;
+  roverSound.currentTime = 0;
+  syncRover();
+}
+export function stopRoverAudio() {
+  if (relayAudio('rover-stop')) return;
+  roverRunning = false;
+  roverSound.pause();
+  roverSound.currentTime = 0;
+}
 
 function syncRocket() {
   if (isEmbedded) return;
@@ -142,6 +167,8 @@ window.addEventListener('message', (event) => {
     case 'duck': setSimulationMusicDucked(value); break;
     case 'countdown-start': startLaunchCountdownAudio(); break;
     case 'countdown-stop': stopLaunchCountdownAudio(); break;
+    case 'rover-start': startRoverAudio(); break;
+    case 'rover-stop': stopRoverAudio(); break;
     case 'rocket-start': startRocketAudio(); break;
     case 'rocket-stop': stopRocketAudio(); break;
     case 'rocket-pause': pauseRocketAudio(value); break;
@@ -153,17 +180,20 @@ window.addEventListener('sms-preferences-changed', () => {
   syncMusic();
   syncThruster();
   syncRocket();
+  syncRover();
 });
 window.addEventListener('sms-consent-changed', () => {
   syncMusic();
   syncThruster();
   syncRocket();
+  syncRover();
 });
 const unlockAudio = () => {
   audioUnlocked = true;
   syncMusic();
   syncThruster();
   syncRocket();
+  syncRover();
 };
 window.addEventListener('pointerdown', unlockAudio, { capture: true });
 window.addEventListener('keydown', unlockAudio, { capture: true });
@@ -222,5 +252,6 @@ export function stopGameplayMusic() {
   setThruster(0);
   stopLaunchCountdownAudio();
   stopRocketAudio();
+  stopRoverAudio();
   simulationDucked = false;
 }
