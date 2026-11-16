@@ -235,10 +235,11 @@ bindLanguagePickers();
 /* MEGA Genesis integration: Phaser map is created by the host entrypoint. */
 window.addEventListener('mega-map-ready', () => window.dispatchEvent(new Event('sms-ready')));
 if (window.__MEGA_MAP_READY__) queueMicrotask(() => window.dispatchEvent(new Event('sms-ready')));
-window.addEventListener('sms-intro-complete', () => {
+function showTitle() {
   const adapter = {
     events: { on(){}, off(){}, once(){} },
     newGame(options) { window.__MEGA_ENTER_MAP__?.(options); },
+    currentSession() { return window.__MEGA_CURRENT_SESSION__?.(); },
     openInfo(type) {
       if (type === 'credits') {
         showCredits();
@@ -248,4 +249,6 @@ window.addEventListener('sms-intro-complete', () => {
     }
   };
   mountTitleOverlay(adapter);
-});
+}
+window.addEventListener('sms-intro-complete', showTitle);
+window.addEventListener('mega-show-title', showTitle);

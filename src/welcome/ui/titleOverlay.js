@@ -1,7 +1,9 @@
 import { getPreferences, hasStorageConsent } from '../core/consent.js';
 import { readGameSession } from '../../missions/gameSession.js';
 import { assetUrl } from '../core/assetLoader.js';
-import { localizeDOM } from '../../i18n/index.js';
+import { localizeDOM, onLanguageChange, t } from '../../i18n/index.js';
+import { showMedals } from '../../medals/collection.js';
+import { MEDALS, restoreMedals } from '../../medals/progress.js';
 
 // UI nativa inspirada en spacemiss: NO se rasteriza ni se amplía con Phaser.
 export function mountTitleOverlay(scene) {
@@ -30,6 +32,7 @@ export function mountTitleOverlay(scene) {
           <button type="button" class="space-title__button space-title__button--primary" data-title-action="resume" data-i18n="home.resume" hidden>Resume game</button>
           <button type="button" class="space-title__button space-title__button--subtle" data-title-action="controls" data-i18n="home.controls">Controls</button>
           <button type="button" class="space-title__button space-title__button--subtle" data-title-action="credits" data-i18n="home.credits">Credits</button>
+          <button type="button" class="space-title__button space-title__button--medals" data-title-action="medals" hidden></button>
         </div>
         <p class="space-title__meta" data-i18n="home.shortcut">WASD or arrow keys · E to interact · Esc to pause</p>
       </div>
@@ -89,13 +92,19 @@ export function mountTitleOverlay(scene) {
 
   const resumeButton = screen.querySelector('[data-title-action="resume"]');
   const startButton = screen.querySelector('[data-title-action="start"]');
-  const refreshMedia = () => {
-    syncMedia();
-    const saved = hasStorageConsent() ? readGameSession(localStorage) : null;
+  const medalsButton = screen.querySelector('[data-title-action="medals"]');
+  const getSession = () => scene.currentSession?.() ?? (hasStorageConsent() ? readGameSession(localStorage) : null);
+  const refreshButtons = () => {
+    const saved = getSession();
+    const medals = restoreMedals(saved);
+    medalsButton.hidden = !saved;
+    medalsButton.textContent = `${t('medals.button')} · ${medals.size}/${MEDALS.length}`;
     resumeButton.hidden = !saved;
     startButton.dataset.i18n = saved ? 'home.newGame' : 'home.play';
     localizeDOM(startButton);
   };
+  const refreshMedia = () => { syncMedia(); refreshButtons(); };
+  const stopLocalization = onLanguageChange(refreshButtons);
   // Un navegador puede bloquear audio automático incluso si el jugador
   // autorizó el almacenamiento en una visita anterior. Reintentar en
   // cualquier gesto real del usuario mientras esté abierta esta pantalla.
@@ -116,6 +125,7 @@ export function mountTitleOverlay(scene) {
     resume: () => scene.newGame({ resume: true }),
     controls: () => scene.openInfo('controls'),
     credits: () => scene.openInfo('credits'),
+    medals: () => showMedals(restoreMedals(getSession())),
   };
 
   for (const button of screen.querySelectorAll('[data-title-action]')) {
@@ -139,6 +149,7 @@ export function mountTitleOverlay(scene) {
   };
   const remove = () => {
     screenIsActive = false;
+    stopLocalization();
     video.pause();
     music.pause();
     video.querySelector('source')?.remove();

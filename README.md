@@ -11,6 +11,12 @@ npm run dev
 
 Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para Netlify. Puedes revisarlo con `npm run preview`.
 
+### Medallas de misión
+
+La colección se habilita en el menú principal después de iniciar una partida. Cada consola de preparación entrega una medalla al confirmar una configuración válida. Las dos consolas de simulación entregan una al llegar al resultado, aunque el intento falle. Las dos medallas doradas requieren completar con éxito el viaje de ida y vuelta a la Luna y cumplir el objetivo principal del rover, respectivamente. El atajo de pruebas del regreso no entrega medallas.
+
+Las medallas no se duplican al repetir una consola y se conservan al retomar la partida. Con el guardado local habilitado también se conservan al recargar o cerrar el navegador. Al reunir las 12 se desbloquea una tarjeta PNG cuadrada de 1080 × 1080, descargable y compartible desde los dispositivos cuyo navegador admite compartir archivos.
+
 ## Cómo jugar
 
 - **WASD o flechas** para caminar. En móviles, usa el pad táctil.

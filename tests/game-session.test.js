@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { activeStationStep, CREW_GUIDE, nextGuideStep } from '../src/crew/guideFlow.js';
 import { readGameSession, writeGameSession, clearGameSession } from '../src/missions/gameSession.js';
+import { awardMedal, restoreMedals, simulationMedals } from '../src/medals/progress.js';
 import { LUNAR_ROVER, playableDelivery } from '../src/missions/lunarCampaign.js';
 import { PREPARATION_KEY, ROVER_SAVE_KEY, PRIMARY_MISSION, primaryMissionCompleted, MISSION_COMPLETE, MISSION_EXIT, ROVER_PROGRESS } from '../src/missions/missionTransfer.js';
 
@@ -83,14 +84,17 @@ test('a practice flight, an incomplete return or a rough reentry does not comple
 test('Mission Control accepts a successful retry from the same flight frame', () => {
   const source = readFileSync(new URL('../src/missions/StationPreparation.js', import.meta.url), 'utf8');
   const StationPreparation = new Function('hasStorageConsent', 'emptyBuild', 'window', 'location',
-    'MISSION_COMPLETE', 'MISSION_EXIT', 'PRIMARY_MISSION', 'primaryMissionCompleted', 'playableDelivery', 'LUNAR_ROVER', 'ROVER_PROGRESS',
+    'MISSION_COMPLETE', 'MISSION_EXIT', 'PRIMARY_MISSION', 'primaryMissionCompleted', 'playableDelivery', 'LUNAR_ROVER', 'ROVER_PROGRESS', 'restoreMedals', 'simulationMedals', 'awardMedal', 'announceMedals',
     source.replace(/^import .*;\n/gm, '').replace('export class', 'class') + '\nreturn StationPreparation;')(
     () => false, () => ({}), { addEventListener() {} }, { origin: 'https://example.test' },
     MISSION_COMPLETE, MISSION_EXIT, PRIMARY_MISSION, primaryMissionCompleted, playableDelivery, LUNAR_ROVER, ROVER_PROGRESS,
+    restoreMedals, simulationMedals, awardMedal, ids => unlocked.push(...ids),
   );
   const completed = [];
+  const unlocked = [];
   const preparation = new StationPreparation({ onMissionCompleted: id => completed.push(id) });
   const frame = {};
+  preparation.started = true;
   preparation.frame = { contentWindow: frame };
   preparation.frameMission = 'launch';
   preparation.activeMission = { mission: 'launch', plan: { scenarioId: PRIMARY_MISSION } };
@@ -101,10 +105,20 @@ test('Mission Control accepts a successful retry from the same flight frame', ()
   attempt('falla', ['lunarOrbit']);
   assert.equal(preparation.activeMission.resultShown, true);
   assert.deepEqual(completed, []);
+  assert.deepEqual(unlocked, ['launch']);
   attempt('exito', ['lunarOrbit', 'landed'], {});
   assert.deepEqual(completed, []);
   attempt('exito', ['lunarOrbit', 'landed']);
   attempt('exito', ['lunarOrbit', 'landed']);
   assert.deepEqual(completed, [PRIMARY_MISSION]);
   assert.deepEqual(preparation.completedMissions, [PRIMARY_MISSION]);
+  assert.deepEqual(unlocked, ['launch', 'lunarGold']);
+  preparation.beginSession({ resume: true });
+  assert.equal(preparation.medals.size, 2);
+  preparation.beginSession();
+  assert.equal(preparation.medals.size, 0);
+  preparation.activeMission = { mission: 'launch', plan: { scenarioId: PRIMARY_MISSION }, testReturn: true };
+  attempt('exito', ['lunarOrbit', 'landed']);
+  assert.deepEqual(preparation.completedMissions, []);
+  assert.equal(preparation.medals.size, 0);
 });

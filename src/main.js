@@ -123,6 +123,23 @@ commanderVideo.addEventListener('error', () => {
   status.textContent = t(status.dataset.i18n);
   retryBriefing.hidden = true;
 });
+window.__MEGA_CURRENT_SESSION__ = () => {
+  const preparation = game.scene.getScene('SpaceCenterScene')?.preparation;
+  return preparation?.started ? { medals: [...preparation.medals] } : null;
+};
+
+window.addEventListener('mega-return-title', () => {
+  const scene = game.scene.getScene('SpaceCenterScene');
+  scene.preparation.save();
+  gameContainer.inert = true;
+  scene.input.keyboard.resetKeys();
+  scene.input.keyboard.disableGlobalCapture();
+  commanderStarted = false;
+  commanderClosing = false;
+  stopGameplayMusic();
+  window.dispatchEvent(new Event('mega-show-title'));
+});
+
 window.__MEGA_ENTER_MAP__ = ({ resume = false } = {}) => {
   if (commanderStarted) return;
   commanderStarted = true;

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { getLanguage, localizeTextObjects, t } from '../i18n/index.js';
+import { localizeTextObjects, t } from '../i18n/index.js';
 import { playClick } from '../welcome/core/gameAudio.js';
 
 export class PauseScene extends Phaser.Scene {
@@ -22,8 +22,8 @@ export class PauseScene extends Phaser.Scene {
     };
     this.resume = makeButton('pause.resume', () => this.resumeExploration());
     this.exit = makeButton('pause.exit', () => {
-      this.scene.get('SpaceCenterScene').preparation.save();
-      location.assign('/?' + new URLSearchParams({ lang: getLanguage() }));
+      this.resumeExploration();
+      window.dispatchEvent(new Event('mega-return-title'));
     });
     this.hint = this.add.text(0, 0, t('pause.hint'), { fontFamily: 'monospace', fontSize: '8px', color: '#98b1b6', letterSpacing: 2 }).setOrigin(.5).setScrollFactor(0);
     this.layout({ width, height });
