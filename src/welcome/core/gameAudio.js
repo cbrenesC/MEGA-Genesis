@@ -137,6 +137,7 @@ function preferences() {
 }
 
 export function playCrewVoice(crewId) {
+  if (relayAudio('crew-play', crewId)) return;
   stopCrewVoice();
   const sound = crewVoices[crewId];
   const prefs = preferences();
@@ -150,6 +151,7 @@ export function playCrewVoice(crewId) {
 }
 
 export function stopCrewVoice() {
+  if (relayAudio('crew-stop')) return;
   if (!activeCrewVoice) return;
   activeCrewVoice.pause();
   activeCrewVoice.currentTime = 0;
