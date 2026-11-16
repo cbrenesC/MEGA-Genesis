@@ -7,55 +7,152 @@ export const ROVER_GRID = { w: 34, h: 26 };
 
 function prng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
-// Dibuja el rover según la configuración elegida (solo lo elegido; lo que falta se ve como hueco punteado).
-export function drawRover(ctx, build, px = 4) {
-  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x * px, y * px, w * px, h * px); };
-  ctx.imageSmoothingEnabled = false;
-  const ch = build && build.chassis, wh = build && build.wheels, ba = build && build.battery, so = build && build.solar;
-  const ins = build && build.instrument, ca = build && build.camera, co = build && build.comms;
-  // Chasis
-  if (ch === 'ligero') { R(7, 11, 20, 5, '#d5dde8'); R(7, 11, 20, 1, '#f1f5fa'); R(7, 15, 20, 1, '#9aa7b8'); }
-  else if (ch === 'estandar') { R(6, 10, 22, 6, '#b3bfce'); R(6, 10, 22, 1, '#dbe3ee'); R(6, 15, 22, 1, '#7f8ea2'); R(9, 12, 2, 2, '#7f8ea2'); }
-  else if (ch === 'reforzado') { R(5, 9, 24, 8, '#8d9fb5'); R(5, 9, 24, 1, '#bcc9d9'); R(5, 16, 24, 1, '#5d6f86'); for (let i = 0; i < 5; i++) R(7 + i * 5, 11, 2, 4, '#5d6f86'); }
-  else { ctx.strokeStyle = '#4a6a82'; ctx.setLineDash([px, px]); ctx.strokeRect(6 * px, 10 * px, 22 * px, 6 * px); ctx.setLineDash([]); }
-  // Batería: celdas menta dentro del chasis (3 / 4 / 6)
-  if (ba) { const n = ba === 'pequena' ? 3 : ba === 'media' ? 4 : 6; for (let i = 0; i < n; i++) R(12 + i * 2.5, 12, 2, 2, '#6ce2cf'); }
-  // Ruedas
-  const wy = ch === 'reforzado' ? 17 : 16;
+// ---------- El rover ----------
+// Pixel art detallado sobre una rejilla de 68×52 (el doble de la rejilla lógica de 34×26): suspensión de balancín,
+// ruedas con llanta y radios que giran, cuerpo con lámina dorada y paneles, panel solar con celdas, mástil con cámara
+// estéreo, antena y brazo con el instrumento. Cada pieza elegida se ve distinta; lo que falta aparece como hueco punteado.
+// Todo lleva contorno oscuro de 1 px y luz desde arriba-izquierda, como el resto del juego.
+const HD = 2, GW = ROVER_GRID.w * HD, GH = ROVER_GRID.h * HD, GROUND = 50, INK = '#0b1424';
+const METAL = ['#eef2f7', '#c9d3df', '#9aa7b8', '#6c7a8d', '#47546a'];
+const FOIL = ['#f7df95', '#e3b552', '#c08f2f', '#8c6a22'];
+const WHEEL_X = [13, 34, 55];
+
+function roverGrid(build, frame = 0) {
+  const cells = new Array(GW * GH).fill(null);
+  const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < GW && y < GH) cells[y * GW + x] = c; };
+  const rect = (x, y, w, h, c) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) set(x + i, y + j, c); };
+  const line = (x0, y0, x1, y1, c, thick = 1) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) || 1; for (let i = 0; i <= n; i++) { const x = x0 + ((x1 - x0) * i) / n, y = y0 + ((y1 - y0) * i) / n; for (let t = 0; t < thick; t++) set(x, y + t, c); } };
+  const disc = (cx, cy, r, c) => { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * .6) set(cx + x, cy + y, c); };
+  const noiseAt = (x, y) => ((Math.imul(x * 374761393 ^ y * 668265263, 1274126177) >>> 0) % 100) / 100;
+  const b = build || {};
+  const ch = b.chassis, wh = b.wheels, ba = b.battery, so = b.solar, ins = b.instrument, ca = b.camera, co = b.comms;
+  const ghosts = [];
+
+  // --- medidas del cuerpo según el chasis
+  const body = ch === 'ligero' ? { x: 14, w: 40, top: 23, h: 9 } : ch === 'reforzado' ? { x: 10, w: 48, top: 19, h: 14 } : { x: 12, w: 44, top: 21, h: 11 };
+  const deck = body.top; // y de la cubierta
+  const wr = wh === 'todoterreno' ? 8 : wh === 'ligeras' ? 6 : 7;
+  const wy = GROUND - wr;
+
+  // --- suspensión de balancín (detrás de las ruedas)
+  if (ch && wh) {
+    const px = 34, py = body.top + body.h - 1;
+    line(px - 12, py + 3, WHEEL_X[2], wy, METAL[3], 2); line(px - 12, py + 3, 23, py + 5, METAL[3], 2); // balancín principal
+    line(23, py + 5, WHEEL_X[0], wy, METAL[4], 2); line(23, py + 5, WHEEL_X[1], wy, METAL[4], 2);       // bogie trasero
+    disc(px - 12, py + 3, 1, METAL[1]); disc(23, py + 5, 1, METAL[1]);
+  }
+
+  // --- ruedas
   const wheel = (cx) => {
-    if (wh === 'ligeras') { R(cx - 2, wy, 4, 4, '#1b2330'); R(cx - 1, wy + 1, 2, 2, '#56657a'); }
-    else if (wh === 'todoterreno') { R(cx - 3, wy - 1, 6, 6, '#141b26'); R(cx - 2, wy, 4, 4, '#56657a'); R(cx - 3, wy - 1, 1, 1, '#9fb0c4'); R(cx + 2, wy - 1, 1, 1, '#9fb0c4'); R(cx - 3, wy + 4, 1, 1, '#9fb0c4'); R(cx + 2, wy + 4, 1, 1, '#9fb0c4'); }
-    else if (wh === 'estandar') { R(cx - 2.5, wy - .5, 5, 5, '#1b2330'); R(cx - 1.5, wy + .5, 3, 3, '#56657a'); }
+    const tire = '#161c26', tread = '#2f3947';
+    disc(cx, wy, wr, tire);
+    for (let k = 0; k < 16; k++) { const a = (k / 16) * 6.2832 + frame * .2; if (k % 2 === 0) set(cx + Math.cos(a) * wr, wy + Math.sin(a) * wr, tread); }
+    if (wh === 'todoterreno') for (let k = 0; k < 8; k++) { const a = (k / 8) * 6.2832 + frame * .2; set(cx + Math.cos(a) * (wr + 1), wy + Math.sin(a) * (wr + 1), '#8fa0b5'); set(cx + Math.cos(a) * (wr - 1), wy + Math.sin(a) * (wr - 1), '#3b4656'); }
+    const rim = wr - (wh === 'ligeras' ? 2 : 3);
+    disc(cx, wy, rim, wh === 'ligeras' ? '#b9c5d3' : '#8fa0b5');
+    disc(cx, wy, rim - 1, wh === 'ligeras' ? '#3a4352' : '#5a6779');   // las ligeras son de malla: se ve a través
+    for (let k = 0; k < 3; k++) { const a = (k / 3) * 3.1416 + frame * .26; line(cx - Math.cos(a) * (rim - 1), wy - Math.sin(a) * (rim - 1), cx + Math.cos(a) * (rim - 1), wy + Math.sin(a) * (rim - 1), wh === 'ligeras' ? '#dfe6ee' : '#c9d3df'); }
+    disc(cx, wy, 1, '#eef2f7'); set(cx, wy, '#ffd166');
+    set(cx - Math.round(wr * .6), wy - Math.round(wr * .6), '#56657a');   // brillo de la luz
   };
-  if (wh) { wheel(9); wheel(17); wheel(25); }
-  else { ctx.strokeStyle = '#4a6a82'; ctx.setLineDash([px, px]); for (const cx of [9, 17, 25]) ctx.strokeRect((cx - 2) * px, 16 * px, 4 * px, 4 * px); ctx.setLineDash([]); }
-  // Panel solar (sobre el chasis, inclinado como una repisa)
+  if (wh) WHEEL_X.forEach(wheel); else for (const cx of WHEEL_X) ghosts.push([cx - 6, GROUND - 13, 12, 12]);
+
+  // --- cuerpo (chasis): paneles blancos arriba, lámina dorada aislante abajo
+  if (ch) {
+    const { x, w, top, h } = body, split = Math.ceil(h * .55);
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const pos = i / (w - 1);
+      if (j < split) set(x + i, top + j, j === 0 ? METAL[0] : pos > .9 ? METAL[2] : pos < .06 ? METAL[0] : METAL[1]);
+      else { const n = noiseAt(x + i, top + j); set(x + i, top + j, j === h - 1 ? FOIL[3] : n > .8 ? FOIL[0] : n > .35 ? FOIL[1] : FOIL[2]); }
+    }
+    rect(x, top + split - 1, w, 1, METAL[3]);                                   // junta
+    for (let i = 8; i < w - 4; i += 9) rect(x + i, top + 1, 1, split - 2, METAL[2]); // líneas de panel
+    for (let i = 4; i < w - 2; i += 9) set(x + i, top + 2, METAL[3]);               // remaches
+    rect(x + w - 2, top + 2, 2, 2, '#fff3a8'); set(x + w - 1, top + 2, '#ffffff'); // faro delantero
+    rect(x, top + 2, 1, 2, '#ff5959');                                             // luz trasera
+    rect(x + 3, top + 3, 3, 2, '#2f6bff'); set(x + 4, top + 3, '#6ce2cf');          // insignia de la misión
+    if (ch === 'reforzado') { for (let i = 3; i < w - 2; i += 7) rect(x + i, top + split, 2, h - split - 1, FOIL[3]); rect(x - 2, top + h - 4, 2, 4, METAL[3]); rect(x + w, top + h - 4, 2, 4, METAL[3]); rect(x - 2, top + h - 4, 2, 1, METAL[1]); rect(x + w, top + h - 4, 2, 1, METAL[1]); } // costillas y parachoques
+    if (ch === 'ligero') for (let i = 6; i < w - 6; i += 4) set(x + i, top + split + 1, FOIL[3]);                                   // aligeramientos
+    rect(x + 6, top + h, w - 12, 1, METAL[4]);                                     // quilla
+  } else ghosts.push([12, 21, 44, 11]);
+
+  // --- batería: fila de celdas menta con su marco
+  if (ba && ch) {
+    const n = ba === 'pequena' ? 3 : ba === 'media' ? 4 : 6, bx = body.x + body.w - 8 - n * 3, by = body.top + Math.ceil(body.h * .55) - 4;
+    rect(bx - 1, by - 1, n * 3 + 1, 4, METAL[4]);
+    for (let i = 0; i < n; i++) { rect(bx + i * 3, by, 2, 2, '#6ce2cf'); set(bx + i * 3, by, '#c8fff5'); }
+  }
+
+  // --- panel solar: plano inclinado con celdas, marco y soporte
   if (so) {
-    const w = so === 'basico' ? 8 : so === 'medio' ? 12 : 16, x0 = 17 - w / 2, y0 = 6;
-    R(16.5, y0 + 2, 1, 3, '#7f8ea2');
-    R(x0, y0, w, 2, '#2f6bff'); R(x0, y0, w, 1, '#6fa0ff');
-    for (let i = 2; i < w; i += 3) R(x0 + i, y0, 1, 2, '#173d8f');
+    const w = so === 'basico' ? 18 : so === 'medio' ? 26 : 34, x0 = 34 - Math.round(w / 2), y0 = deck - 9;
+    line(34, deck - 1, 34, y0 + 5, METAL[3], 1); line(33, deck - 1, 29, y0 + 6, METAL[4], 1); line(35, deck - 1, 39, y0 + 5, METAL[4], 1);
+    for (let i = 0; i < w; i++) {
+      const y = y0 + 4 - Math.round(i * .16);                                      // inclinado hacia el Sol
+      const edge = i === 0 || i === w - 1, div = i % 4 === 0;
+      set(x0 + i, y - 3, edge ? METAL[0] : '#b9d6ff');                              // canto iluminado
+      set(x0 + i, y - 2, edge ? METAL[1] : div ? '#173d8f' : (i % 8 < 4 ? '#4f8bff' : '#3f7dff'));
+      set(x0 + i, y - 1, edge ? METAL[1] : div ? '#173d8f' : (i % 8 < 4 ? '#3f7dff' : '#2f6bff'));
+      set(x0 + i, y, edge ? METAL[1] : '#173d8f');                                  // fila divisoria de celdas
+      set(x0 + i, y + 1, edge ? METAL[1] : div ? '#173d8f' : '#2459d6');
+      set(x0 + i, y + 2, METAL[2]);                                                 // marco inferior
+    }
+    set(x0 + 2, y0 + 2, '#ffffff'); set(x0 + 3, y0 + 2, '#dbeaff'); set(x0 + 2, y0 + 3, '#dbeaff'); // destello del Sol
   }
-  // Mástil y cámara (atrás)
-  if (ca) { R(8, 4, 1, 6, '#7f8ea2'); const big = ca === 'hd'; R(big ? 6 : 7, big ? 2 : 3, big ? 5 : 3, big ? 3 : 2, '#2a3444'); R(big ? 9 : 9, big ? 3 : 3.5, 1, 1, '#6ce2cf'); }
-  // Comunicaciones (antena)
+
+  // --- mástil con cámara (atrás)
+  if (ca) {
+    const mx = (ch ? body.x : 12) + 6, hd = ca === 'hd';
+    line(mx, deck - 1, mx, hd ? 5 : 8, METAL[2], 1); set(mx + 1, deck - 2, METAL[3]); set(mx - 1, deck - 2, METAL[3]);
+    if (hd) { rect(mx - 4, 1, 10, 5, '#232c3a'); rect(mx - 4, 1, 10, 1, '#56657a'); rect(mx - 3, 3, 2, 2, '#6ce2cf'); set(mx - 3, 3, '#e6fffb'); rect(mx + 2, 3, 2, 2, '#6ce2cf'); set(mx + 2, 3, '#e6fffb'); rect(mx - 1, 2, 2, 1, FOIL[1]); set(mx + 5, 2, '#ff5959'); }
+    else { rect(mx - 2, 5, 6, 4, '#2a3444'); rect(mx - 2, 5, 6, 1, '#56657a'); rect(mx + 1, 6, 2, 2, '#6ce2cf'); set(mx + 1, 6, '#e6fffb'); }
+  }
+
+  // --- comunicaciones (delante): varilla, plato pequeño o plato grande orientable
   if (co) {
-    if (co === 'baja') { R(27, 2, 1, 8, '#c9d4e2'); R(26, 2, 3, 1, '#ffd166'); }
-    else if (co === 'media') { R(27, 5, 1, 5, '#7f8ea2'); R(25, 3, 5, 2, '#e6edf6'); R(26, 5, 3, 1, '#9aa7b8'); }
-    else { R(27, 6, 1, 4, '#7f8ea2'); R(23, 2, 9, 3, '#e6edf6'); R(24, 5, 7, 1, '#9aa7b8'); R(27, 1, 1, 1, '#ff7b7b'); }
+    const ax = (ch ? body.x + body.w : 56) - 7;
+    if (co === 'baja') { line(ax, deck - 1, ax, 6, METAL[1], 1); rect(ax - 1, 5, 3, 1, '#ffd166'); set(ax, 4, '#ff5959'); set(ax + 1, 12, METAL[3]); set(ax - 1, 16, METAL[3]); }
+    else {
+      const r = co === 'alta' ? 8 : 5, cy = co === 'alta' ? 9 : 12;
+      line(ax, deck - 1, ax, cy + 2, METAL[3], 1); disc(ax, cy + 2, 1, METAL[2]);
+      for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) { const d = Math.hypot(x, y), side = -x * .55 + y * .84; if (d <= r + .4 && d >= r - 2.2 && side > -.5) set(ax + x, cy + y, d > r - 1 ? METAL[2] : METAL[0]); }  // cuenco abierto hacia arriba-derecha
+      line(ax, cy + 1, ax + Math.round(r * .55), cy - Math.round(r * .8), METAL[3], 1);                                       // soporte del receptor
+      set(ax + Math.round(r * .55), cy - Math.round(r * .8), co === 'alta' ? '#ff5959' : '#ffd166');
+      if (co === 'alta') { set(ax + Math.round(r * .55) + 1, cy - Math.round(r * .8), '#ffb3b3'); rect(ax - 1, cy + 3, 3, 1, FOIL[1]); }
+    }
   }
-  // Instrumento (brazo frontal)
+
+  // --- brazo con el instrumento (delante)
   if (ins) {
-    R(28, 12, 3, 1, '#7f8ea2');
-    if (ins === 'espectrometro') { R(30, 11, 3, 3, '#2a3444'); R(32, 12, 1, 1, '#6ce2cf'); }
-    else if (ins === 'taladro') { R(30, 10, 2, 5, '#2a3444'); R(30.5, 15, 1, 3, '#cfd8e3'); R(31, 18, 0.01, 0.01, '#cfd8e3'); }
-    else { R(30, 11, 3, 3, '#2a3444'); R(32, 12, 2, 1, '#ff7b7b'); }
+    const sx = (ch ? body.x + body.w : 56) - 1, sy = (ch ? body.top : 21) + 5;
+    line(sx, sy, sx + 5, sy - 4, METAL[2], 2); disc(sx, sy, 1, METAL[0]);            // hombro y primer tramo
+    disc(sx + 5, sy - 4, 1, METAL[0]);                                                // codo
+    line(sx + 5, sy - 4, sx + 9, sy + 1, METAL[3], 2);
+    const tx = sx + 9, ty = sy + 1;
+    if (ins === 'espectrometro') { rect(tx - 2, ty, 6, 5, '#2a3444'); rect(tx - 2, ty, 6, 1, '#56657a'); rect(tx, ty + 2, 2, 2, '#6ce2cf'); set(tx, ty + 2, '#e6fffb'); set(tx + 3, ty + 4, FOIL[1]); }
+    else if (ins === 'taladro') { rect(tx - 2, ty - 1, 5, 5, '#2a3444'); rect(tx - 2, ty - 1, 5, 1, '#56657a'); set(tx + 2, ty, '#ffd166'); for (let k = 0; k < 9; k++) { set(tx, ty + 4 + k, k % 2 ? METAL[1] : METAL[3]); set(tx + (k % 2 ? 1 : -1), ty + 4 + k, METAL[2]); } set(tx, ty + 13, METAL[0]); }
+    else { rect(tx - 2, ty, 6, 4, '#2a3444'); rect(tx - 2, ty, 6, 1, '#56657a'); rect(tx + 4, ty + 1, 2, 2, '#ff5959'); set(tx + 5, ty + 1, '#ffd3d3'); for (let k = 0; k < 4; k++) set(tx + 6 + k, ty + 3 + k * 2, k % 2 ? '#ff7b7b' : '#ffb3b3'); }
   }
+  return { cells, ghosts };
 }
 
-export function roverCanvas(build, px = 4) {
+// Dibuja el rover según la configuración elegida. `px` = tamaño de un píxel de la rejilla lógica de 34×26
+// (el dibujo usa el doble de resolución); `frame` gira las ruedas.
+export function drawRover(ctx, build, px = 4, frame = 0) {
+  const u = px / HD, { cells, ghosts } = roverGrid(build, frame);
+  ctx.imageSmoothingEnabled = false;
+  const at = (x, y) => (x < 0 || y < 0 || x >= GW || y >= GH ? null : cells[y * GW + x]);
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+    let c = at(x, y);
+    if (!c && (at(x - 1, y) || at(x + 1, y) || at(x, y - 1) || at(x, y + 1))) c = INK;   // contorno
+    if (c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x * u), Math.round(y * u), Math.ceil(u), Math.ceil(u)); }
+  }
+  if (ghosts.length) { ctx.strokeStyle = '#4a6a82'; ctx.lineWidth = Math.max(1, u); ctx.setLineDash([u * 2, u * 2]); for (const [x, y, w, h] of ghosts) ctx.strokeRect(x * u, y * u, w * u, h * u); ctx.setLineDash([]); }
+}
+
+export function roverCanvas(build, px = 4, frame = 0) {
   const c = document.createElement('canvas'); c.width = ROVER_GRID.w * px; c.height = ROVER_GRID.h * px;
-  drawRover(c.getContext('2d'), build, px); return c;
+  drawRover(c.getContext('2d'), build, px, frame); return c;
 }
 
 // ---------- Terreno lunar ----------
