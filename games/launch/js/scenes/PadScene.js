@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { preloadLaunchAudio, startLaunchCountdownAudio, stopLaunchCountdownAudio, setSimulationMusicDucked } from '../../../../src/welcome/core/gameAudio.js';
 // Plataforma de lanzamiento: se ve el cohete, se revisan los imprevistos y se hace la cuenta regresiva.
 import { app, inputs, current, reducedMotion } from '../store.js';
 import { esc } from '../screens.js';
@@ -21,6 +22,8 @@ export class PadScene extends Phaser.Scene {
   constructor() { super('PadScene'); }
 
   create() {
+    preloadLaunchAudio();
+    setSimulationMusicDucked(true);
     this.t = 0;
     this.cdText = '';
     this.state = 'prep'; // prep → ready → counting → hold → go
@@ -136,11 +139,12 @@ export class PadScene extends Phaser.Scene {
       </div>`;
     this.stopFacts?.();
     this.stopFacts = rotateFacts(document.getElementById('pad-fact'));
-    document.getElementById('pad-exit').onclick = app.nav.exit;
+    document.getElementById('pad-exit').onclick = () => { stopLaunchCountdownAudio(); app.nav.exit(); };
   }
 
   startCountdown() {
     this.state = 'counting';
+    startLaunchCountdownAudio();
     let n = 5;
     const hold = (app.plan?.pre ?? []).find((p) => p.id === 'weather' || p.id === 'minorAnomaly');
     let holdDone = false;
