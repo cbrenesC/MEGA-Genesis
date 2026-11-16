@@ -37,6 +37,17 @@ for (const sound of [rocketLand, rocketSpace]) {
   sound.preload = 'auto';
 }
 let activeRocket = null;
+const rocketPending = new WeakSet();
+function playRocketTrack(sound) {
+  if (!sound.paused || rocketPending.has(sound)) return;
+  rocketPending.add(sound);
+  Promise.resolve(sound.play()).catch(error => console.warn('Rocket audio could not play:', error)).finally(() => rocketPending.delete(sound));
+}
+for (const sound of [rocketLand, rocketSpace]) {
+  sound.addEventListener('canplay', () => { if (activeRocket === sound) syncRocket(); });
+  sound.addEventListener('error', () => console.warn('Rocket audio failed to load:', sound.currentSrc, sound.error?.code));
+}
+
 let rocketPaused = false;
 let rocketRunning = false;
 let rocketAltitude = 0;
@@ -91,12 +102,10 @@ function syncRocket() {
   }
   if (activeRocket !== target) {
     activeRocket?.pause();
-    if (activeRocket) activeRocket.currentTime = 0;
     activeRocket = target;
-    activeRocket.currentTime = 0;
   }
   target.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
-  if (target.paused) void target.play().catch(() => {});
+  playRocketTrack(target);
 }
 export function setSimulationMusicDucked(ducked) {
   simulationDucked = Boolean(ducked);
@@ -105,6 +114,8 @@ export function setSimulationMusicDucked(ducked) {
 }
 export function startRocketAudio() {
   if (relayAudio('rocket-start')) return;
+  preloadLaunchAudio();
+  for (const sound of [rocketLand, rocketSpace]) sound.currentTime = 0;
   rocketRunning = true;
   rocketPaused = false;
   rocketAltitude = 0;
