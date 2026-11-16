@@ -101,3 +101,20 @@
 .medal-toast small { display: block; color: #b5d3eb; margin-bottom: 3px; }
 .medal-toast--gold small { color: #ffd27c; }
 @media (max-width: 540px) { .medal-collection__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.medal-reward { width:min(460px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); padding:0; color:#eff8ff; background:#091a30; border:3px solid #e4b85c; box-shadow:0 0 0 5px #162f4d,0 20px 70px #000b; font-family:'VT323',monospace; }
+.medal-reward::backdrop { background:#020917e6; }
+.medal-reward__panel { position:relative; isolation:isolate; overflow:hidden; min-height:390px; padding:28px 20px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:radial-gradient(circle,#274c68,#091a30 70%); animation:reward-enter .4s steps(7,end) both; }
+.medal-reward__stars { position:absolute; inset:0; z-index:-1; pointer-events:none; }
+.medal-reward__stars i { position:absolute; width:4px; height:4px; background:#ffe6a6; box-shadow:0 0 9px #ffd78d; animation:reward-star 1.1s steps(2,end) infinite alternate; }
+.medal-reward__kicker { color:#ffdc88; font-size:27px; letter-spacing:.08em; text-transform:uppercase; }
+.medal-reward__art { margin:15px 0; padding:20px; background:#142d45; border:2px solid #e4b85c; box-shadow:0 0 35px #ffd27388; animation:reward-pop .8s steps(9,end) both; }
+.medal-reward__art canvas { display:block; width:144px; height:144px; image-rendering:pixelated; }
+.medal-reward__title { color:#fff1c8; font-size:clamp(27px,7vw,40px); margin:8px 0; }
+.medal-reward__description { color:#bdd7e9; font-size:20px; margin:0 0 20px; }
+.medal-reward__save { cursor:pointer; padding:10px 24px; border:2px solid #ffe3a1; color:white; background:#a66e29; font:25px 'VT323',monospace; }
+.medal-reward__save:hover,.medal-reward__save:focus-visible { background:#c58c3c; outline:2px solid white; outline-offset:3px; }
+@keyframes reward-enter { from { opacity:0; transform:scale(.88); } to { opacity:1; transform:scale(1); } }
+@keyframes reward-pop { 0% { opacity:0; transform:scale(.25) rotate(-15deg); } 70% { opacity:1; transform:scale(1.12) rotate(3deg); } 100% { transform:scale(1); } }
+@keyframes reward-star { from { opacity:.2; transform:scale(.6); } to { opacity:1; transform:scale(1.5); } }
+@media (prefers-reduced-motion:reduce) { .medal-reward * { animation:none!important; } }
