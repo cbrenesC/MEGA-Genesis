@@ -241,8 +241,8 @@ class ExploreScene extends Phaser.Scene {
     if (!T.exists('terrain')) T.addCanvas('terrain', terrainCanvas());
     for (const [id, c] of Object.entries(TINTS)) if (!T.exists('sample-' + id)) T.addCanvas('sample-' + id, sampleCanvas(3, c));
     if (!T.exists('poi')) T.addCanvas('poi', poiCanvas(3));
-    if (T.exists('rover')) T.remove('rover');
-    T.addCanvas('rover', roverCanvas(m.build, 4));
+    // cuatro cuadros del rover: sólo cambian las ruedas (giran al avanzar)
+    for (let f = 0; f < 4; f++) { const key = f ? 'rover' + f : 'rover'; if (T.exists(key)) T.remove(key); T.addCanvas(key, roverCanvas(m.build, 4, f)); }
     if (T.exists('tracks')) T.remove('tracks');
     this.tracks = T.createCanvas('tracks', WORLD.w, WORLD.h);
     this.add.image(0, 0, 'terrain').setOrigin(0);
@@ -257,7 +257,7 @@ class ExploreScene extends Phaser.Scene {
     this.shadow = this.add.ellipse(m.rover.x, m.rover.y + 20, 74, 14, 0x000000, .46).setDepth(2);
     this.beam = this.add.graphics().setDepth(1.5);
     this.plume = this.add.graphics().setDepth(2.5);
-    this.rover = this.add.image(m.rover.x, m.rover.y, 'rover').setOrigin(.5, .72).setScale(.6).setDepth(3);
+    this.rover = this.add.image(m.rover.x, m.rover.y, 'rover').setOrigin(.5, .9).setScale(.72).setDepth(3);
     this.fx = this.add.graphics().setDepth(5);
     const cam = this.cameras.main; cam.setBounds(0, 0, WORLD.w, WORLD.h); cam.setBackgroundColor('#050b16'); cam.startFollow(this.rover, true, .12, .12);
     this.layout = () => {
@@ -350,7 +350,9 @@ class ExploreScene extends Phaser.Scene {
       const d = Math.hypot(r.x - p.x, r.y - p.y); o.label.setAlpha(Phaser.Math.Clamp(1 - (d - 90) / 240, 0, 1));
     }
     const drop = m.phase === 'landing' ? Math.pow(1 - m.t / RULES.landingTime, 2) * 280 : 0;
-    this.rover.setPosition(r.x, r.y - drop).setFlipX(r.facing < 0).setAngle(r.moving ? Math.sin(ex * 22) * 1.2 : 0);
+    const frame = r.moving ? Math.floor(ex * 14) % 4 : 0, key = frame ? 'rover' + frame : 'rover';
+    if (this.rover.texture.key !== key) this.rover.setTexture(key);
+    this.rover.setPosition(r.x, r.y + 14 - drop + (r.moving ? Math.round(Math.sin(ex * 18)) : 0)).setFlipX(r.facing < 0).setAngle(r.moving ? Math.sin(ex * 9) * .8 : 0);
     this.shadow.setPosition(r.x + 10 + drop * .5, r.y + 22 + drop * .5).setScale(1 - drop / 500).setAlpha(.46 - drop / 800);
     // Faros: cono de luz hacia donde mira el rover (se apaga sin energía)
     const beam = this.beam; beam.clear();

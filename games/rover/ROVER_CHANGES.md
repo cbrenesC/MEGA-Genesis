@@ -63,3 +63,9 @@ El balance de dificultad y el render en dispositivos reales quedan fuera de las 
 - **Escena** (`main.js`): capa de luz rasante, hielo que titila, baliza del módulo, sombra de un orbitador que cruza, sombra larga y faros del rover, llama y anillo de polvo en el descenso, rodadas dobles orientadas al movimiento y polvo que cae en arco (sin aire).
 - **Fondo** (`skyCanvas`) y Tierra (`earthCanvas`): la Tierra usa los continentes reales del módulo de lanzamiento (`earth.js`); dos cordilleras iluminadas de lado, llanura con cráteres en perspectiva, rocas con sombra, módulo con lámina dorada, rover y huellas.
 - Las reglas no cambian (27 casos en verde). Arte revisado con una página de prueba; la escena jugable no se ejecutó aquí (requiere Vite/Node).
+
+## V2.2 · Rover redibujado
+
+- `art.js → roverGrid()`: el rover se dibuja ahora al doble de resolución (68×52) con contorno de 1 px y luz desde arriba-izquierda: suspensión de balancín, ruedas con llanta, radios y brillo (las ligeras son de malla, las todoterreno llevan tacos), cuerpo con paneles blancos y lámina dorada, faro, luz trasera e insignia, celdas de batería, panel solar inclinado con celdas y marco, mástil con cámara (la HD es estéreo), antena de varilla o plato orientable, y brazo articulado con espectrómetro, taladro o láser. Cada componente sigue viéndose distinto y lo que falta aparece punteado.
+- `roverCanvas(build, px, frame)`: mismo tamaño de lienzo que antes (la consola no cambia); `frame` gira las ruedas. En el juego hay 4 cuadros y las ruedas giran al avanzar; el rover es un poco más grande (escala 0,72).
+- Revisado con una página de prueba; no ejecutado dentro del juego (requiere Vite/Node).
