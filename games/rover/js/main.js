@@ -492,7 +492,7 @@ document.querySelectorAll('[data-mission-exit]').forEach(button => button.addEve
 }));
 localizeDOM();
 
-if (validateBuild(plan).ok && (params.get('embedded') !== '1' || validCampaign)) {
+if (validateBuild(plan).ok && (!campaign || validCampaign)) {
   app.build = plan;
   app.game = new Phaser.Game({
     type: Phaser.CANVAS, parent: 'game', backgroundColor: '#050b16', pixelArt: true,
