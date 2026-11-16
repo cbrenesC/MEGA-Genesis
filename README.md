@@ -18,11 +18,11 @@ Ejecuta `npm run build` para generar el sitio estático en `dist/`, listo para N
 - **Esc** para cerrar un diálogo o pausar y reanudar el recorrido.
 - La introducción del comandante se puede saltar y no aparece si desactivas **Animaciones y video**.
 
-La campaña **Misión científica con rover lunar** es la opción inicial. Confirma el objetivo, configura movilidad, ciencia, energía y comunicaciones, y revisa la carga antes de lanzar. El rover debe respetar sus límites de **145 kg** y **85 millones de dólares**. Su masa y costo se suman a los del módulo de aterrizaje en la revisión de vuelo.
+La misión principal es **Ida y vuelta a la Luna**. Prepará la Quetzal en el centro de control, aprobá el plan e iniciá el vuelo desde la consola amarilla. La misión se completa después de entrar en órbita lunar y regresar a la Tierra con un amerizaje seguro. Las partidas nuevas empiezan en Fácil, con piloto automático opcional.
 
-- La consola amarilla de lanzamiento usa la configuración aprobada. Un vuelo que no alcanza la transferencia lunar, consume la reserva del aterrizaje o excede el presupuesto no desbloquea la operación.
-- Tras una entrega exitosa, la consola amarilla del rover inicia el aterrizaje simplificado con el diseño que realmente voló. El informe identifica las muestras y fotos confirmadas por Tierra y explica cómo influyeron el lanzador, el instrumento y la antena.
-- Los otros escenarios, incluido el viaje lunar tripulado de ida y vuelta, siguen disponibles como prácticas independientes. Volver de un simulador conserva las elecciones. El almacenamiento persistente es opcional.
+La **Misión científica con rover lunar** sigue disponible como campaña secundaria en la estación de Objetivos. Diseñá el rover dentro de los límites de 145 kg y 85 millones de dólares. Su masa y costo se suman a los del módulo de aterrizaje. Después de una entrega exitosa, usá la consola amarilla del rover para explorar la superficie con el diseño que realmente voló y transmitir muestras y fotos.
+
+Los demás perfiles se mantienen como vuelos de práctica. Volver de un simulador conserva las elecciones. El almacenamiento persistente es opcional.
 
 El botón ⛶ abre el centro de control en pantalla completa. En ventanas anchas se encuadra toda la sala. En pantallas compactas, la cámara sigue al astronauta para conservar la legibilidad.
 

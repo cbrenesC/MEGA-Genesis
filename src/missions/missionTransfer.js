@@ -1,8 +1,15 @@
-export const MISSION_EXIT = 'mega:mission-exit';
+export const PRIMARY_MISSION = 'moonReturn';
 export const ROVER_PROGRESS = 'mega:rover-progress';
+export const MISSION_EXIT = 'mega:mission-exit';
 export const MISSION_COMPLETE = 'mega:mission-complete';
 export const ROVER_SAVE_KEY = 'megaGenesis.rover.save.v1';
 export const PREPARATION_KEY = 'megaGenesis.stationPlans.v1';
+
+export function primaryMissionCompleted(plan, report) {
+  return plan?.scenarioId === PRIMARY_MISSION && report?.scenarioId === PRIMARY_MISSION
+    && report.result === 'exito' && Array.isArray(report.reached)
+    && report.reached.includes('lunarOrbit') && report.reached.includes('landed');
+}
 
 export function missionUrl(mission, language, plan, { resume = false } = {}) {
   if (mission !== 'launch' && mission !== 'rover') throw new Error('Unknown mission');

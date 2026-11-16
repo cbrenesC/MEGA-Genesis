@@ -280,15 +280,17 @@ export class SpaceCenterScene extends Phaser.Scene {
   }
 
   currentGuideStep() {
-    return nextGuideStep(this.completedGuideSteps, this.preparation.completedMissions ?? [], this.preparation.guideCampaign);
+    return nextGuideStep(this.preparation.activeGuideProgress(this.completedGuideSteps),
+      this.preparation.completedMissions ?? [], this.preparation.guideCampaign);
   }
 
   confirmStation(item) {
     const step = activeStationStep(this.currentGuideStep(), item?.id,
       key => this.preparation.hasGuideConversation(key));
     if (!step || !this.preparation.guideStationReady(step)) return false;
-    this.completedGuideSteps.add(step.id);
-    this.preparation.completeGuideStep(step.id);
+    const id = this.preparation.guideStepKey(step.id);
+    this.completedGuideSteps.add(id);
+    this.preparation.completeGuideStep(id);
     this.updateGuideBeacon();
     return true;
   }
@@ -432,7 +434,7 @@ export class SpaceCenterScene extends Phaser.Scene {
     const guideStep = step?.crewId === item.id ? step : null;
     const instruction = guideStep ? t('guide.dialogInstruction', {
       console: t(guideStep.stationNameKey),
-      task: t(guideStep.taskKey),
+      task: t(this.preparation.guideTaskKey(guideStep.taskKey)),
     }) : '';
     const text = [intro, instruction].filter(Boolean).join('\n\n');
     dialog.querySelector('[data-crew-transcript]').textContent = text;

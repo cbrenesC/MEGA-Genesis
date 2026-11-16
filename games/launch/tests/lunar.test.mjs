@@ -14,6 +14,7 @@ import {
   LUNAR, TLI, propagate, predict, stateOf, nudged, signedPass, lunarPhase, tliWindow, teiWindow, loiPoint, startBurn, burnControl,
   lunarPlan, newGuide, runLunarAutopilot, courseCheck,
 } from '../js/lunar.js';
+import { primaryMissionCompleted } from '../../../src/missions/missionTransfer.js';
 import { evaluateLauncher } from '../js/rules.js';
 import { planFlightEvents, resolveFlight } from '../js/outcome.js';
 
@@ -226,6 +227,9 @@ test('puntaje y resultado de la misión lunar cumplida', () => {
   const plan = planFlightEvents(evaluation, data, inputs, { seed: 3, eventsEnabled: false, stageCount: vi.vehicle.stages.length });
   const out = resolveFlight({ sim, plan, evaluation, inputs, data, ref: { fuelLeftPct: 5 } });
   assert.equal(out.result, 'exito');
+  assert.equal(primaryMissionCompleted({ scenarioId: scenario.id }, {
+    scenarioId: scenario.id, result: out.result, reached: out.flightData.lunar.reached,
+  }), true);
   assert.equal(out.achievedOrbit.type, 'LUNA');
   assert.ok(out.flightData.lunar.reached.includes('landed'));
   assert.ok(out.flightData.lunar.landingSpeedMs < 12 && out.flightData.lunar.maxG < 9);

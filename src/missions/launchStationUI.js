@@ -5,6 +5,7 @@ import { buildRequests, buildSuggestions, operationalPropellant, tradeHighlights
 import { DIFFICULTIES, ROLES } from '../../games/launch/js/state.js';
 import { fmtKg, fmtMUSD, fmtPct, costLike } from '../../games/launch/js/plain.js';
 import { lunarRoverScenario } from './lunarCampaign.js';
+import { PRIMARY_MISSION } from './missionTransfer.js';
 import { hasFlight } from './flightPlan.js';
 
 export const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -31,20 +32,25 @@ function renderBriefing({ data, plan, view, translate }, fields) {
   const { spacecraft: sc, orbit, budget, schedule, missionName, objective, team } = view.resolved.inputs;
   const od = data.orbits.find(o => o.id === orbit.type);
   const players = team?.players ?? [];
+  const main = view.resolved.scenario.id === PRIMARY_MISSION;
+  const option = s => `<option value="${esc(s.id)}" ${s.id === view.resolved.scenario.id ? 'selected' : ''}>${label(`scenario.${s.id}`)}</option>`;
+  const mainScenario = data.mocks.scenarios.find(s => s.id === PRIMARY_MISSION);
+  const roverScenario = lunarRoverScenario(data);
+  const practices = data.mocks.scenarios.filter(s => s.id !== PRIMARY_MISSION);
   return `
   <div class="screen-grid">
     <article class="card hero">
-      <span class="kicker">${simText("station.your-mission")}</span>
-      <h2>${esc(missionName)}</h2>
-      <p class="lead">${esc(objective)}</p>
-      <p>${simText("station.choose-a-rocket-verify-that-your-spacecraft-fits")} <b>${simText("station.fly-the-launch")}</b> ${simText("station.to-orbit-your-choices-affect-the-budget-schedule")}</p>
+      <span class="kicker">${label(main ? 'profile.primary' : view.campaign ? 'profile.secondary' : 'profile.practice')}</span>
+      <h2>${main ? label('scenario.moonReturn') : esc(missionName)}</h2>
+      <p class="lead">${main ? label('lunarObjective') : esc(objective)}</p>
+
       <dl class="facts">
         <dt>${simText('station.spacecraft')} ${sourceTag('spacecraft')}</dt><dd><b>${esc(sc.name ?? '—')}</b> ${simText("station.weighs-with-fuel", fmtKg(sc.massKg))}</dd>
         <dt>${simText("station.folded-size")}</dt><dd>${simText('station.folded-dimensions', sc.diameterM, sc.heightM)}</dd>
-        <dt>${simText("station.fuel")}</dt><dd>${fmtKg(sc.propellantKg)}${sc.propellantKg ? simText("station.0-available-for-orbital-operations", fmtKg(operationalPropellant(sc))) : simText("station.this-spacecraft-has-no-engine")}</dd>
+        <dt>${simText("station.fuel")}</dt><dd>${fmtKg(sc.propellantKg)}${sc.propellantKg ? main ? ` (${esc(translate('station.returnFuelReserve', { fuel: fmtKg(sc.reservedPropellantKg) }))})` : simText("station.0-available-for-orbital-operations", fmtKg(operationalPropellant(sc))) : simText("station.this-spacecraft-has-no-engine")}</dd>
         <dt>${simText(sc.missionDays ? 'flight.duration' : 'station.design-life')}</dt><dd>${sc.missionDays ? simText('flight.days-quantity', sc.missionDays) : simText('flight.year-count', sc.designLifetimeYears)}</dd>
         <dt>${simText(sc.return ? 'station.spacecraft-parts' : 'station.instruments')}</dt><dd>${sc.instruments.length ? sc.instruments.map((i) => `${esc(i.name)} (${fmtKg(i.massKg)})`).join(', ') : '—'}</dd>
-        ${sc.return ? `<dt>${simText('station.flight-plan')}</dt><dd>${simText('station.crewed-flight-plan')}</dd>` : ''}
+        ${main ? `<dt>${simText('station.flight-plan')}</dt><dd>${label('lunarStages')}</dd>` : ''}
         <dt>${simText('flight.destination')} ${sourceTag('orbit')}</dt><dd>${esc(od?.name ?? orbit.type)}${orbit.altitudeKm != null && od?.needsInclination ? simText("station.0-km-altitude", orbit.altitudeKm) : ''}${orbit.inclinationDeg != null && od?.needsInclination ? simText("station.0-inclination", orbit.inclinationDeg) : ''}</dd>
         <dt>${simText('flight.budget-2')} ${sourceTag('budget')}</dt><dd>${simText('station.budget-line', fmtMUSD(budget.totalMUSD), costLike(budget.totalMUSD), fmtMUSD(budget.committedMUSD))}</dd>
         <dt>${simText('flight.schedule')} ${sourceTag('schedule')}</dt><dd>${simText("station.target-launch-in-0-months", schedule.monthsToTargetDate)}</dd>
@@ -54,7 +60,11 @@ function renderBriefing({ data, plan, view, translate }, fields) {
     <article class="card">
       <h2>${simText("station.before-you-begin")}</h2>
       <label class="field"><span>${label('field.scenario')}</span>
-        <select id="scenario" data-focus="scenario">${[lunarRoverScenario(data), ...data.mocks.scenarios].filter(Boolean).map((s) => `<option value="${s.id}" ${s.id === view.resolved.scenario.id ? 'selected' : ''}>${label(`scenario.${s.id}`)}</option>`).join('')}</select>
+        <select id="scenario" data-focus="scenario">
+          ${mainScenario ? `<optgroup label="${label('profile.primary')}">${option(mainScenario)}</optgroup>` : ''}
+          ${roverScenario ? `<optgroup label="${label('profile.secondary')}">${option(roverScenario)}</optgroup>` : ''}
+          <optgroup label="${label('profile.practices')}">${practices.map(option).join('')}</optgroup>
+        </select>
         <small>${simText("station.every-profile-has-its-own-spacecraft-instruments-and")}</small></label>
       <fieldset class="field difficulty"><legend>${label('field.difficulty')}</legend>
         ${DIFFICULTIES.map((level) => {

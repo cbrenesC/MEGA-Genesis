@@ -75,6 +75,10 @@ test('confirming a crew dialogue closes it before showing the station beacon', a
     hasGuideConversation: key => conversations.has(key),
     markGuideConversation: key => conversations.add(key),
     completeGuideStep() {},
+    activeGuideProgress: completed => completed,
+    guideStepKey: id => id,
+    guideTaskKey: key => key,
+    guideCampaign: { main: true },
     guideStationReady: () => true,
   };
   let closed = false;

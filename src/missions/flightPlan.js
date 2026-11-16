@@ -3,6 +3,7 @@ import { buildRequests, evaluateAll, getDifficulty } from '../../games/launch/js
 import { message } from '../i18n/catalog.js';
 import { validateBuild, COMPONENTS } from '../../games/rover/js/rules.js';
 import { LUNAR_ROVER, lunarRoverScenario } from './lunarCampaign.js';
+import { PRIMARY_MISSION } from './missionTransfer.js';
 import { vehicleFor } from '../../games/launch/js/flight.js';
 
 export const PAYLOAD_FIELDS = {
@@ -10,7 +11,7 @@ export const PAYLOAD_FIELDS = {
   heightM: [0.01, 30, '0.01'], propellantKg: [0, 99999, '0.01'],
 };
 export const newFlightPlan = (data) => ({
-  scenarioId: data.mocks.defaultScenario, difficulty: 'normal', payload: {}, budgetMUSD: null,
+  scenarioId: data.mocks.defaultScenario, difficulty: data.mocks.defaultScenario === PRIMARY_MISSION ? 'facil' : 'normal', payload: {}, budgetMUSD: null,
   targetMonths: null, launcherId: null, siteId: null, offloadKg: 0, rocketFuelPct: 100, launchWindow: null, events: null, teamMode: false, acks: {}, notes: '', approved: false,
 });
 const inRange = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;

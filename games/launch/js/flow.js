@@ -108,6 +108,7 @@ export function finishFlight(sim) {
   writeLaunch(currentOutput('lanzado'));
   if (window.parent !== window) window.parent.postMessage({
     type: MISSION_COMPLETE, mission: 'launch', delivery: app.delivery, result: app.flight.result,
+    scenarioId: app.resolved.scenario.id, reached: app.flight.flightData?.lunar?.reached ?? [],
   }, location.origin);
   return app.flight;
 }

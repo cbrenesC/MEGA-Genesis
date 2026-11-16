@@ -13,9 +13,11 @@ import { newFlightPlan, PAYLOAD_FIELDS, reviewFlightPlan } from './flightPlan.js
 import { renderLaunchStation, rocketControlsSummary } from './launchStationUI.js';
 import { renderRoverStation, ROVER_GROUPS } from './roverStationUI.js';
 import './stationUI.css';
-import { MISSION_COMPLETE, MISSION_EXIT, ROVER_PROGRESS, missionUrl, ROVER_SAVE_KEY } from './missionTransfer.js';
+import { MISSION_COMPLETE, MISSION_EXIT, ROVER_PROGRESS, missionUrl, PRIMARY_MISSION, primaryMissionCompleted, ROVER_SAVE_KEY } from './missionTransfer.js';
 import { LUNAR_ROVER, acceptsDelivery, playableDelivery, roverGroupReady, sameRoverBuild, snapshotRoverBuild } from './lunarCampaign.js';
 import { clearGameSession, readGameSession, writeGameSession } from './gameSession.js';
+
+const ROVER_GUIDE_PREFIX = 'cargo:';
 
 const el = (tag, value = '', className = '') => {
   const node = document.createElement(tag);
@@ -37,7 +39,10 @@ export class StationPreparation {
     this.launch = saved?.launch;
     this.roverSave = null;
     this.rover = { ...emptyBuild(), ...saved?.rover };
-    this.guideProgress = Array.isArray(saved?.guideProgress) ? saved.guideProgress : [];
+    const guideProgress = Array.isArray(saved?.guideProgress) ? saved.guideProgress : [];
+    this.guideProgress = saved?.guideVersion !== 2 && saved?.launch?.scenarioId === LUNAR_ROVER
+      ? guideProgress.map(id => ROVER_GUIDE_PREFIX + id)
+      : guideProgress;
     this.guideConversations = Array.isArray(saved?.guideConversations) ? saved.guideConversations : [];
     this.onMessage = event => {
       if (!this.frame || event.origin !== location.origin || event.source !== this.frame.contentWindow) return;
@@ -53,6 +58,7 @@ export class StationPreparation {
           this.save();
         } else {
           this.activeMission.resultShown = true;
+          if (mission === 'launch' && primaryMissionCompleted(plan, event.data)) this.markMissionCompleted(PRIMARY_MISSION);
           if (mission === 'rover') this.roverSave = null;
           if (mission === 'rover' && plan.campaign?.runId === this.delivery?.runId && event.data.success === true) this.markMissionCompleted(mission);
           this.save();
@@ -68,19 +74,35 @@ export class StationPreparation {
   }
 
   markMissionCompleted(mission) {
-    if (!this.completedMissions.includes(mission)) this.completedMissions.push(mission);
+    if (this.completedMissions.includes(mission)) return;
+    this.completedMissions.push(mission);
     this.scene.onMissionCompleted(mission);
     this.save();
   }
 
-  get guideCampaign() { return { campaign: true, delivered: playableDelivery(this.delivery) }; }
+  get guideCampaign() {
+    const scenario = this.launch?.scenarioId ?? PRIMARY_MISSION;
+    return { main: scenario === PRIMARY_MISSION, campaign: scenario === LUNAR_ROVER,
+      practice: scenario !== PRIMARY_MISSION && scenario !== LUNAR_ROVER, delivered: playableDelivery(this.delivery) };
+  }
+
+  guideStepKey(id) { return this.guideCampaign.campaign ? ROVER_GUIDE_PREFIX + id : id; }
+
+  activeGuideProgress(completed) {
+    if (!this.guideCampaign.campaign) return completed;
+    return new Set([...completed].filter(id => id.startsWith(ROVER_GUIDE_PREFIX)).map(id => id.slice(ROVER_GUIDE_PREFIX.length)));
+  }
+
+  guideTaskKey(key) {
+    return key === 'guide.vega.mission' && !this.guideCampaign.campaign ? 'guide.vega.mainMission' : key;
+  }
 
   get flightPlan() {
     if (!this.launch || this.launch.scenarioId !== LUNAR_ROVER) return this.launch;
     return { ...this.launch, roverBuild: snapshotRoverBuild(this.rover) };
   }
 
-  defaultLaunchPlan() { return { ...newFlightPlan(this.data), scenarioId: LUNAR_ROVER }; }
+  defaultLaunchPlan() { return newFlightPlan(this.data); }
 
   roverDesignChanged() {
     if (this.launch?.scenarioId === LUNAR_ROVER) {
@@ -96,7 +118,7 @@ export class StationPreparation {
     const player = this.scene.player;
     if (player && Number.isFinite(player.x) && Number.isFinite(player.y)) this.position = { x: player.x, y: player.y };
     writeGameSession(localStorage, {
-      launch: this.launch, rover: this.rover, guideProgress: this.guideProgress,
+      launch: this.launch, rover: this.rover, guideProgress: this.guideProgress, guideVersion: 2,
       guideConversations: this.guideConversations, position: this.position,
       completedMissions: this.completedMissions, activeMission: this.activeMission,
       delivery: this.delivery, lastDelivery: this.lastDelivery,
@@ -150,14 +172,15 @@ export class StationPreparation {
     if (step.kind.startsWith('launch-')) {
       if (!this.data || !this.launch) return false;
       const view = reviewFlightPlan(this.data, this.flightPlan);
-      if (step.kind === 'launch-mission') return Boolean(view.campaign);
-      if (step.kind === 'launch-rocket') return Boolean(view.campaign && view.selected?.compatible && vehicleFor(view.selected.launcherId, view.resolved.inputs.orbit.type, this.data));
+      const guided = Boolean(view.campaign || view.resolved.scenario.id === PRIMARY_MISSION);
+      if (step.kind === 'launch-mission') return guided;
+      if (step.kind === 'launch-rocket') return Boolean(guided && view.selected?.compatible && vehicleFor(view.selected.launcherId, view.resolved.inputs.orbit.type, this.data));
       if (step.kind === 'launch-payload') {
         // The console displays the scenario defaults even before they are edited.
         // A valid default configuration can be confirmed as shown.
-        return Boolean(view.campaign && view.rover.ok && view.reason !== 'payload');
+        return guided && (!view.campaign || view.rover.ok) && view.reason !== 'payload';
       }
-      if (step.kind === 'launch-review') return Boolean(view.campaign && view.reason === null);
+      if (step.kind === 'launch-review') return guided && view.reason === null;
       return false;
     }
     if (step.kind === 'rover-group') {
@@ -208,7 +231,7 @@ export class StationPreparation {
     const stationStep = item.setup && CREW_GUIDE.find(step => step.stationId === item.id);
     if (stationStep) {
       const canConfirm = () => {
-        if (item.setup === 'launch' && this.launch.scenarioId !== LUNAR_ROVER) {
+        if (item.setup === 'launch' && this.guideCampaign.practice) {
           return stationStep.kind !== 'launch-review' || reviewFlightPlan(this.data, this.flightPlan).reason === null;
         }
         return this.guideStationReady(stationStep);
@@ -241,6 +264,7 @@ export class StationPreparation {
     const keepAcks = Object.keys(patch).every(key => ['acks', 'events', 'launchWindow'].includes(key));
     Object.assign(this.launch, keepAcks ? {} : { acks: {} }, patch, { approved: false });
     this.save();
+    if (Object.hasOwn(patch, 'scenarioId')) this.scene.updateGuideBeacon();
     this.renderAgain();
   }
 
@@ -390,14 +414,15 @@ export class StationPreparation {
     if (part === 'mission') {
       root.querySelector('#scenario').onchange = event => this.changeLaunch({
         scenarioId: event.target.value, payload: {}, budgetMUSD: null,
-        targetMonths: null, siteId: null, offloadKg: 0, launcherId: null,
+        targetMonths: null, siteId: null, offloadKg: 0, launcherId: null, rocketFuelPct: 100, launchWindow: null,
       });
       for (const radio of root.querySelectorAll('[name=difficulty]')) {
         radio.onchange = () => this.changeLaunch({ difficulty: radio.value, siteId: null, offloadKg: 0, launcherId: null, events: null });
       }
       root.querySelector('#team-mode').onchange = event => this.changeLaunch({ teamMode: event.target.checked });
       if (view.campaign) this.note(fields, 'station.campaign.intro');
-      else this.note(fields, 'station.campaign.practice');
+      else if (view.resolved.scenario.id === PRIMARY_MISSION) this.note(fields, 'station.mainBriefing');
+      else this.note(fields, 'station.practiceBriefing');
       this.number(grid, 'budget', budget.totalMUSD, view.campaign ? 1 : budget.committedMUSD, 10000, '.01', budgetMUSD => this.changeLaunch({ budgetMUSD }));
       this.number(grid, 'schedule', schedule.monthsToTargetDate, 1, 120, 1, targetMonths => this.changeLaunch({ targetMonths }));
     } else if (part === 'payload' || part === 'review') {
@@ -526,7 +551,14 @@ export class StationPreparation {
     const delivered = playableDelivery(this.delivery);
     const ready = flight ? flight.ready : delivered;
     if (flight && !ready) this.note(root, flight.reason ? `station.block.${flight.reason}` : 'station.block.review');
-    if (flight) this.note(root, 'station.flightControls');
+    if (flight) {
+      const main = flight.resolved.scenario.id === PRIMARY_MISSION;
+      if (main) this.note(root, 'station.mainBriefing');
+      else this.note(root, flight.campaign ? 'station.campaign.intro' : 'station.practiceBriefing');
+      this.note(root, 'station.flightControls');
+      if (main && flight.difficulty === 'facil') this.note(root, 'station.lunarAssist');
+      if (main && this.completedMissions.includes(PRIMARY_MISSION)) this.note(root, 'station.lunarComplete');
+    }
     if (mission === 'rover') {
       if (!delivered) this.note(root, this.lastDelivery ? `station.campaign.failed.${this.lastDelivery.reason}` : 'station.campaign.needsDelivery');
       else {
@@ -544,6 +576,7 @@ export class StationPreparation {
       }
     }
     if (ready) this.note(root, mission === 'launch' ? 'station.readyLaunch' : 'station.readyRover');
+    start.textContent = t(flight && !flight.campaign && flight.resolved.scenario.id !== PRIMARY_MISSION ? 'station.startPractice' : 'terminal.launch');
     start.hidden = false;
     start.disabled = !ready;
     start.onclick = () => {
@@ -582,7 +615,7 @@ export class StationPreparation {
     if (mission === 'rover') startRoverAudio();
     this.frameMission = mission;
     this.frame = el('iframe', '', 'mission-simulation');
-    this.frame.title = t(`lesson.${mission}.title`);
+    this.frame.title = t(mission === 'launch' && plan.scenarioId !== PRIMARY_MISSION ? `station.scenario.${plan.scenarioId}` : `lesson.${mission}.title`);
     this.frame.src = missionUrl(mission, getLanguage(), plan, options);
     document.getElementById('app').append(this.frame);
     this.frame.focus();

@@ -1,3 +1,5 @@
+import { PRIMARY_MISSION } from '../missions/missionTransfer.js';
+
 export const CREW_GUIDE = Object.freeze([
   { id: 'mission', crewId: 'vega', talkKey: 'luis-launch-plan', stationId: 'objectives', stationNameKey: 'station.title.mission', kind: 'launch-mission', taskKey: 'guide.vega.mission' },
   { id: 'rocket', crewId: 'vega', talkKey: 'luis-launch-plan', stationId: 'systems', stationNameKey: 'station.title.vehicle', kind: 'launch-rocket', taskKey: 'guide.vega.rocket' },
@@ -11,9 +13,18 @@ export const CREW_GUIDE = Object.freeze([
   { id: 'rover', crewId: 'rios', talkKey: 'josue-rover-plan', stationId: 'rover', stationNameKey: 'lesson.rover.title', kind: 'rover-simulation', mission: 'rover', taskKey: 'guide.rios.rover' },
 ]);
 
+const MAIN_ORDER = CREW_GUIDE.slice(0, 5).map(step => step.id === 'launch'
+  ? { ...step, id: PRIMARY_MISSION, taskKey: 'guide.vega.lunarReturn' }
+  : step);
+
 const CAMPAIGN_ORDER = ['mission', 'mobility', 'science', 'power', 'comms', 'rocket', 'payload', 'review', 'launch', 'rover'];
 
-export function nextGuideStep(completed, completedMissions, { campaign = false, delivered = false } = {}) {
+export function nextGuideStep(completed, completedMissions, { campaign = false, delivered = false, main = false, practice = false } = {}) {
+  if (main || practice) {
+    if (completedMissions.includes(PRIMARY_MISSION)) return null;
+    if (practice) return MAIN_ORDER[0];
+    return MAIN_ORDER.find(step => !completed.has(step.id)) ?? null;
+  }
   if (campaign) {
     return CAMPAIGN_ORDER.map(id => CREW_GUIDE.find(step => step.id === id)).find(step => {
       if (step.id === 'launch') return !delivered;

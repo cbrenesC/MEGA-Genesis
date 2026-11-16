@@ -6,8 +6,8 @@ import { renderResources } from './screens.js';
 import { bindGlossary } from './ui.js';
 import { prepareRetry } from './flow.js';
 import { evaluateAll } from './rules.js';
-import { getLanguage, localizeDOM } from '../../../src/i18n/index.js';
-import { returnToControl } from '../../../src/missions/missionTransfer.js';
+import { getLanguage, localizeDOM, t } from '../../../src/i18n/index.js';
+import { PRIMARY_MISSION, returnToControl } from '../../../src/missions/missionTransfer.js';
 import { BootScene } from './scenes/BootScene.js';
 import { ResultScene } from './scenes/panels.js';
 import { PadScene } from './scenes/PadScene.js';
@@ -52,6 +52,10 @@ app.nav = {
 
 function renderChrome(sceneKey) {
   if (!app.data) return;
+  const profile = app.resolved.scenario.id;
+  const brand = $('mission-brand');
+  brand.removeAttribute('data-i18n');
+  brand.textContent = t(profile === PRIMARY_MISSION ? 'missionFlight.lunarBrand' : `station.scenario.${profile}`);
   const stepsEl = $('steps');
   const reached = (s) => STEPS.findIndex(([k]) => k === s);
   stepsEl.innerHTML = STEPS.map(([key, label], i) => {

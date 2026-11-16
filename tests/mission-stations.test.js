@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { STATIONS } from '../src/map/controlRoomLayout.js';
 import { newFlightPlan, reviewFlightPlan } from '../src/missions/flightPlan.js';
-import { missionUrl, readMissionPlan } from '../src/missions/missionTransfer.js';
+import { missionUrl, PRIMARY_MISSION, readMissionPlan } from '../src/missions/missionTransfer.js';
 import { FlightSim, vehicleFor } from '../games/launch/js/flight.js';
 import { RECOMMENDED_BUILD, validateBuild, createMission, startAction, availability, RULES } from '../games/rover/js/rules.js';
 import en from '../src/i18n/en.json' with { type: 'json' };
@@ -14,6 +14,20 @@ const data = {
   mocks: load('mock-missions'), launchers: load('launchers').launchers, orbits: load('orbits').orbits,
   sites: load('sites').sites, rules: load('rules'), calibration: load('flight-calibration'), flight: load('flight'),
 };
+
+test('New games prioritize the crewed round trip and start on Easy', () => {
+  const plan = newFlightPlan(data);
+  assert.equal(plan.scenarioId, PRIMARY_MISSION);
+  assert.equal(plan.difficulty, 'facil');
+  const draft = reviewFlightPlan(data, plan);
+  assert.equal(draft.events, false);
+  assert.equal(draft.resolved.inputs.spacecraft.return.profile, 'lunarReturn');
+  const approved = { ...plan, launcherId: 'falconheavy', approved: true };
+  const url = new URL(missionUrl('launch', 'en', approved), 'https://example.org');
+  const review = reviewFlightPlan(data, readMissionPlan(url.hash));
+  assert.equal(review.ready, true);
+  assert.equal(review.selected.launchMassKg, 16000);
+});
 
 test('Only the two yellow consoles can start simulations and all eight preparation stations are labeled', () => {
   const yellow = STATIONS.filter(station => station.mission);
@@ -43,7 +57,7 @@ test('Launch needs a compatible, playable and confirmed plan for every preset', 
 });
 
 test('Launch validation carries fuel, dimensions, site and budget from the stations', () => {
-  const plan = { ...newFlightPlan(data), launcherId: 'electron', approved: true, payload: {
+  const plan = { ...newFlightPlan(data), scenarioId: 'smallsat', difficulty: 'normal', launcherId: 'electron', approved: true, payload: {
     massKg: 181, propellantKg: 16, diameterM: 0.91, heightM: 1.19,
   }, budgetMUSD: 65, targetMonths: 10, offloadKg: 2, siteId: 'mahia', rocketFuelPct: 90, events: false };
   const review = reviewFlightPlan(data, plan);
@@ -63,7 +77,7 @@ test('Launch validation carries fuel, dimensions, site and budget from the stati
 });
 
 test('Launch team mode requires every requested approval', () => {
-  const plan = { ...newFlightPlan(data), launcherId: 'electron', teamMode: true, approved: true };
+  const plan = { ...newFlightPlan(data), scenarioId: 'smallsat', difficulty: 'normal', launcherId: 'electron', teamMode: true, approved: true };
   const draft = reviewFlightPlan(data, plan);
   assert.ok(draft.requiredRoles.includes('mission'));
   assert.equal(draft.reason, 'team');
@@ -87,11 +101,17 @@ test('Station plans cross the map-to-simulation boundary without browser storage
 
 test('Launch stations restore briefing cards, rocket comparisons, fairing and checks without starting a flight', async () => {
   const { renderLaunchStation } = await import('../src/missions/launchStationUI.js');
-  const plan = { ...newFlightPlan(data), launcherId: 'electron', teamMode: true };
+  const plan = { ...newFlightPlan(data), scenarioId: 'smallsat', difficulty: 'normal', launcherId: 'electron', teamMode: true };
   const context = { data, plan, view: reviewFlightPlan(data, plan), translate: key => es[key] };
   const html = Object.fromEntries(['mission','payload','vehicle','review'].map(part =>
     [part, renderLaunchStation(part, context, '<div data-fields></div>')]));
   assert.match(html.mission, /class="screen-grid"/);
+  assert.match(html.mission, /<optgroup label="MISIÓN PRINCIPAL">\s*<option value="moonReturn"/);
+  const lunar = newFlightPlan(data);
+  const briefing = renderLaunchStation('mission', { ...context, plan: lunar, view: reviewFlightPlan(data, lunar), translate: key => en[key] }, '');
+  assert.match(briefing, /<option value="moonReturn" selected>/);
+  assert.match(briefing, /lunar orbit → return to Earth → reentry → parachutes and splashdown/);
+  assert.doesNotMatch(briefing, /station\.scenario\.moonReturn/);
   assert.equal((html.mission.match(/name="difficulty"/g) ?? []).length, 3);
   assert.match(html.mission, /Cámara infrarroja/);
   assert.match(html.payload, /15 kg/);

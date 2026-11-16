@@ -1,7 +1,21 @@
 {
   "_about": "MOCKS TEMPORALES. Estos escenarios reemplazan los datos que deberían llegar de otros módulos (objetivo de misión, nave/instrumentos, órbita, presupuesto y calendario) mientras esos módulos no existan o no los publiquen en el estado compartido. Cuando el estado compartido tenga datos reales, el módulo los usa y estos valores se ignoran pieza por pieza. Todas las naves son ficticias, algunas inspiradas en misiones reales. reservedPropellantKg = combustible que la nave necesita sí o sí para llegar a su órbita final (por ejemplo, pasar de GTO a GEO o frenar al llegar a la Luna); el resto es combustible de operación, que define la vida útil.",
-  "defaultScenario": "smallsat",
+  "defaultScenario": "moonReturn",
   "scenarios": [
+    {
+      "id": "moonReturn",
+      "label": "Viaje a la Luna con tripulación: ida y vuelta (inspirado en Apolo 8 y Artemis II)",
+      "objective": "Llevar una cápsula con tripulación hasta la órbita de la Luna y traerla de vuelta a la Tierra, sana y salva.",
+      "spacecraft": { "name": "Quetzal", "massKg": 16000, "propellantKg": 7800, "reservedPropellantKg": 7800, "ispS": 316, "diameterM": 3.9, "heightM": 7.4, "designLifetimeYears": 0.03, "missionDays": 11,
+        "instruments": [ { "id": "capsule", "name": "Cápsula con escudo térmico y paracaídas", "massKg": 5800 }, { "id": "service", "name": "Módulo de servicio (motor, tanques y paneles solares)", "massKg": 2400 } ],
+        "return": {
+          "_about": "Nave de ida y vuelta (ficticia, inspirada en el módulo de mando y servicio de Apolo y en Orion). capsuleKg: la cápsula de Apolo pesaba ~5.560 kg. thrustN: motor del módulo de servicio (el de Apolo daba 91 kN; aquí es menor porque la nave es más liviana). ispS 316 s: motores de combustible almacenable, como el AJ10. capsuleCdA, drogueCdA y chuteCdA = coeficiente de resistencia × área (m²) de la cápsula, de los paracaídas de frenado y de los tres principales (velocidad de amerizaje ~9 m/s, como Orion). shieldLoad = calor total (J/m²) que aguanta el escudo térmico. gLimit = fuerza g cómoda para la tripulación; gBreak = fuerza g con la que se rompe la cápsula. Son valores de juego.",
+          "profile": "lunarReturn", "capsuleKg": 5800, "serviceDryKg": 2400, "thrustN": 45000,
+          "capsuleCdA": 22, "drogueCdA": 60, "chuteCdA": 1100, "shieldLoad": 240000000, "gLimit": 9, "gBreak": 20 } },
+      "orbit": { "type": "TLI", "altitudeKm": 110, "inclinationDeg": null },
+      "budget": { "totalMUSD": 4800, "committedMUSD": 2400 },
+      "schedule": { "monthsToTargetDate": 14, "nextWindowMonths": 0 }
+    },
     {
       "id": "cubesat",
       "label": "CubeSat universitario (6U)",
@@ -61,20 +75,6 @@
       "orbit": { "type": "TLI", "altitudeKm": 100, "inclinationDeg": 90 },
       "budget": { "totalMUSD": 600, "committedMUSD": 420 },
       "schedule": { "monthsToTargetDate": 10, "nextWindowMonths": 0 }
-    },
-    {
-      "id": "moonReturn",
-      "label": "Viaje a la Luna con tripulación: ida y vuelta (inspirado en Apolo 8 y Artemis II)",
-      "objective": "Llevar una cápsula con tripulación hasta la órbita de la Luna y traerla de vuelta a la Tierra, sana y salva.",
-      "spacecraft": { "name": "Quetzal", "massKg": 16000, "propellantKg": 7800, "reservedPropellantKg": 7800, "ispS": 316, "diameterM": 3.9, "heightM": 7.4, "designLifetimeYears": 0.03, "missionDays": 11,
-        "instruments": [ { "id": "capsule", "name": "Cápsula con escudo térmico y paracaídas", "massKg": 5800 }, { "id": "service", "name": "Módulo de servicio (motor, tanques y paneles solares)", "massKg": 2400 } ],
-        "return": {
-          "_about": "Nave de ida y vuelta (ficticia, inspirada en el módulo de mando y servicio de Apolo y en Orion). capsuleKg: la cápsula de Apolo pesaba ~5.560 kg. thrustN: motor del módulo de servicio (el de Apolo daba 91 kN; aquí es menor porque la nave es más liviana). ispS 316 s: motores de combustible almacenable, como el AJ10. capsuleCdA, drogueCdA y chuteCdA = coeficiente de resistencia × área (m²) de la cápsula, de los paracaídas de frenado y de los tres principales (velocidad de amerizaje ~9 m/s, como Orion). shieldLoad = calor total (J/m²) que aguanta el escudo térmico. gLimit = fuerza g cómoda para la tripulación; gBreak = fuerza g con la que se rompe la cápsula. Son valores de juego.",
-          "profile": "lunarReturn", "capsuleKg": 5800, "serviceDryKg": 2400, "thrustN": 45000,
-          "capsuleCdA": 22, "drogueCdA": 60, "chuteCdA": 1100, "shieldLoad": 240000000, "gLimit": 9, "gBreak": 20 } },
-      "orbit": { "type": "TLI", "altitudeKm": 110, "inclinationDeg": null },
-      "budget": { "totalMUSD": 4800, "committedMUSD": 2400 },
-      "schedule": { "monthsToTargetDate": 14, "nextWindowMonths": 0 }
     },
     {
       "id": "mars",
