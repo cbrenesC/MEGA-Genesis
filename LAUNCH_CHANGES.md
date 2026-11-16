@@ -680,3 +680,18 @@ Verificación realizada: recorrido completo en Chrome sin interfaz (escritorio d
 - **Puntaje y resultado** (`lunarScore`, `outcome.js`): 15 órbita terrestre + 15 inyección + 25 órbita lunar + 15 regreso + 30 reentrada y amerizaje. Éxito sólo si la cápsula vuelve; sobrevuelo sin órbita = éxito parcial.
 - **Pruebas**: `tests/lunar.test.mjs` (20): gravedad, predicción, ventanas, misión completa con Falcon Heavy (tres niveles) y SLS, maniobra guiada, reentrada, escudo, paracaídas, puntaje y resultado.
 - **Supuestos y límites**: valores de juego inspirados en Apolo y Orion (ver `spacecraft.return._about`); atmósfera exponencial; cápsula sin sustentación; plano único (sin inclinación lunar). Comprobado con las pruebas y con una página de prueba que carga la escena de vuelo real con Phaser; **no** se probó dentro del juego completo (requiere Vite/Node), ni la consola de la estación, ni la pantalla de resultado.
+
+## V3.9 · Sonidos del regreso de la cápsula (módulo LAUNCH)
+
+Antes, un solo bucle (`reentry-wind.mp3`) sonaba a volumen fijo desde la entrada al aire hasta tocar la superficie, y los paracaídas no sonaban.
+
+- **Dos capas con volumen propio** (`js/returnAudio.js → capsuleAudioLevels`, mezcla en `src/welcome/core/gameAudio.js`):
+  - *Escudo térmico* (`heat-shield-burn.mp3`, nuevo): sigue el calor de la fricción (`sim.heat.flux`). Entra al tocar el aire (100 km), llega al máximo en la parte más caliente (~65 km) y se apaga solo cuando la cápsula ya frenó (~35 km, ~1,4 km/s), igual que el plasma que se dibuja.
+  - *Viento* (`reentry-wind.mp3`): sigue la presión del aire contra la cápsula. Queda tapado mientras el escudo ruge, sube al máximo en la caída libre, baja con los paracaídas de frenado y queda como un soplo con los principales, hasta tocar la superficie.
+  - Los cambios de volumen se suavizan en `FlightScene.updateFlightAudio` para que nada entre ni salga de golpe. Con la cápsula sola ya no suena el bucle del motor por debajo de 100 km.
+- **Paracaídas** (`parachute-deploy.mp3`, nuevo; `chuteEffect`): suena al salir los de frenado (o al romperse) y otra vez cuando se abren los principales, tanto con el botón como con la tecla C o el piloto automático.
+- **Contacto con la superficie**: `capsule-splashdown.mp3` en el mar y `capsule-land-impact.mp3` en tierra, en el instante del contacto y según lo que se ve dibujado (`onWater`).
+- **Audios nuevos**: sintetizados (ruido filtrado y tonos, sin muestras de terceros), MP3 mono 32 kHz a 64 kbps con cabecera `Info` para que el bucle del escudo una sin hueco.
+- **Modo de prueba oculto del regreso (GHJ, `?testReturn=1`)**: entraba tan empinado (72°, 7,3 km/s) que la cápsula se rompía a los 4 s con 21 g y nunca llegaba a los paracaídas; además el resultado fallaba por faltar la órbita de espera. Ahora entra por el corredor real de regreso lunar (punto más bajo a 60 km, ~6,4 g) y cae en mar abierto.
+- **Pruebas**: `games/launch/tests/lunar.test.mjs` (24: niveles durante una reentrada real y los dos sonidos de paracaídas) y `tests/return-audio.test.js` (mezclador, también embebido). Comprobado además en el navegador con el juego real: orden y momento de cada sonido hasta el amerizaje. Lo que no se pudo comprobar aquí es cómo se oyen (timbre y volumen relativo).
+

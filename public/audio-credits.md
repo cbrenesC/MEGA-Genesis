@@ -5,5 +5,6 @@
 - `stage-separation.mp3`: original procedurally synthesized stage-separation effect created for MEGA Genesis.
 
 - `reentry-wind.mp3`, `capsule-splashdown.mp3` and `capsule-land-impact.mp3`: original procedurally synthesized effects created for the capsule's return.
+- `heat-shield-burn.mp3` (loop of the heat shield burning during reentry) and `parachute-deploy.mp3` (mortar pop, fabric unfurling and canopy inflation): original procedurally synthesized effects created for the capsule's return.
 
 The synthesized effects use no third-party audio samples.
