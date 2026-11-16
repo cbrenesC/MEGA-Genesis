@@ -14,25 +14,46 @@ const requirement = medal => medal.stationNameKey && !['launch', 'rover'].includ
   ? t('medals.confirm', { station: t(medal.stationNameKey) })
   : t(`medals.requirement.${medal.id}`);
 
-let notificationTimer;
-export function announceMedals(ids) {
-  const app = document.getElementById('app');
-  let region = app.querySelector('.medal-notifications');
-  if (!region) {
-    region = node('div', 'medal-notifications');
-    region.setAttribute('role', 'status');
-    region.setAttribute('aria-atomic', 'true');
-    app.append(region);
+let rewardQueue = [];
+let rewardOpen = false;
+function nextReward() {
+  if (rewardOpen || !rewardQueue.length) return;
+  rewardOpen = true;
+  const medal = rewardQueue.shift();
+  const dialog = node('dialog', 'medal-reward');
+  dialog.setAttribute('aria-label', name(medal));
+  const panel = node('section', 'medal-reward__panel');
+  const stars = node('div', 'medal-reward__stars');
+  stars.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 24; i++) {
+    const star = node('i');
+    star.style.left = `${(i * 43 + 17) % 100}%`;
+    star.style.top = `${(i * 67 + 9) % 100}%`;
+    star.style.animationDelay = `${i % 7 * .12}s`;
+    stars.append(star);
   }
-  region.replaceChildren(...MEDALS.filter(medal => ids.includes(medal.id)).map(medal => {
-    const toast = node('div', `medal-toast medal-toast--${medal.color}`);
-    const text = node('div');
-    text.append(node('small', '', t('medals.unlockedToast')), node('strong', '', name(medal)));
-    toast.append(medalCanvas(medal, true), text);
-    return toast;
-  }));
-  clearTimeout(notificationTimer);
-  notificationTimer = setTimeout(() => region.replaceChildren(), 3700);
+  const art = node('div', 'medal-reward__art');
+  art.append(medalCanvas(medal, true));
+  const save = node('button', 'medal-reward__save', t('medals.saveReward'));
+  save.type = 'button';
+  save.onclick = () => dialog.close();
+  dialog.addEventListener('cancel', event => event.preventDefault());
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    rewardOpen = false;
+    nextReward();
+  }, { once: true });
+  panel.append(stars, node('p', 'medal-reward__kicker', t('medals.unlockedToast')),
+    art, node('h2', 'medal-reward__title', name(medal)),
+    node('p', 'medal-reward__description', requirement(medal)), save);
+  dialog.append(panel);
+  document.body.append(dialog);
+  dialog.showModal();
+  save.focus();
+}
+export function announceMedals(ids) {
+  rewardQueue.push(...MEDALS.filter(medal => ids.includes(medal.id)));
+  nextReward();
 }
 
 // Export the card directly from Canvas. No images, accounts or remote
