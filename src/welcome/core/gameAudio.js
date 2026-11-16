@@ -21,7 +21,17 @@ let simulationDucked = false;
 const rocketLand = new Audio('/rocket-land.mp3');
 const rocketSpace = new Audio('/rocket-space.mp3');
 const reentryWind = new Audio('/reentry-wind.mp3');
-const rocketTracks = { air: rocketLand, space: rocketSpace, reentry: reentryWind };
+const heatShieldBurn = new Audio('/heat-shield-burn.mp3');
+const rocketTracks = { air: rocketLand, space: rocketSpace };
+// The returning capsule has no engine: it is heard as two layers, each with its own level (0-1).
+// `burn` follows the heat on the shield and `wind` follows the air rushing past, so the burn
+// fades out once the capsule has slowed down while the wind stays until it touches the surface.
+const capsuleTracks = { burn: heatShieldBurn, wind: reentryWind };
+const flightLoops = [...Object.values(rocketTracks), ...Object.values(capsuleTracks)];
+const FLIGHT_MODES = ['air', 'space', 'capsule'];
+const CAPSULE_SILENT = 0.02;
+const capsuleLevels = { burn: 0, wind: 0 };
+const level01 = value => Math.round(Math.max(0, Math.min(1, Number(value) || 0)) * 50) / 50;
 const roverSound = new Audio('/rover.mp3');
 const crewVoices = {
   kade: new Audio('/voice-durman.wav'),
@@ -34,7 +44,7 @@ roverSound.loop = true;
 roverSound.preload = 'auto';
 let roverRunning = false;
 let activeCrewVoice = null;
-for (const sound of Object.values(rocketTracks)) {
+for (const sound of flightLoops) {
   sound.loop = true;
   sound.preload = 'auto';
 }
@@ -45,8 +55,8 @@ function playRocketTrack(sound) {
   rocketPending.add(sound);
   Promise.resolve(sound.play()).catch(error => console.warn('Rocket audio could not play:', error)).finally(() => rocketPending.delete(sound));
 }
-for (const sound of Object.values(rocketTracks)) {
-  sound.addEventListener('canplay', () => { if (activeRocket === sound) syncRocket(); });
+for (const sound of flightLoops) {
+  sound.addEventListener('canplay', () => { if (activeRocket === sound || rocketMode === 'capsule') syncRocket(); });
   sound.addEventListener('error', () => console.warn('Rocket audio failed to load:', sound.currentSrc, sound.error?.code));
 }
 
@@ -56,13 +66,15 @@ let rocketMode = 'air';
 const ATMOSPHERE_EDGE_M = 100000;
 
 // Start fetching every launch sound while the player is still in mission setup.
-const launchSounds = [thruster, ...Object.values(rocketTracks), roverSound, ...Object.values(crewVoices)];
+const launchSounds = [thruster, ...flightLoops, roverSound, ...Object.values(crewVoices)];
 const effectSounds = {
   'stage-separation': new Audio('/stage-separation.mp3'),
+  'parachute-deploy': new Audio('/parachute-deploy.mp3'),
   'capsule-splashdown': new Audio('/capsule-splashdown.mp3'),
   'capsule-land-impact': new Audio('/capsule-land-impact.mp3'),
 };
-const capsuleImpactSounds = [effectSounds['capsule-splashdown'], effectSounds['capsule-land-impact']];
+// One-shot sounds of the capsule's descent: they play in the top window and stop with the flight.
+const capsuleEffectSounds = [effectSounds['parachute-deploy'], effectSounds['capsule-splashdown'], effectSounds['capsule-land-impact']];
 const clickSound = new Audio('/click.mp3');
 let preloadStarted = false;
 export function preloadLaunchAudio() {
@@ -100,17 +112,26 @@ export function stopRoverAudio() {
 function syncRocket() {
   if (isEmbedded) return;
   const prefs = preferences();
-  const target = rocketTracks[rocketMode];
+  const target = rocketTracks[rocketMode] ?? null;
   if (!rocketRunning || rocketPaused || !audioUnlocked || !prefs.audio) {
-    for (const sound of Object.values(rocketTracks)) sound.pause();
+    for (const sound of flightLoops) sound.pause();
     return;
   }
+  const volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
   if (activeRocket !== target) {
     activeRocket?.pause();
     activeRocket = target;
   }
-  target.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));
-  playRocketTrack(target);
+  if (target) {
+    target.volume = volume;
+    playRocketTrack(target);
+  }
+  for (const [name, sound] of Object.entries(capsuleTracks)) {
+    const level = rocketMode === 'capsule' ? capsuleLevels[name] : 0;
+    if (level < CAPSULE_SILENT) { sound.pause(); continue; }
+    sound.volume = volume * level;
+    playRocketTrack(sound);
+  }
 }
 export function setSimulationMusicDucked(ducked) {
   simulationDucked = Boolean(ducked);
@@ -119,18 +140,34 @@ export function setSimulationMusicDucked(ducked) {
 }
 export function startRocketAudio() {
   rocketMode = 'air';
+  capsuleLevels.burn = 0;
+  capsuleLevels.wind = 0;
   if (relayAudio('rocket-start')) return;
   preloadLaunchAudio();
-  for (const sound of Object.values(rocketTracks)) sound.currentTime = 0;
+  for (const sound of flightLoops) sound.currentTime = 0;
   rocketRunning = true;
   rocketPaused = false;
   syncRocket();
 }
-export function updateRocketFlightAudio(altitude, reentry) {
-  setRocketMode(reentry ? 'reentry' : altitude < ATMOSPHERE_EDGE_M ? 'air' : 'space');
+/**
+ * Chooses what the flight sounds like right now. `capsule` is null while the rocket flies (engine
+ * loop by altitude) or `{ burn, wind }` levels (0-1) while the capsule falls through the air.
+ */
+export function updateRocketFlightAudio(altitude, capsule = null) {
+  if (capsule) setCapsuleLevels(capsule);
+  setRocketMode(capsule ? 'capsule' : altitude < ATMOSPHERE_EDGE_M ? 'air' : 'space');
+}
+function setCapsuleLevels(levels) {
+  const burn = level01(levels?.burn);
+  const wind = level01(levels?.wind);
+  if (burn === capsuleLevels.burn && wind === capsuleLevels.wind) return;
+  capsuleLevels.burn = burn;
+  capsuleLevels.wind = wind;
+  if (relayAudio('capsule-levels', { burn, wind })) return;
+  if (rocketMode === 'capsule') syncRocket();
 }
 function setRocketMode(mode) {
-  if (!Object.hasOwn(rocketTracks, mode) || rocketMode === mode) return;
+  if (!FLIGHT_MODES.includes(mode) || rocketMode === mode) return;
   rocketMode = mode;
   if (relayAudio('rocket-mode', mode)) return;
   syncRocket();
@@ -145,7 +182,7 @@ export function stopRocketAudio() {
   rocketRunning = false;
   rocketPaused = false;
   activeRocket = null;
-  for (const sound of [...Object.values(rocketTracks), ...capsuleImpactSounds]) {
+  for (const sound of [...flightLoops, ...capsuleEffectSounds]) {
     sound.pause();
     sound.currentTime = 0;
   }
@@ -229,6 +266,7 @@ window.addEventListener('message', (event) => {
     case 'rocket-stop': stopRocketAudio(); break;
     case 'rocket-pause': pauseRocketAudio(value); break;
     case 'rocket-mode': setRocketMode(value); break;
+    case 'capsule-levels': setCapsuleLevels(value); break;
     case 'flight-effect': playEffect(value); break;
   }
 });
@@ -239,7 +277,7 @@ window.addEventListener('sms-preferences-changed', () => {
   syncRocket();
   syncRover();
   syncCrewVoice();
-  if (!preferences().audio) for (const sound of capsuleImpactSounds) sound.pause();
+  if (!preferences().audio) for (const sound of capsuleEffectSounds) sound.pause();
 });
 window.addEventListener('sms-consent-changed', () => {
   syncMusic();
@@ -277,10 +315,10 @@ export function playClick() {
 export function playEffect(name) {
   if (!Object.hasOwn(effectSounds, name)) return;
   const sound = effectSounds[name];
-  const isImpact = capsuleImpactSounds.includes(sound);
-  if (isImpact && relayAudio('flight-effect', name)) return;
+  const isCapsuleEffect = capsuleEffectSounds.includes(sound);
+  if (isCapsuleEffect && relayAudio('flight-effect', name)) return;
   const prefs = preferences();
-  if (!prefs.audio || (isImpact && !audioUnlocked)) return;
+  if (!prefs.audio || (isCapsuleEffect && !audioUnlocked)) return;
   sound.pause();
   sound.currentTime = 0;
   sound.volume = Math.max(0, Math.min(1, prefs.effectsVolume ?? 0.45));

@@ -19,7 +19,7 @@ import { LUNAR, LUNAR_PHASE_LABEL, newGuide, lunarPlan, newLunarAutopilot, lunar
 import { globeSample } from './earth.js';
 import { app, inputs, current, reducedMotion } from '../store.js';
 import { pauseGameplayMusic, playEffect, resumeGameplayMusic, setThruster, startRocketAudio, updateRocketFlightAudio, pauseRocketAudio, stopRocketAudio, setSimulationMusicDucked } from '../../../../src/welcome/core/gameAudio.js';
-import { capsuleImpactEffect, playsReentryWind } from '../returnAudio.js';
+import { capsuleAudioLevels, capsuleImpactEffect, chuteEffect } from '../returnAudio.js';
 import { createSim, finishFlight } from '../flow.js';
 import { Hud } from '../hud.js';
 import { esc } from '../screens.js';
@@ -88,10 +88,22 @@ export class FlightScene extends Phaser.Scene {
     this.returnTest = new URLSearchParams(location.search).get('testReturn') === '1' && Boolean(sim.mission);
     if (this.returnTest) {
       sim.t = 5 * 86400;
-      sim.x = 0;
-      sim.y = PHYS.RE + 145000;
-      sim.vx = 2200;
-      sim.vy = -7000;
+      // Same path as a real return from the Moon: an ellipse from lunar distance whose lowest point
+      // (ignoring the air) is the entry target, picked up shortly before it meets the atmosphere.
+      // A steeper or slower entry breaks the capsule apart long before the parachutes can open.
+      const rp = PHYS.RE + LUNAR.ENTRY_TARGET; const ra = MOON.DIST; const r = PHYS.RE + 125000;
+      const v = Math.sqrt(PHYS.MU * (2 / r - 2 / (rp + ra)));
+      const vt = Math.sqrt((PHYS.MU * rp * ra * 2) / (rp + ra)) / r;
+      const vr = Math.sqrt(v * v - vt * vt);
+      // The descent covers about 1,760 km of ground. Starting 3,410 km before the launch site brings
+      // the capsule down in the middle of the wide ocean west of it (on the game's globe, open water
+      // runs from 1,100 to 2,200 km away), so the test ends in a splashdown.
+      const a0 = Math.PI / 2 - sim.atmRate * sim.t + 3410000 / PHYS.RE;
+      const ux = Math.cos(a0); const uy = Math.sin(a0);
+      sim.x = r * ux;
+      sim.y = r * uy;
+      sim.vx = vt * uy - vr * ux; // tangential speed points east (clockwise), radial speed points down
+      sim.vy = -vt * ux - vr * uy;
       sim.grounded = false;
       sim.status = 'flying';
       sim.stage = sim.stageCount;
@@ -101,6 +113,7 @@ export class FlightScene extends Phaser.Scene {
       sim.stats.maxAlt = 400000;
       Object.assign(sim.mission, {
         leo: true, tli: true, soi: true, lunarOrbit: true, tei: true, left: true,
+        parking: { periKm: 200, apoKm: 250 }, // el puntaje final describe la órbita de espera
       });
     }
     this.sim = sim;
@@ -112,6 +125,8 @@ export class FlightScene extends Phaser.Scene {
     this.shadow = newAutopilot(app.reference?.program ?? app.vehicleInfo.program);
     this.warp = 1;
     this.autoWarp = null;
+    this.capsuleAudio = { burn: 0, wind: 0 }; // fuerza actual (suavizada) del escudo térmico y del viento
+    this.chuteHeard = sim.chuteState;
     this.paused = true;
     this.ended = false;
     this.endTimer = 0;
@@ -414,9 +429,7 @@ export class FlightScene extends Phaser.Scene {
     }
     const enginePower = this.paused || this.ended || sim.engineOut ? 0 : this.ignition ? this.spool : sim.status === 'flying' ? sim.throttle : 0;
     setThruster(enginePower);
-    if (sim.status !== 'ended' && !this.paused) {
-      updateRocketFlightAudio(sim.body === 'moon' ? Infinity : sim.altitude, playsReentryWind(sim));
-    }
+    if (sim.status !== 'ended' && !this.paused) this.updateFlightAudio(dt);
     this.updateHints(followThrottle);
     this.drawFrame(dt);
     if (sim.status === 'ended' && !this.ended) this.onEnded();
@@ -633,6 +646,27 @@ export class FlightScene extends Phaser.Scene {
     this.hud.message(msg, b.result === 'ok' ? 'ok' : 'warn');
     this.noticeUntil = performance.now() + 5000;
     this.hud.setAttitude('prograde'); // queda mirando hacia adelante
+  }
+
+  /**
+   * Sonido del vuelo en este cuadro. El cohete suena según la altura; la cápsula que regresa, según la física:
+   * el escudo térmico ruge mientras se calienta y el viento acompaña toda la caída (ver returnAudio.js).
+   */
+  updateFlightAudio(dt) {
+    const sim = this.sim;
+    const levels = capsuleAudioLevels(sim);
+    const mix = this.capsuleAudio;
+    if (levels) {
+      // se acerca de a poco al valor que toca, para que nada entre ni salga de golpe
+      const k = 1 - Math.exp(-dt * 4);
+      mix.burn += (levels.burn - mix.burn) * k;
+      mix.wind += (levels.wind - mix.wind) * k;
+    } else { mix.burn = 0; mix.wind = 0; }
+    updateRocketFlightAudio(sim.body === 'moon' ? Infinity : sim.altitude, levels ? mix : null);
+    const chute = sim.chuteState;
+    const effect = chuteEffect(this.chuteHeard, chute);
+    this.chuteHeard = chute;
+    if (effect) playEffect(effect);
   }
 
   doChute() {

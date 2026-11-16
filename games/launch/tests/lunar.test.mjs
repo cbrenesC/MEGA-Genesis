@@ -16,7 +16,7 @@ import {
 } from '../js/lunar.js';
 import { primaryMissionCompleted } from '../../../src/missions/missionTransfer.js';
 import { evaluateLauncher } from '../js/rules.js';
-import { capsuleImpactEffect, playsReentryWind } from '../js/returnAudio.js';
+import { RETURN_AUDIO, capsuleAudioLevels, capsuleImpactEffect, chuteEffect } from '../js/returnAudio.js';
 import { planFlightEvents, resolveFlight } from '../js/outcome.js';
 
 const load = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../data/${name}.json`, import.meta.url)), 'utf8'));
@@ -62,28 +62,68 @@ function fall(sim, { chuteAt = null, maxDays = 2 } = {}) {
 }
 const goodChute = (s) => s.altitude < LUNAR.CHUTE_ALT && s.aero().v < LUNAR.CHUTE_SPEED;
 
-test('return wind begins before atmospheric entry, loops through descent, then gives way to the surface impact', () => {
+test('heat-shield burn fades once friction drops while the wind stays until the surface', () => {
   const sim = capsuleReturning(60);
   const advanceUntil = (condition) => {
     for (let i = 0; i < 20000 && sim.status === 'flying' && !condition(sim); i++) sim.advance(0.5, {});
     assert.ok(condition(sim));
   };
-  assert.equal(playsReentryWind(sim), false, 'no wind on the way back through vacuum');
-  advanceUntil(playsReentryWind);
-  assert.ok(sim.altitude > PHYS.ATM_TOP);
-  assert.equal(sim.stats.entryT, null);
+  assert.equal(capsuleAudioLevels(sim), null, 'silent on the way back through vacuum');
   advanceUntil(s => s.stats.entryT != null);
-  assert.notEqual(sim.stats.entryT, null);
-  assert.equal(playsReentryWind(sim), true);
+  assert.ok(capsuleAudioLevels(sim).burn > 0, 'the shield is heard as soon as it heats up');
+  // peak heating: the burn is at full strength and covers most of the wind
+  advanceUntil(s => s.heat.flux > RETURN_AUDIO.BURN_FULL);
+  let levels = capsuleAudioLevels(sim);
+  assert.equal(levels.burn, 1);
+  assert.ok(levels.wind > 0.2 && levels.wind < 0.5);
+  // slowed down: the plasma is gone, so the burn stops and the wind of the free fall takes over
+  advanceUntil(s => s.aero().v < 1200);
+  levels = capsuleAudioLevels(sim);
+  assert.equal(levels.burn, 0);
+  assert.ok(levels.wind > 0.9);
   advanceUntil(goodChute);
-  sim.deployChute();
-  assert.equal(playsReentryWind(sim), true);
+  assert.equal(capsuleAudioLevels(sim).burn, 0);
+  const freeFall = capsuleAudioLevels(sim).wind;
+  assert.equal(sim.deployChute(), 'ok');
+  // the wind calms down under each set of parachutes but never stops before touchdown
+  advanceUntil(s => s.chuteState === 'main' && s.aero().v < 20);
+  levels = capsuleAudioLevels(sim);
+  assert.equal(levels.burn, 0);
+  assert.ok(levels.wind > 0.15 && levels.wind < freeFall * 0.5);
   assert.equal(capsuleImpactEffect(sim, () => true), null);
   fall(sim);
   assert.ok(sim.landing);
-  assert.equal(playsReentryWind(sim), false);
+  assert.equal(capsuleAudioLevels(sim), null);
   assert.equal(capsuleImpactEffect(sim, () => true), 'capsule-splashdown');
   assert.equal(capsuleImpactEffect(sim, () => false), 'capsule-land-impact');
+});
+
+test('capsule layers stay silent with the service module attached or away from Earth air', () => {
+  const attached = capsuleReturning(60, { attached: true });
+  for (let i = 0; i < 20000 && attached.status === 'flying' && attached.altitude > 90000; i++) attached.advance(0.5, {});
+  assert.ok(attached.altitude < PHYS.ATM_TOP);
+  assert.equal(capsuleAudioLevels(attached), null);
+});
+
+test('parachute deployment sounds when the drogues come out and again when the mains open', () => {
+  assert.equal(chuteEffect('none', 'none'), null);
+  assert.equal(chuteEffect('none', 'drogue'), 'parachute-deploy');
+  assert.equal(chuteEffect('drogue', 'drogue'), null);
+  assert.equal(chuteEffect('drogue', 'opening'), 'parachute-deploy');
+  assert.equal(chuteEffect('opening', 'main'), null);
+  assert.equal(chuteEffect('none', 'torn'), 'parachute-deploy');
+  assert.equal(chuteEffect('torn', 'torn'), null);
+  // through a real descent it plays exactly twice
+  const sim = capsuleReturning(60);
+  let heard = sim.chuteState; let plays = 0;
+  while (sim.status === 'flying') {
+    if (!sim.chute && goodChute(sim)) sim.deployChute();
+    sim.advance(sim.altitude < 120000 ? 0.25 : 5, {});
+    if (chuteEffect(heard, sim.chuteState)) plays++;
+    heard = sim.chuteState;
+  }
+  assert.ok(sim.landing);
+  assert.equal(plays, 2);
 });
 
 test('only capsule surface contact can play a return impact', () => {
